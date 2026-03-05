@@ -23,6 +23,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Search,
+  Inbox,
 } from "lucide-react";
 
 interface DataTableProps<TData> {
@@ -82,14 +84,17 @@ export function DataTable<TData>({
 
   return (
     <div className="space-y-4">
-      <Input
-        placeholder={searchPlaceholder}
-        value={localSearch}
-        onChange={(e) => setLocalSearch(e.target.value)}
-        className="max-w-sm"
-      />
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={searchPlaceholder}
+          value={localSearch}
+          onChange={(e) => setLocalSearch(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -135,9 +140,12 @@ export function DataTable<TData>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-32 text-center"
                 >
-                  No se encontraron resultados.
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Inbox className="h-8 w-8" />
+                    <p>No se encontraron resultados.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}

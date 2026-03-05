@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserList } from "@/components/users/user-list";
 import { getUsers } from "@/server/queries/users";
@@ -37,7 +37,15 @@ export default async function UsersPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Usuarios</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+            <UserCog className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Usuarios</h1>
+            <p className="text-sm text-muted-foreground">Administración de usuarios del sistema</p>
+          </div>
+        </div>
         <Button asChild>
           <Link href="/users/new">
             <Plus className="mr-2 h-4 w-4" />

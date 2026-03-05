@@ -46,16 +46,44 @@ const adminNavigation = [
   { name: "Configuración", href: "/settings", icon: Settings },
 ];
 
+function UserAvatar({ name }: { name: string }) {
+  const initial = name.charAt(0).toUpperCase();
+  return (
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
+      {initial}
+    </div>
+  );
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
+  const userName = session?.user?.name ?? "Usuario";
+  const userRole = session?.user?.role ?? "viewer";
+
+  const roleLabels: Record<string, string> = {
+    admin: "Administrador",
+    technician: "Técnico",
+    viewer: "Visor",
+  };
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b px-6 py-4">
-        <h1 className="text-lg font-semibold">HSM</h1>
-        <p className="text-xs text-muted-foreground">Hardware Support Manager</p>
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+            HSM
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold leading-tight text-sidebar-foreground">
+              Hardware Support
+            </span>
+            <span className="text-xs text-sidebar-foreground/60">
+              Manager
+            </span>
+          </div>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -95,14 +123,19 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton>
-                  <UserCog className="h-4 w-4" />
-                  <span>{session?.user?.name ?? "Usuario"}</span>
+                <SidebarMenuButton className="h-auto py-2">
+                  <UserAvatar name={userName} />
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium leading-tight">{userName}</span>
+                    <span className="text-xs text-sidebar-foreground/60">
+                      {roleLabels[userRole] ?? userRole}
+                    </span>
+                  </div>
                   <ChevronUp className="ml-auto h-4 w-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>

@@ -1,11 +1,9 @@
-import Link from "next/link";
-import { Plus, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ClientList } from "@/components/clients/client-list";
-import { getClients } from "@/server/queries/clients";
+import { AlertTriangle } from "lucide-react";
+import { getIncidents } from "@/server/queries/incidents";
+import { IncidentPageContent } from "@/components/incidents/incident-page-content";
 import type { SortOrder } from "@/types";
 
-export default async function ClientsPage({
+export default async function IncidentsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,7 +16,7 @@ export default async function ClientsPage({
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "createdAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
-  const initialData = await getClients({
+  const initialData = await getIncidents({
     page,
     pageSize,
     search,
@@ -30,22 +28,18 @@ export default async function ClientsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-            <Users className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Clientes</h1>
-            <p className="text-sm text-muted-foreground">Gestión de clientes</p>
+            <h1 className="text-2xl font-bold">Incidencias</h1>
+            <p className="text-sm text-muted-foreground">
+              Gestión de tickets de soporte técnico
+            </p>
           </div>
         </div>
-        <Button asChild>
-          <Link href="/clients/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Cliente
-          </Link>
-        </Button>
       </div>
-      <ClientList initialData={initialData} />
+      <IncidentPageContent initialData={initialData} />
     </div>
   );
 }
