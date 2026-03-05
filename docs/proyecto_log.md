@@ -62,10 +62,78 @@ src/app/(dashboard)/users/   # pages: list, new, [id] (admin only)
 src/hooks/use-table-search-params.ts
 ```
 
+### Phase 3: Rediseño UI - Azul Profundo + Dashboard + Canvas (Completada)
+
+Rediseño visual completo con tema profesional y funcionalidades de dashboard y kanban.
+
+**Tema Azul Profundo**
+- Variables CSS OKLch actualizadas en `globals.css`: primary azul eléctrico (#3b82f6), sidebar azul noche (#1a1f36), fondo gris claro (#f8fafc)
+- Variables semánticas `--success` (verde) y `--warning` (ámbar)
+- Chart colors: azul, esmeralda, ámbar, rojo, azul oscuro
+
+**Sidebar rediseñado**
+- Logo: caja azul `bg-primary` con "HSM" + nombre "Hardware Support / Manager" en dos líneas
+- Footer: avatar circular con inicial del usuario + nombre + rol traducido
+- Bordes con color de sidebar-border
+
+**Login split-screen**
+- Panel izquierdo: fondo azul noche con logo HSM, título y descripción
+- Panel derecho: formulario limpio con icono Mail en input
+- Logo HSM visible solo en móvil (panel izquierdo oculto en mobile)
+
+**Header mejorado**
+- Altura h-16, `bg-card shadow-sm` para contraste con fondo
+
+**Dashboard visual completo**
+- 4 KPI cards con iconos en fondo coloreado: Incidencias Abiertas, RMAs Activos, Clientes, Proveedores
+- AreaChart tendencia de incidencias (30 días) con empty state
+- BarChart horizontal distribución por estado con labels en español
+- Lista scrollable de actividad reciente (event_logs con joins a users)
+- Botones de acciones rápidas (Nueva Incidencia, Nuevo RMA, Nuevo Cliente)
+- Server queries en `src/server/queries/dashboard.ts` con try/catch y defaults seguros
+
+**Vista Canvas/Kanban (componentes compartidos)**
+- `CanvasView`: contenedor scroll horizontal con columnas por estado
+- `EntityCard`: tarjeta con número coloreado, prioridad badge, aging badge, entidad relacionada
+- `AgingBadge`: verde (<1d), ámbar (1-3d), rojo (>3d) basado en `calculateAging()`
+- `ViewToggle`: toggle tabla/canvas con ToggleGroup de shadcn
+
+**Páginas Incidencias y RMAs funcionales**
+- Server queries con joins: `getIncidents()` (join clients + users), `getRmas()` (join providers + incidents)
+- Server actions wrapper: `fetchIncidents()`, `fetchRmas()`
+- DataTable con columnas: número, título/estado, prioridad, cliente/proveedor, aging, fecha
+- Vista canvas con columnas por estado activo (excluye cerrado/cancelado)
+- Toggle tabla/canvas en cada página
+
+**Mejoras en páginas existentes**
+- DataTable: icono Search en input, empty state con icono Inbox, `bg-card` en tabla
+- Páginas de lista (clients, providers, users): header con icono coloreado en fondo tenue + subtítulo descriptivo
+- Dashboard layout: `bg-background` en main para contraste cards/fondo
+
+**shadcn/ui components añadidos**: chart, tabs, toggle, toggle-group
+
+#### Archivos principales Phase 3:
+```
+src/app/globals.css                          # Tema Azul Profundo completo
+src/components/layout/app-sidebar.tsx        # Sidebar rediseñado con avatar
+src/components/layout/app-header.tsx         # Header con bg-card shadow
+src/app/(auth)/layout.tsx                    # Login split-screen
+src/app/(auth)/login/page.tsx                # Login con icono Mail
+src/app/(dashboard)/dashboard/page.tsx       # Dashboard con KPIs y gráficos
+src/components/dashboard/                    # kpi-card, incidents-chart, status-distribution, recent-activity, quick-actions
+src/components/shared/                       # canvas-view, entity-card, aging-badge, view-toggle
+src/components/incidents/                    # incident-columns, incident-list, incident-canvas, incident-page-content
+src/components/rmas/                         # rma-columns, rma-list, rma-canvas, rma-page-content
+src/server/queries/dashboard.ts              # getDashboardStats, getRecentActivity, getIncidentStatusDistribution, getIncidentTrend
+src/server/queries/incidents.ts              # getIncidents, getIncidentById (con joins)
+src/server/queries/rmas.ts                   # getRmas, getRmaById (con joins)
+src/server/actions/incidents.ts              # fetchIncidents wrapper
+src/server/actions/rmas.ts                   # fetchRmas wrapper
+```
+
 ## Próximas Fases
-- **Phase 3**: CRUD de Incidencias (con state machine, event log, file attachments)
-- **Phase 4**: CRUD de RMAs (con state machine, tracking, vinculación a incidencias)
-- **Phase 5**: Dashboard con métricas y gráficos
+- **Phase 4**: CRUD completo de Incidencias (formularios crear/editar, transiciones de estado, event log, file attachments)
+- **Phase 5**: CRUD completo de RMAs (formularios, tracking, vinculación a incidencias)
 - **Phase 6**: Pulido, optimización y deploy
 
 ## Notas de Deploy (Vercel)

@@ -184,9 +184,96 @@
 
 ---
 
+### SESION 3 — 2026-03-05
+
+**Objetivo**: Rediseño UI completo — Tema Azul Profundo, Dashboard visual, Vista Canvas/Kanban
+**Estado final**: COMPLETADA CON EXITO
+
+#### Que se hizo
+
+**Paso 1 — Tema CSS "Azul Profundo"**
+- Reemplazo completo de variables OKLch en `:root` con paleta azul:
+  - Primary: `oklch(0.623 0.214 259)` — azul eléctrico (#3b82f6)
+  - Sidebar: `oklch(0.205 0.04 265)` — azul noche (#1a1f36)
+  - Background: `oklch(0.98 0.005 265)` — gris muy claro (#f8fafc)
+  - Ring: misma que primary para coherencia
+- Variables semánticas añadidas: `--success` (verde), `--warning` (ámbar)
+- Chart colors: azul, esmeralda, ámbar, rojo, azul oscuro
+- Modo dark actualizado con misma gama azul
+
+**Paso 2 — Sidebar rediseñado**
+- Logo: caja `bg-primary` con "HSM" + texto en dos líneas
+- Footer: componente `UserAvatar` (círculo con inicial) + nombre + rol traducido
+- Bordes con `border-sidebar-border` para coherencia
+
+**Paso 3 — Header mejorado**
+- Altura `h-16` (era `h-14`)
+- `bg-card shadow-sm` en lugar de solo `border-b`
+
+**Paso 4 — Login split-screen**
+- Layout: panel izquierdo azul noche con logo HSM, título de marca y copyright
+- Panel derecho: formulario centrado con icono `Mail` en el input
+- Logo HSM visible en móvil via `lg:hidden`
+
+**Paso 5 — Dashboard visual completo**
+- `src/server/queries/dashboard.ts`:
+  - `getDashboardStats()` — cuenta incidencias abiertas, RMAs activos, clientes, proveedores
+  - `getRecentActivity()` — event_logs con join a users
+  - `getIncidentStatusDistribution()` — GROUP BY status (excluye cerrado/cancelado)
+  - `getIncidentTrend()` — GROUP BY fecha (30 días) para gráfico
+- `src/components/dashboard/kpi-card.tsx` — Card con icono en fondo coloreado, valor `text-3xl font-bold`
+- `src/components/dashboard/incidents-chart.tsx` — AreaChart con Recharts via shadcn ChartContainer
+- `src/components/dashboard/status-distribution.tsx` — BarChart horizontal con labels en español
+- `src/components/dashboard/recent-activity.tsx` — ScrollArea con items de actividad
+- `src/components/dashboard/quick-actions.tsx` — 3 botones: Nueva Incidencia, Nuevo RMA, Nuevo Cliente
+- Dashboard page: server component con layout 4-cols KPI + 3-cols (chart+activity) + 3-cols (distribution+actions)
+
+**Paso 6 — Vista Canvas/Kanban (componentes compartidos)**
+- `src/components/shared/canvas-view.tsx` — Contenedor scroll horizontal, columnas con barra de color superior, conteo de items, empty state con borde punteado
+- `src/components/shared/entity-card.tsx` — Tarjeta: número en `text-primary`, prioridad badge, título truncado, aging badge, usuario/entidad relacionada
+- `src/components/shared/aging-badge.tsx` — Badge con icono Clock, verde (<1d), ámbar (1-3d), rojo (>3d)
+- `src/components/shared/view-toggle.tsx` — ToggleGroup (tabla/canvas) con iconos Table2/LayoutGrid
+
+**Paso 7 — Páginas Incidencias y RMAs funcionales**
+- `src/server/queries/incidents.ts` — `getIncidents()` con join a clients y users, `getIncidentById()`
+- `src/server/queries/rmas.ts` — `getRmas()` con join a providers y incidents, `getRmaById()`
+- `src/server/actions/incidents.ts` — `fetchIncidents()` wrapper con auth
+- `src/server/actions/rmas.ts` — `fetchRmas()` wrapper con auth
+- `src/components/incidents/` — incident-columns, incident-list, incident-canvas, incident-page-content
+- `src/components/rmas/` — rma-columns, rma-list, rma-canvas, rma-page-content
+- Páginas: header con icono coloreado + subtítulo + toggle tabla/canvas
+
+**Paso 8 — Mejoras en páginas existentes**
+- DataTable: icono Search en input, empty state con Inbox, `bg-card` en tabla
+- Páginas clients, providers, users: header rediseñado con icono en fondo tenue + subtítulo
+- Dashboard layout: `bg-background` en main
+
+**Componentes shadcn/ui instalados**: chart, tabs, toggle, toggle-group
+
+#### Verificaciones finales
+
+| Verificacion | Resultado |
+|---|---|
+| `npm run build` | PASA — 0 errores, 0 warnings |
+| `npm run lint` | PASA — 0 errores, 0 warnings |
+| `npm test` | PASA — 58 tests en 7 archivos |
+
+#### Metricas
+
+| Metrica | Valor |
+|---|---|
+| Archivos modificados | 13 |
+| Archivos nuevos | 29 |
+| Lineas añadidas | ~2,288 |
+| Componentes dashboard | 5 |
+| Componentes shared nuevos | 4 |
+| Server queries nuevas | 7 (4 dashboard + 2 incidents + 1 rma get by ID) |
+
+---
+
 ## Estado Actual del Proyecto
 
-### Lo que ESTA hecho (Fase 1)
+### Lo que ESTA hecho (Fases 1-3)
 - [x] Scaffolding completo (Next.js 15, Tailwind v4, shadcn/ui)
 - [x] Esquema de BD completo (8 tablas con relaciones)
 - [x] Sistema de autenticacion funcional (login/logout, roles, middleware)
@@ -199,39 +286,31 @@
 - [x] Providers globales (Query, Session, nuqs, Toaster)
 - [x] Seed de BD
 - [x] Tests de state machines y utilidades
+- [x] CRUD completo para Clientes, Proveedores, Usuarios
+- [x] DataTable reutilizable con paginacion, busqueda, ordenamiento
+- [x] Tema "Azul Profundo" aplicado a toda la app
+- [x] Dashboard visual con KPIs, graficos y actividad reciente
+- [x] Vista Canvas/Kanban para incidencias y RMAs
+- [x] Listado de incidencias y RMAs con tabla y canvas
+- [x] Queries de incidencias/RMAs con joins
 
 ### Lo que FALTA (Fases futuras)
 
-**Fase 2 — CRUD de Entidades Base**
-- [ ] Server actions para Clientes (crear, editar, listar, eliminar)
-- [ ] Server actions para Proveedores
-- [ ] Server actions para Usuarios (admin only)
-- [ ] Queries de servidor para cada entidad
-- [ ] Paginas de listado con DataTable (filtros, paginacion, busqueda)
-- [ ] Paginas de creacion/edicion con formularios
-- [ ] Componente DataTable reutilizable
-
-**Fase 3 — Incidencias**
-- [ ] Server actions para incidencias (CRUD + transiciones de estado)
-- [ ] Listado de incidencias con filtros por estado, prioridad, categoria
-- [ ] Detalle de incidencia con timeline de eventos
-- [ ] Formulario de creacion/edicion
-- [ ] Transiciones de estado con validacion de rol
-- [ ] Event log (audit trail)
+**Fase 4 — CRUD completo de Incidencias**
+- [ ] Server actions para incidencias (crear, editar, eliminar, transiciones de estado)
+- [ ] Formulario de creacion/edicion de incidencia
+- [ ] Pagina de detalle de incidencia con timeline de eventos
+- [ ] Transiciones de estado con validacion de rol (botones en detalle)
+- [ ] Event log (audit trail) con componente timeline
 - [ ] Adjuntos (upload/download/delete)
-- [ ] Aging tracking visual
+- [ ] Drag & drop en vista canvas (opcional)
 
-**Fase 4 — RMAs**
-- [ ] Server actions para RMAs (CRUD + transiciones)
-- [ ] Listado de RMAs con filtros
-- [ ] Detalle de RMA con timeline
-- [ ] Vinculacion con incidencias
-- [ ] Tracking de envios
-
-**Fase 5 — Dashboard y Reportes**
-- [ ] Widgets del dashboard con datos reales
-- [ ] Graficos con Recharts (incidencias por estado, por prioridad, tendencias)
-- [ ] Metricas de rendimiento (tiempo medio de resolucion, SLA)
+**Fase 5 — CRUD completo de RMAs**
+- [ ] Server actions para RMAs (crear, editar, eliminar, transiciones)
+- [ ] Formulario de creacion/edicion de RMA
+- [ ] Pagina de detalle con timeline
+- [ ] Vinculacion con incidencias (selector)
+- [ ] Tracking de envios (numeros de seguimiento)
 
 **Fase 6 — Pulido**
 - [ ] Pagina de configuracion
@@ -284,4 +363,4 @@ BLOB_READ_WRITE_TOKEN=     # Vercel Blob token
 3. Si hay BD configurada: `npm run db:push && npm run db:seed`
 4. Iniciar dev: `npm run dev`
 5. Consultar este archivo para ver que falta por hacer
-6. La siguiente fase logica es **Fase 2: CRUD de Entidades Base**
+6. La siguiente fase logica es **Fase 4: CRUD completo de Incidencias**
