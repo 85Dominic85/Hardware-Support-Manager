@@ -209,6 +209,26 @@ src/app/not-found.tsx                      # 404 personalizado
 src/app/(dashboard)/*/loading.tsx          # Skeletons (4 archivos)
 ```
 
+### Sesión de depuración: .next corrupto (2026-03-06)
+
+Tras completar la Phase 6, todas las páginas mostraban "Algo salió mal" (error boundary) al navegar por el sidebar. El error en consola decía: "An error occurred in the Server Components render."
+
+**Causa raíz**: Ejecutar `npm run build` mientras el dev server con Turbopack está corriendo corrompe el directorio `.next`. La build de producción sobrescribe los manifiestos de Turbopack, provocando que el dev server devuelva "Internal Server Error" (500) en todas las peticiones RSC (navegación client-side).
+
+**Síntomas**:
+- La carga HTML directa (primera visita) funcionaba
+- La navegación via sidebar (RSC fetch) fallaba con 500
+- Eventualmente, el servidor completo devolvía 500 en todos los endpoints
+
+**Solución**:
+1. Parar el dev server (`Ctrl+C`)
+2. Eliminar el directorio `.next` (`rm -rf .next`)
+3. Reiniciar con `npm run dev`
+
+**Prevención**: Siempre parar el dev server antes de ejecutar `npm run build`. Luego reiniciar con `npm run dev`.
+
+---
+
 ## Próximas Fases
 - **Phase 7**: Gestión de perfil, responsive mobile-first, export CSV, notificaciones email
 
