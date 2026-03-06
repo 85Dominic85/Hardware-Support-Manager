@@ -1,4 +1,6 @@
-import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { getIncidents } from "@/server/queries/incidents";
 import { IncidentPageContent } from "@/components/incidents/incident-page-content";
 import type { SortOrder } from "@/types";
@@ -38,6 +40,12 @@ export default async function IncidentsPage({
             </p>
           </div>
         </div>
+        <Button asChild>
+          <Link href="/incidents/new">
+            <Plus className="h-4 w-4 mr-1" />
+            Nueva Incidencia
+          </Link>
+        </Button>
       </div>
       <IncidentPageContent initialData={initialData} />
     </div>

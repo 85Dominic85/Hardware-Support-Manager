@@ -297,9 +297,98 @@
 
 ---
 
+### SESION 5 — 2026-03-06
+
+**Objetivo**: Fases 4+5 — CRUD completo de Incidencias y RMAs (create, update, detail, transitions, event log, attachments)
+**Estado final**: COMPLETADA CON EXITO
+
+#### Que se hizo
+
+**Paso 1 — Server actions de update y transicion**
+- `src/server/actions/incidents.ts`:
+  - `updateIncident(id, input)` — actualiza campos, inserta event_log "updated"
+  - `transitionIncident(input)` — valida con state machine, actualiza status/stateChangedAt, maneja resolvedAt, inserta event_log "transition"
+  - `createIncident()` refactorizado: ahora usa `db.transaction()` para insertar incidencia + event_log "created" atomicamente
+- `src/server/actions/rmas.ts`:
+  - `updateRma(id, input)` — mismo patron
+  - `transitionRma(input)` — valida con state machine RMA, transaccion atomica
+  - `createRma()` refactorizado con transaccion + event_log "created"
+
+**Paso 2 — Event log (queries + timeline)**
+- `src/server/queries/event-logs.ts` — `getEventLogs(entityType, entityId)` con join a users, ordenado desc
+- `src/server/actions/event-logs.ts` — `fetchEventLogs()` wrapper con auth
+- `src/components/shared/event-log-timeline.tsx` — Timeline vertical:
+  - Iconos por accion (Plus, Pencil, ArrowRight, Paperclip, Trash2)
+  - Badges de estado from→to para transiciones
+  - Comentarios y nombres de archivo en details
+  - Fecha relativa y nombre de usuario
+  - Loading state con Loader2
+
+**Paso 3 — Adjuntos (queries, actions, UI)**
+- `src/server/queries/attachments.ts` — `getAttachments(entityType, entityId)` con join a users
+- `src/server/actions/attachments.ts`:
+  - `createAttachment(input)` — inserta en DB + event_log "attachment_added" en transaccion
+  - `deleteAttachment(id)` — borra de Vercel Blob + DB + event_log "attachment_removed"
+  - `fetchAttachments()` — wrapper con auth
+- `src/components/shared/attachment-section.tsx`:
+  - Upload via POST a `/api/upload` + `createAttachment()`
+  - Lista con icono por tipo (Image, FileText, File), nombre como link, tamano, usuario, fecha
+  - Boton eliminar con confirmacion
+  - Invalida queries de attachments y event-logs tras operaciones
+
+**Paso 4 — Componentes de detalle y transiciones**
+- `src/components/shared/transition-dialog.tsx` — Dialog reutilizable con textarea para comentario opcional
+- `src/components/incidents/state-transition-buttons.tsx`:
+  - Usa `useSession()` para obtener role
+  - `getAvailableTransitions(status, role)` del state machine
+  - Botones por transicion (variant destructive para "Cancelar")
+  - Click abre TransitionDialog → `useMutation` con `transitionIncident()`
+- `src/components/rmas/state-transition-buttons.tsx` — mismo patron con `getRmaAvailableTransitions`
+- `src/components/incidents/incident-detail.tsx`:
+  - Read mode: header con numero+titulo, badges (status, prioridad), botones Editar/Volver
+  - Cards: info general (cliente, asignado, categoria, aging, descripcion), dispositivo, fechas
+  - Secciones: transiciones, adjuntos, event log timeline
+  - Edit mode: IncidentForm con defaultValues + useMutation para updateIncident
+- `src/components/rmas/rma-detail.tsx` — mismo patron con campos RMA (proveedor, tracking, notas, incidencia vinculada como link)
+
+**Paso 5 — Rutas y navegacion**
+- `src/app/(dashboard)/incidents/new/page.tsx` — renderiza CreateIncidentPage
+- `src/app/(dashboard)/incidents/[id]/page.tsx` — server component, getIncidentById, renderiza IncidentDetail
+- `src/app/(dashboard)/rmas/new/page.tsx` — renderiza CreateRmaPage
+- `src/app/(dashboard)/rmas/[id]/page.tsx` — server component, getRmaById, renderiza RmaDetail
+- `src/components/incidents/incident-columns.tsx` — incidentNumber como `<Link>` clickable
+- `src/components/rmas/rma-columns.tsx` — rmaNumber como `<Link>` clickable
+- `src/app/(dashboard)/incidents/page.tsx` — boton "Nueva Incidencia" con icono Plus
+- `src/app/(dashboard)/rmas/page.tsx` — boton "Nuevo RMA" con icono Plus
+
+**Fix aplicado**
+- `src/lib/validators/incident.ts` — removido `.default("media")` del schema Zod para resolver conflicto de tipos con zodResolver (el form ya proporciona el default en defaultValues)
+
+#### Verificaciones finales
+
+| Verificacion | Resultado |
+|---|---|
+| `npm run build` | PASA — 0 errores, 0 warnings |
+| `npm run lint` | PASA — 0 errores, 0 warnings |
+| `npm test` | PASA — 58 tests en 7 archivos |
+
+#### Metricas
+
+| Metrica | Valor |
+|---|---|
+| Archivos nuevos | 15 |
+| Archivos modificados | 7 |
+| Lineas anadidas (estimado) | ~1,500 |
+| Server actions nuevas | 7 (updateIncident, transitionIncident, updateRma, transitionRma, createAttachment, deleteAttachment, fetchEventLogs) |
+| Queries nuevas | 2 (getEventLogs, getAttachments) |
+| Componentes nuevos | 7 (incident-detail, rma-detail, state-transition-buttons x2, transition-dialog, event-log-timeline, attachment-section) |
+| Rutas nuevas | 4 (/incidents/new, /incidents/[id], /rmas/new, /rmas/[id]) |
+
+---
+
 ## Estado Actual del Proyecto
 
-### Lo que ESTA hecho (Fases 1-3)
+### Lo que ESTA hecho (Fases 1-5)
 - [x] Scaffolding completo (Next.js 15, Tailwind v4, shadcn/ui)
 - [x] Esquema de BD completo (8 tablas con relaciones)
 - [x] Sistema de autenticacion funcional (login/logout, roles, middleware)
@@ -319,24 +408,15 @@
 - [x] Vista Canvas/Kanban para incidencias y RMAs
 - [x] Listado de incidencias y RMAs con tabla y canvas
 - [x] Queries de incidencias/RMAs con joins
+- [x] CRUD completo de Incidencias (crear, editar, detalle, transiciones de estado)
+- [x] CRUD completo de RMAs (crear, editar, detalle, transiciones de estado)
+- [x] Event log (audit trail) con timeline visual
+- [x] Adjuntos polimorficos (upload/download/delete con Vercel Blob)
+- [x] Transiciones de estado con validacion de rol y comentarios
+- [x] Numeros en listados como links clickables a detalle
+- [x] Botones "Nuevo" en paginas de listado
 
 ### Lo que FALTA (Fases futuras)
-
-**Fase 4 — CRUD completo de Incidencias**
-- [ ] Server actions para incidencias (crear, editar, eliminar, transiciones de estado)
-- [ ] Formulario de creacion/edicion de incidencia
-- [ ] Pagina de detalle de incidencia con timeline de eventos
-- [ ] Transiciones de estado con validacion de rol (botones en detalle)
-- [ ] Event log (audit trail) con componente timeline
-- [ ] Adjuntos (upload/download/delete)
-- [ ] Drag & drop en vista canvas (opcional)
-
-**Fase 5 — CRUD completo de RMAs**
-- [ ] Server actions para RMAs (crear, editar, eliminar, transiciones)
-- [ ] Formulario de creacion/edicion de RMA
-- [ ] Pagina de detalle con timeline
-- [ ] Vinculacion con incidencias (selector)
-- [ ] Tracking de envios (numeros de seguimiento)
 
 **Fase 6 — Pulido**
 - [ ] Pagina de configuracion
@@ -345,6 +425,7 @@
 - [ ] Manejo de errores global
 - [ ] Loading states y skeletons
 - [ ] SEO y metadata
+- [ ] Drag & drop en vista canvas (opcional)
 
 ---
 

@@ -1,4 +1,6 @@
-import { RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { RotateCcw, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { getRmas } from "@/server/queries/rmas";
 import { RmaPageContent } from "@/components/rmas/rma-page-content";
 import type { SortOrder } from "@/types";
@@ -38,6 +40,12 @@ export default async function RmasPage({
             </p>
           </div>
         </div>
+        <Button asChild>
+          <Link href="/rmas/new">
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo RMA
+          </Link>
+        </Button>
       </div>
       <RmaPageContent initialData={initialData} />
     </div>

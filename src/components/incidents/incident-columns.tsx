@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { IncidentRow } from "@/server/queries/incidents";
 import { IncidentStateBadge } from "@/components/shared/state-badge";
@@ -20,7 +21,12 @@ export const incidentColumns: ColumnDef<IncidentRow, unknown>[] = [
     accessorKey: "incidentNumber",
     header: "N\u00famero",
     cell: ({ row }) => (
-      <span className="font-medium text-primary">{row.original.incidentNumber}</span>
+      <Link
+        href={`/incidents/${row.original.id}`}
+        className="font-medium text-primary hover:underline"
+      >
+        {row.original.incidentNumber}
+      </Link>
     ),
   },
   {

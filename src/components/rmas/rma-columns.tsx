@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { RmaRow } from "@/server/queries/rmas";
 import { RmaStateBadge } from "@/components/shared/state-badge";
@@ -11,7 +12,12 @@ export const rmaColumns: ColumnDef<RmaRow, unknown>[] = [
     accessorKey: "rmaNumber",
     header: "N\u00famero",
     cell: ({ row }) => (
-      <span className="font-medium text-primary">{row.original.rmaNumber}</span>
+      <Link
+        href={`/rmas/${row.original.id}`}
+        className="font-medium text-primary hover:underline"
+      >
+        {row.original.rmaNumber}
+      </Link>
     ),
   },
   {

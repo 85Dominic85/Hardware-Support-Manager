@@ -5,7 +5,7 @@ export const createIncidentSchema = z.object({
   title: z.string().min(1, "El título es obligatorio").max(500),
   description: z.string().optional().or(z.literal("")),
   category: z.enum(["hardware", "periferico", "red", "almacenamiento", "impresora", "monitor", "otro"]),
-  priority: z.enum(["baja", "media", "alta", "critica"]).default("media"),
+  priority: z.enum(["baja", "media", "alta", "critica"]),
   assignedUserId: z.string().uuid("Usuario inválido").optional().or(z.literal("")),
   deviceBrand: z.string().max(255).optional().or(z.literal("")),
   deviceModel: z.string().max(255).optional().or(z.literal("")),
