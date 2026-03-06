@@ -227,6 +227,27 @@ Tras completar la Phase 6, todas las páginas mostraban "Algo salió mal" (error
 
 **Prevención**: Siempre parar el dev server antes de ejecutar `npm run build`. Luego reiniciar con `npm run dev`.
 
+### Sesión de depuración: Deploy Vercel + Supabase (2026-03-06)
+
+Tras migrar de Neon a Supabase, las variables de entorno en Vercel seguían apuntando a Neon. Algunas páginas (clients, providers, users) devolvían 500 en producción.
+
+**Causa raíz (doble)**:
+1. Las variables de entorno (`DATABASE_URL`) en Vercel no se habían actualizado tras la migración a Supabase
+2. Tras actualizar las variables, hacía falta un **redeploy** para que el build usara las nuevas variables
+
+**Auditoría realizada**:
+- Todo el código apunta correctamente a Supabase (postgres-js, `prepare: false`, schema `hsm`)
+- No quedan dependencias de `@neondatabase/serverless` en el código
+- Las 9 tablas, 6 enums y permisos del rol `hsm_app` están correctos en Supabase
+- El `AGENTS.md` tiene referencias obsoletas a Neon (solo documentación, no código)
+
+**Variables de entorno en Vercel**:
+- `DATABASE_URL`: Connection string de Supabase pooler (puerto 6543)
+- `NEXTAUTH_URL`: `https://hardware-support-manager.vercel.app`
+- `NEXTAUTH_SECRET`: Secret para JWT
+
+**Resultado**: Todas las 7 páginas devuelven HTTP 200 en producción.
+
 ---
 
 ## Próximas Fases
@@ -234,10 +255,15 @@ Tras completar la Phase 6, todas las páginas mostraban "Algo salió mal" (error
 
 ## Notas de Deploy (Vercel)
 1. Conectar repositorio GitHub a Vercel
-2. Configurar variables de entorno en Vercel dashboard
+2. Configurar variables de entorno en Vercel dashboard:
+   - `DATABASE_URL`: Supabase pooler connection string (`postgresql://hsm_app.[ref]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres`)
+   - `NEXTAUTH_URL`: URL de producción (`https://hardware-support-manager.vercel.app`)
+   - `NEXTAUTH_SECRET`: Secret generado con `openssl rand -base64 32`
+   - `BLOB_READ_WRITE_TOKEN`: Token de Vercel Blob (para adjuntos)
 3. Framework preset: Next.js (auto-detectado)
 4. Build command: `next build` (default)
 5. La base de datos debe estar creada y migrada antes del primer deploy:
    - Ejecutar `npm run db:push` o `npm run db:migrate` contra la DB de producción
    - Ejecutar `npm run db:seed` si se desean datos demo
 6. El build pasa sin necesidad de DATABASE_URL gracias a la inicialización lazy del DB client
+7. **Importante**: Tras cambiar variables de entorno, siempre hacer Redeploy manual
