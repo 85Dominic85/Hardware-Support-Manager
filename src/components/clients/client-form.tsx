@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -40,6 +41,7 @@ export function ClientForm({
       phone: defaultValues?.phone ?? "",
       company: defaultValues?.company ?? "",
       address: defaultValues?.address ?? "",
+      clientPnp: defaultValues?.clientPnp ?? false,
       notes: defaultValues?.notes ?? "",
     },
   });
@@ -120,6 +122,23 @@ export function ClientForm({
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="clientPnp"
+          render={({ field }) => (
+            <FormItem className="flex items-center gap-2 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Cliente PNP</FormLabel>
               <FormMessage />
             </FormItem>
           )}

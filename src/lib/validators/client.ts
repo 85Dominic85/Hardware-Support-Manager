@@ -6,6 +6,7 @@ export const createClientSchema = z.object({
   phone: z.string().max(50).optional().or(z.literal("")),
   company: z.string().max(255).optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
+  clientPnp: z.boolean().optional(),
   notes: z.string().optional().or(z.literal("")),
 });
 

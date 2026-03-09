@@ -51,6 +51,7 @@ export function ClientDetail({ client: initialClient }: ClientDetailProps) {
                 phone: client.phone ?? "",
                 company: client.company ?? "",
                 address: client.address ?? "",
+                clientPnp: client.clientPnp ?? false,
                 notes: client.notes ?? "",
               }}
               onSubmit={(data) => updateMutation.mutate(data)}
@@ -104,6 +105,12 @@ export function ClientDetail({ client: initialClient }: ClientDetailProps) {
                 Empresa
               </dt>
               <dd className="mt-1 text-sm">{client.company || "-"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">
+                Cliente PNP
+              </dt>
+              <dd className="mt-1 text-sm">{client.clientPnp ? "Sí" : "No"}</dd>
             </div>
             <div className="sm:col-span-2">
               <dt className="text-sm font-medium text-muted-foreground">

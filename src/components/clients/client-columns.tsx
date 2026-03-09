@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MoreHorizontal } from "lucide-react";
+import { Check, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -79,6 +79,14 @@ export function getClientColumns({
         />
       ),
       cell: ({ row }) => row.original.company || "-",
+    },
+    {
+      accessorKey: "clientPnp",
+      header: "PNP",
+      cell: ({ row }) =>
+        row.original.clientPnp ? (
+          <Check className="h-4 w-4 text-emerald-600" />
+        ) : null,
     },
     {
       accessorKey: "createdAt",

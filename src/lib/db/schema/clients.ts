@@ -1,4 +1,4 @@
-import { uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import { uuid, varchar, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { hsmSchema } from "./hsm-schema";
 
 export const clients = hsmSchema.table("clients", {
@@ -8,6 +8,7 @@ export const clients = hsmSchema.table("clients", {
   phone: varchar("phone", { length: 50 }),
   company: varchar("company", { length: 255 }),
   address: text("address"),
+  clientPnp: boolean("client_pnp").default(false),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),

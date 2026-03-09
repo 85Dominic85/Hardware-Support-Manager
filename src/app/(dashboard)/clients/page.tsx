@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClientList } from "@/components/clients/client-list";
+import { ImportClientsButton } from "@/components/clients/import-clients-button";
 import { getClients } from "@/server/queries/clients";
 import type { SortOrder } from "@/types";
 
@@ -43,12 +44,15 @@ export default async function ClientsPage({
             <p className="text-sm text-muted-foreground">Gestión de clientes</p>
           </div>
         </div>
-        <Button asChild>
-          <Link href="/clients/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Cliente
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <ImportClientsButton />
+          <Button asChild>
+            <Link href="/clients/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Cliente
+            </Link>
+          </Button>
+        </div>
       </div>
       <ClientList initialData={initialData} />
     </div>
