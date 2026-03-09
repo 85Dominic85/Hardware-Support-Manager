@@ -30,6 +30,15 @@ export function getClientColumns({
 }: GetClientColumnsParams): ColumnDef<ClientRow, unknown>[] {
   return [
     {
+      accessorKey: "id",
+      header: "ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.id.slice(0, 8)}
+        </span>
+      ),
+    },
+    {
       accessorKey: "name",
       header: () => (
         <DataTableColumnHeader
