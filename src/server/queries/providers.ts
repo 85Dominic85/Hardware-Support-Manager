@@ -16,8 +16,7 @@ export async function getProviders(
   const searchCondition = search
     ? or(
         ilike(providers.name, `%${search}%`),
-        ilike(providers.email, `%${search}%`),
-        ilike(providers.contactPerson, `%${search}%`)
+        ilike(providers.email, `%${search}%`)
       )
     : undefined;
 
@@ -67,8 +66,6 @@ function getSortColumn(sortBy: string): AnyColumn {
   const columns: Record<string, AnyColumn> = {
     name: providers.name,
     email: providers.email,
-    phone: providers.phone,
-    contactPerson: providers.contactPerson,
     website: providers.website,
     createdAt: providers.createdAt,
   };

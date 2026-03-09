@@ -23,6 +23,55 @@ async function seed() {
     .onConflictDoNothing();
 
   console.log("Admin user created: admin@hardware-support.local / admin123");
+
+  // Seed providers
+  const providerData = [
+    {
+      name: "GEON",
+      email: "sat@g-on.es",
+      contacts: [],
+    },
+    {
+      name: "JASSWAY",
+      email: "sat@jassway.es",
+      rmaUrl: "soporte.jassway.net/tickets.php",
+      contacts: [],
+    },
+    {
+      name: "PC Mira",
+      email: "sat@pcmira.com",
+      rmaUrl: "pcmira.com/soporte/",
+      contacts: [],
+    },
+    {
+      name: "Posiflex",
+      rmaUrl: "posiflex.es/sat?ini=rma",
+      contacts: [],
+    },
+    {
+      name: "Pedro Porto",
+      contacts: [
+        { name: "Soporte Tecnico ES", email: "tecnica.es@pedroporto.pt", role: "SAT" },
+        { name: "Jose Romero", email: "jose.romero@pedroporto.pt", role: "Comercial" },
+      ],
+    },
+    {
+      name: "AQPROX",
+      contacts: [
+        { name: "Ana Zaragoza", email: "anazaragoza@mylar.es", role: "Comercial" },
+        { name: "Fran y Sergio", email: "rma@mylar.es", phone: "954186767", role: "Tecnico" },
+      ],
+    },
+  ];
+
+  for (const p of providerData) {
+    await db
+      .insert(schema.providers)
+      .values(p)
+      .onConflictDoNothing();
+  }
+
+  console.log(`${providerData.length} providers seeded`);
   console.log("Seed completed!");
 
   await client.end();

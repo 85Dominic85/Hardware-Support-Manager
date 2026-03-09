@@ -2,8 +2,9 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { MoreHorizontal } from "lucide-react";
+import { ExternalLink, MoreHorizontal, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,7 @@ import {
 import { DataTableColumnHeader } from "@/components/shared/data-table-column-header";
 import { formatDate } from "@/lib/utils";
 import type { ProviderRow } from "@/server/queries/providers";
-import type { SortOrder } from "@/types";
+import type { SortOrder, ProviderContact } from "@/types";
 
 interface GetProviderColumnsParams {
   onDelete: (id: string) => void;
@@ -53,7 +54,7 @@ export function getProviderColumns({
       accessorKey: "email",
       header: () => (
         <DataTableColumnHeader
-          title="Email"
+          title="Email SAT"
           sortKey="email"
           currentSortBy={sortBy}
           currentSortOrder={sortOrder}
@@ -63,43 +64,38 @@ export function getProviderColumns({
       cell: ({ row }) => row.original.email || "-",
     },
     {
-      accessorKey: "phone",
-      header: "Telefono",
-      cell: ({ row }) => row.original.phone || "-",
-    },
-    {
-      accessorKey: "contactPerson",
-      header: () => (
-        <DataTableColumnHeader
-          title="Persona de contacto"
-          sortKey="contactPerson"
-          currentSortBy={sortBy}
-          currentSortOrder={sortOrder}
-          onSort={onSort}
-        />
-      ),
-      cell: ({ row }) => row.original.contactPerson || "-",
-    },
-    {
-      accessorKey: "website",
-      header: "Web",
-      cell: ({ row }) =>
-        row.original.website ? (
+      id: "rmaUrl",
+      header: "Portal RMA",
+      cell: ({ row }) => {
+        const url = row.original.rmaUrl;
+        if (!url) return "-";
+        const href = url.startsWith("http") ? url : `https://${url}`;
+        return (
           <a
-            href={
-              row.original.website.startsWith("http")
-                ? row.original.website
-                : `https://${row.original.website}`
-            }
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline"
+            className="inline-flex items-center gap-1 text-primary hover:underline"
           >
-            {row.original.website}
+            <ExternalLink className="h-3 w-3" />
+            Abrir
           </a>
-        ) : (
-          "-"
-        ),
+        );
+      },
+    },
+    {
+      id: "contacts",
+      header: "Contactos",
+      cell: ({ row }) => {
+        const contacts = (row.original.contacts ?? []) as ProviderContact[];
+        if (contacts.length === 0) return "-";
+        return (
+          <Badge variant="secondary" className="gap-1">
+            <Users className="h-3 w-3" />
+            {contacts.length}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "createdAt",

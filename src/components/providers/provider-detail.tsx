@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ExternalLink, Mail, Phone, User } from "lucide-react";
 import { updateProvider } from "@/server/actions/providers";
 import { ProviderForm } from "@/components/providers/provider-form";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -17,6 +19,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import type { ProviderRow } from "@/server/queries/providers";
 import type { CreateProviderInput } from "@/lib/validators/provider";
+import type { ProviderContact } from "@/types";
 
 interface ProviderDetailProps {
   provider: ProviderRow;
@@ -25,6 +28,8 @@ interface ProviderDetailProps {
 export function ProviderDetail({ provider }: ProviderDetailProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+
+  const contacts = (provider.contacts ?? []) as ProviderContact[];
 
   const updateMutation = useMutation({
     mutationFn: (data: CreateProviderInput) =>
@@ -53,9 +58,9 @@ export function ProviderDetail({ provider }: ProviderDetailProps) {
               defaultValues={{
                 name: provider.name,
                 email: provider.email ?? "",
-                phone: provider.phone ?? "",
-                contactPerson: provider.contactPerson ?? "",
                 website: provider.website ?? "",
+                rmaUrl: provider.rmaUrl ?? "",
+                contacts: contacts,
                 notes: provider.notes ?? "",
               }}
               onSubmit={(data) => updateMutation.mutate(data)}
@@ -91,16 +96,8 @@ export function ProviderDetail({ provider }: ProviderDetailProps) {
               <p className="text-sm">{provider.name}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Email</p>
+              <p className="text-sm font-medium text-muted-foreground">Email SAT</p>
               <p className="text-sm">{provider.email || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Telefono</p>
-              <p className="text-sm">{provider.phone || "-"}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Persona de contacto</p>
-              <p className="text-sm">{provider.contactPerson || "-"}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Sitio web</p>
@@ -114,9 +111,32 @@ export function ProviderDetail({ provider }: ProviderDetailProps) {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
                   >
                     {provider.website}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  "-"
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Portal RMA</p>
+              <p className="text-sm">
+                {provider.rmaUrl ? (
+                  <a
+                    href={
+                      provider.rmaUrl.startsWith("http")
+                        ? provider.rmaUrl
+                        : `https://${provider.rmaUrl}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    {provider.rmaUrl}
+                    <ExternalLink className="h-3 w-3" />
                   </a>
                 ) : (
                   "-"
@@ -132,6 +152,50 @@ export function ProviderDetail({ provider }: ProviderDetailProps) {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Notas</p>
               <p className="text-sm whitespace-pre-wrap">{provider.notes}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contactos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {contacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay contactos registrados</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {contacts.map((contact, index) => (
+                <div
+                  key={index}
+                  className="rounded-lg border p-4 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">{contact.name}</span>
+                    </div>
+                    {contact.role && (
+                      <Badge variant="secondary">{contact.role}</Badge>
+                    )}
+                  </div>
+                  {contact.email && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-3 w-3" />
+                      <a href={`mailto:${contact.email}`} className="hover:underline">
+                        {contact.email}
+                      </a>
+                    </div>
+                  )}
+                  {contact.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      <span>{contact.phone}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

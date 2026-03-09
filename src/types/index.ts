@@ -1,3 +1,10 @@
+export interface ProviderContact {
+  name: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+}
+
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
