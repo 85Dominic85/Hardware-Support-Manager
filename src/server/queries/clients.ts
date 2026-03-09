@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
-import { eq, and, or, ilike, isNull, asc, desc, count, type AnyColumn } from "drizzle-orm";
+import { eq, and, or, ilike, isNull, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type ClientRow = typeof clients.$inferSelect;
@@ -17,7 +17,8 @@ export async function getClients(
     ? or(
         ilike(clients.name, `%${search}%`),
         ilike(clients.email, `%${search}%`),
-        ilike(clients.company, `%${search}%`)
+        ilike(clients.company, `%${search}%`),
+        sql`${clients.id}::text ILIKE ${`%${search}%`}`
       )
     : undefined;
 

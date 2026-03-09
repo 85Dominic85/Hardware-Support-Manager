@@ -26,7 +26,7 @@ export function ProviderList({ initialData }: ProviderListProps) {
     queryKey: ["providers", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
       fetchProviders({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    initialData,
+    placeholderData: initialData,
   });
 
   const deleteMutation = useMutation({

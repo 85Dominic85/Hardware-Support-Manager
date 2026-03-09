@@ -37,7 +37,7 @@ export function UserList({ initialData }: UserListProps) {
         sortBy,
         sortOrder: sortOrder as SortOrder,
       }),
-    initialData,
+    placeholderData: initialData,
   });
 
   const deleteMutation = useMutation({
