@@ -2,9 +2,15 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { ExternalLink, MoreHorizontal, Users } from "lucide-react";
+import { ExternalLink, Eye, Globe, Mail, MoreHorizontal, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,10 +96,135 @@ export function getProviderColumns({
         const contacts = (row.original.contacts ?? []) as ProviderContact[];
         if (contacts.length === 0) return "-";
         return (
-          <Badge variant="secondary" className="gap-1">
-            <Users className="h-3 w-3" />
-            {contacts.length}
-          </Badge>
+          <div className="space-y-1">
+            {contacts.map((c, i) => (
+              <div key={i} className="text-sm leading-tight">
+                <span className="font-medium">{c.name}</span>
+                {c.email && (
+                  <span className="text-muted-foreground"> · {c.email}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      id: "preview",
+      header: "",
+      cell: ({ row }) => {
+        const provider = row.original;
+        const contacts = (provider.contacts ?? []) as ProviderContact[];
+        const rmaHref = provider.rmaUrl
+          ? provider.rmaUrl.startsWith("http")
+            ? provider.rmaUrl
+            : `https://${provider.rmaUrl}`
+          : null;
+        const webHref = provider.website
+          ? provider.website.startsWith("http")
+            ? provider.website
+            : `https://${provider.website}`
+          : null;
+
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Eye className="h-4 w-4" />
+                <span className="sr-only">Vista rapida</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-semibold text-sm">{provider.name}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Creado {formatDate(provider.createdAt)}
+                  </p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2 text-sm">
+                  {provider.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <a href={`mailto:${provider.email}`} className="text-primary hover:underline truncate">
+                        {provider.email}
+                      </a>
+                    </div>
+                  )}
+                  {webHref && (
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <a href={webHref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                        {provider.website}
+                      </a>
+                    </div>
+                  )}
+                  {rmaHref && (
+                    <div className="flex items-center gap-2">
+                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <a href={rmaHref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+                        Portal RMA
+                      </a>
+                    </div>
+                  )}
+                  {!provider.email && !provider.website && !provider.rmaUrl && (
+                    <p className="text-muted-foreground">Sin datos de contacto general</p>
+                  )}
+                </div>
+
+                {contacts.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Contactos ({contacts.length})
+                      </p>
+                      {contacts.map((c, i) => (
+                        <div key={i} className="rounded-md border p-2 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-sm font-medium">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              {c.name}
+                            </div>
+                            {c.role && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                {c.role}
+                              </Badge>
+                            )}
+                          </div>
+                          {c.email && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              <a href={`mailto:${c.email}`} className="hover:underline">{c.email}</a>
+                            </div>
+                          )}
+                          {c.phone && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              <span>{c.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {provider.notes && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notas</p>
+                      <p className="text-sm text-muted-foreground line-clamp-3">{provider.notes}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         );
       },
     },
