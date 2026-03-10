@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,11 +40,20 @@ export function SearchableSelect({
   disabled,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
+  const filtered = useMemo(() => {
+    if (!search) return options;
+    const q = search.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, search]);
+
+  const showEmpty = search.length > 0 && filtered.length === 0;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -63,21 +72,23 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
-            <CommandEmpty>
-              <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-              {emptyAction && <div className="mt-2">{emptyAction}</div>}
-            </CommandEmpty>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filtered.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.label}
                   onSelect={() => {
                     onValueChange(option.value === value ? "" : option.value);
                     setOpen(false);
+                    setSearch("");
                   }}
                 >
                   <Check
@@ -92,6 +103,10 @@ export function SearchableSelect({
             </CommandGroup>
           </CommandList>
         </Command>
+        {/* Botón de acción fuera del Command para no interferir con el filtrado */}
+        {emptyAction && showEmpty && (
+          <div className="border-t p-2">{emptyAction}</div>
+        )}
       </PopoverContent>
     </Popover>
   );
