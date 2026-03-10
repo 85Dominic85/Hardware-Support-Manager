@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -55,21 +55,25 @@ export function DataTable<TData>({
   onSearchChange,
 }: DataTableProps<TData>) {
   const [localSearch, setLocalSearch] = useState(searchValue);
+  const onSearchChangeRef = useRef(onSearchChange);
+  onSearchChangeRef.current = onSearchChange;
+  const searchValueRef = useRef(searchValue);
+  searchValueRef.current = searchValue;
 
   // Sync external search value
   useEffect(() => {
     setLocalSearch(searchValue);
   }, [searchValue]);
 
-  // Debounce search
+  // Debounce search — uses refs to avoid resetting the timer on callback/prop changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (localSearch !== searchValue) {
-        onSearchChange(localSearch);
+      if (localSearch !== searchValueRef.current) {
+        onSearchChangeRef.current(localSearch);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [localSearch, searchValue, onSearchChange]);
+  }, [localSearch]);
 
   const table = useReactTable({
     data,
