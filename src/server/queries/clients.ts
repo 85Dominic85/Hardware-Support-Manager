@@ -15,9 +15,9 @@ export async function getClients(
 
   const searchCondition = search
     ? or(
-        ilike(clients.name, `%${search}%`),
-        ilike(clients.email, `%${search}%`),
-        ilike(clients.company, `%${search}%`),
+        sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${clients.email}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${clients.company}) ILIKE unaccent(${`%${search}%`})`,
         sql`${clients.id}::text ILIKE ${`%${search}%`}`
       )
     : undefined;

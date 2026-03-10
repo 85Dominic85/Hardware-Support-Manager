@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { providers } from "@/lib/db/schema";
-import { eq, and, or, ilike, isNull, asc, desc, count, type AnyColumn } from "drizzle-orm";
+import { eq, and, or, isNull, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type ProviderRow = typeof providers.$inferSelect;
@@ -15,8 +15,8 @@ export async function getProviders(
 
   const searchCondition = search
     ? or(
-        ilike(providers.name, `%${search}%`),
-        ilike(providers.email, `%${search}%`)
+        sql`unaccent(${providers.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${providers.email}) ILIKE unaccent(${`%${search}%`})`
       )
     : undefined;
 

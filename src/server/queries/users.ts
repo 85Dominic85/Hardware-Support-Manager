@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { eq, and, or, ilike, isNull, asc, desc, count, type AnyColumn } from "drizzle-orm";
+import { eq, and, or, isNull, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type UserRow = Omit<typeof users.$inferSelect, "passwordHash">;
@@ -15,8 +15,8 @@ export async function getUsers(
 
   const searchCondition = search
     ? or(
-        ilike(users.name, `%${search}%`),
-        ilike(users.email, `%${search}%`)
+        sql`unaccent(${users.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${users.email}) ILIKE unaccent(${`%${search}%`})`
       )
     : undefined;
 

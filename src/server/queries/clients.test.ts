@@ -35,7 +35,7 @@ function createSelectChain() {
           if (typeof prop === "string" && methods.includes(prop)) {
             return chain[prop];
           }
-          return (target as Record<string | symbol, unknown>)[prop];
+          return (target as unknown as Record<string | symbol, unknown>)[prop];
         },
       });
     };

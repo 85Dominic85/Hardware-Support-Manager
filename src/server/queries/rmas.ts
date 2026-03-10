@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { rmas, incidents, providers, clients } from "@/lib/db/schema";
-import { eq, or, ilike, asc, desc, count, type AnyColumn } from "drizzle-orm";
+import { eq, or, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type RmaRow = typeof rmas.$inferSelect & {
@@ -17,11 +17,11 @@ export async function getRmas(
 
   const searchCondition = search
     ? or(
-        ilike(rmas.rmaNumber, `%${search}%`),
-        ilike(providers.name, `%${search}%`),
-        ilike(clients.name, `%${search}%`),
-        ilike(rmas.deviceBrand, `%${search}%`),
-        ilike(rmas.deviceModel, `%${search}%`)
+        sql`${rmas.rmaNumber} ILIKE ${`%${search}%`}`,
+        sql`unaccent(${providers.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${rmas.deviceBrand}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${rmas.deviceModel}) ILIKE unaccent(${`%${search}%`})`
       )
     : undefined;
 

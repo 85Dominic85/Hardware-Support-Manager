@@ -16,6 +16,20 @@ function normalize(text: string): string {
   return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+/** Busca si las letras de `query` aparecen en orden dentro de `text` (subsecuencia).
+ *  Ej: "burguer" matchea "hamBURGUEseRia" porque b,u,r,g,u,e,r aparecen en orden. */
+function fuzzyMatch(text: string, query: string): boolean {
+  const t = normalize(text);
+  const q = normalize(query);
+  let ti = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const idx = t.indexOf(q[qi], ti);
+    if (idx === -1) return false;
+    ti = idx + 1;
+  }
+  return true;
+}
+
 interface SearchableSelectProps {
   options: { value: string; label: string }[];
   value: string;
@@ -44,8 +58,7 @@ export function SearchableSelect({
 
   const filtered = useMemo(() => {
     if (!search) return options;
-    const q = normalize(search);
-    return options.filter((o) => normalize(o.label).includes(q));
+    return options.filter((o) => fuzzyMatch(o.label, search));
   }, [options, search]);
 
   return (

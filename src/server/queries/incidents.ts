@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { incidents, clients, users } from "@/lib/db/schema";
-import { eq, or, ilike, asc, desc, count, type AnyColumn } from "drizzle-orm";
+import { eq, or, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type IncidentRow = typeof incidents.$inferSelect & {
@@ -16,9 +16,9 @@ export async function getIncidents(
 
   const searchCondition = search
     ? or(
-        ilike(incidents.incidentNumber, `%${search}%`),
-        ilike(incidents.title, `%${search}%`),
-        ilike(clients.name, `%${search}%`)
+        sql`${incidents.incidentNumber} ILIKE ${`%${search}%`}`,
+        sql`unaccent(${incidents.title}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`
       )
     : undefined;
 
