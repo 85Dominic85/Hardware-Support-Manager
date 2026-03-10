@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -44,13 +44,10 @@ export function SearchableSelect({
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
-  const filtered = useMemo(() => {
-    if (!search) return options;
-    const q = search.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
-  }, [options, search]);
-
-  const showEmpty = search.length > 0 && filtered.length === 0;
+  // Comprobar si hay resultados para mostrar el emptyAction fuera del Command
+  const hasResults = !search || options.some((o) =>
+    o.label.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
@@ -72,16 +69,15 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command shouldFilter={false}>
+        <Command>
           <CommandInput
             placeholder={searchPlaceholder}
-            value={search}
             onValueChange={setSearch}
           />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
-              {filtered.map((option) => (
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.label}
@@ -103,8 +99,7 @@ export function SearchableSelect({
             </CommandGroup>
           </CommandList>
         </Command>
-        {/* Botón de acción fuera del Command para no interferir con el filtrado */}
-        {emptyAction && showEmpty && (
+        {emptyAction && !hasResults && (
           <div className="border-t p-2">{emptyAction}</div>
         )}
       </PopoverContent>
