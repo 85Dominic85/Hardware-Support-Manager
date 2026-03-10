@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
+/** Normaliza texto: minúsculas, sin acentos ni diacríticos */
+function normalize(text: string): string {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 interface SearchableSelectProps {
   options: { value: string; label: string }[];
@@ -44,9 +49,20 @@ export function SearchableSelect({
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
-  // Comprobar si hay resultados para mostrar el emptyAction fuera del Command
-  const hasResults = !search || options.some((o) =>
-    o.label.toLowerCase().includes(search.toLowerCase())
+  // Filtrado manual: sin acentos, sin case, substring
+  const filtered = useMemo(() => {
+    if (!search) return options;
+    const q = normalize(search);
+    return options.filter((o) => normalize(o.label).includes(q));
+  }, [options, search]);
+
+  // Filtro custom para cmdk: devuelve 1 si pasa nuestro filtro, 0 si no
+  const commandFilter = useCallback(
+    (itemValue: string, searchValue: string) => {
+      if (!searchValue) return 1;
+      return normalize(itemValue).includes(normalize(searchValue)) ? 1 : 0;
+    },
+    []
   );
 
   return (
@@ -69,7 +85,7 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
+        <Command filter={commandFilter}>
           <CommandInput
             placeholder={searchPlaceholder}
             onValueChange={setSearch}
@@ -99,7 +115,7 @@ export function SearchableSelect({
             </CommandGroup>
           </CommandList>
         </Command>
-        {emptyAction && !hasResults && (
+        {emptyAction && filtered.length === 0 && search.length > 0 && (
           <div className="border-t p-2">{emptyAction}</div>
         )}
       </PopoverContent>
