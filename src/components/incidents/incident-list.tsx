@@ -17,13 +17,14 @@ export function IncidentList({ initialData }: IncidentListProps) {
   const { page, pageSize, search, sortBy, sortOrder, setSearch, setPage } =
     useTableSearchParams("createdAt");
 
-  const { data, isLoading } = useQuery({
+  const { data: queryData, isLoading } = useQuery({
     queryKey: ["incidents", page, pageSize, search, sortBy, sortOrder],
     queryFn: () =>
       fetchIncidents({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    initialData,
-    staleTime: 0,
+    placeholderData: initialData,
   });
+
+  const data = queryData ?? initialData;
 
   return (
     <DataTable

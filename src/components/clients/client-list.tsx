@@ -27,7 +27,7 @@ export function ClientList({ initialData }: ClientListProps) {
     [page, pageSize, search, sortBy, sortOrder]
   );
 
-  const { data, isLoading } = useQuery({
+  const { data: queryData, isLoading } = useQuery({
     queryKey,
     queryFn: () =>
       fetchClients({
@@ -37,9 +37,10 @@ export function ClientList({ initialData }: ClientListProps) {
         sortBy,
         sortOrder: sortOrder as SortOrder,
       }),
-    initialData,
-    staleTime: 0,
+    placeholderData: initialData,
   });
+
+  const data = queryData ?? initialData;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteClient(id),

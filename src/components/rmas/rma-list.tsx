@@ -17,13 +17,14 @@ export function RmaList({ initialData }: RmaListProps) {
   const { page, pageSize, search, sortBy, sortOrder, setSearch, setPage } =
     useTableSearchParams("createdAt");
 
-  const { data, isLoading } = useQuery({
+  const { data: queryData, isLoading } = useQuery({
     queryKey: ["rmas", page, pageSize, search, sortBy, sortOrder],
     queryFn: () =>
       fetchRmas({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    initialData,
-    staleTime: 0,
+    placeholderData: initialData,
   });
+
+  const data = queryData ?? initialData;
 
   return (
     <DataTable

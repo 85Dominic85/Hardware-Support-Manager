@@ -22,13 +22,14 @@ export function ProviderList({ initialData }: ProviderListProps) {
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data: queryData, isLoading } = useQuery({
     queryKey: ["providers", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
       fetchProviders({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    initialData,
-    staleTime: 0,
+    placeholderData: initialData,
   });
+
+  const data = queryData ?? initialData;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteProvider(id),
