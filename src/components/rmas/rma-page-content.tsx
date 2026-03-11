@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { ViewToggle } from "@/components/shared/view-toggle";
 import { RmaList } from "./rma-list";
 import { RmaCanvas } from "./rma-canvas";
@@ -16,13 +15,12 @@ interface RmaPageContentProps {
 
 export function RmaPageContent({ initialData }: RmaPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
-  const { search } = useTableSearchParams("createdAt");
 
   // For canvas, fetch all (no pagination)
   const { data: canvasData } = useQuery({
-    queryKey: ["rmas-canvas", search],
+    queryKey: ["rmas-canvas"],
     queryFn: () =>
-      fetchRmas({ page: 1, pageSize: 200, search, sortBy: "stateChangedAt", sortOrder: "asc" as SortOrder }),
+      fetchRmas({ page: 1, pageSize: 200, sortBy: "stateChangedAt", sortOrder: "asc" as SortOrder }),
     enabled: view === "canvas",
   });
 

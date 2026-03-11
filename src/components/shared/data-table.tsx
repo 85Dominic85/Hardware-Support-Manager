@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -16,14 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Search,
   Inbox,
 } from "lucide-react";
 
@@ -34,11 +31,9 @@ interface DataTableProps<TData> {
   page: number;
   pageSize: number;
   totalPages: number;
-  searchValue: string;
-  searchPlaceholder?: string;
   isLoading?: boolean;
   onPageChange: (page: number) => void;
-  onSearchChange: (search: string) => void;
+  searchBar?: React.ReactNode;
 }
 
 export function DataTable<TData>({
@@ -48,29 +43,10 @@ export function DataTable<TData>({
   page,
   pageSize,
   totalPages,
-  searchValue,
-  searchPlaceholder = "Buscar...",
   isLoading,
   onPageChange,
-  onSearchChange,
+  searchBar,
 }: DataTableProps<TData>) {
-  const [localSearch, setLocalSearch] = useState(searchValue);
-
-  // Sync external search value
-  useEffect(() => {
-    setLocalSearch(searchValue);
-  }, [searchValue]);
-
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (localSearch !== searchValue) {
-        onSearchChange(localSearch);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [localSearch, searchValue, onSearchChange]);
-
   const table = useReactTable({
     data,
     columns,
@@ -84,15 +60,7 @@ export function DataTable<TData>({
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder={searchPlaceholder}
-          value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      {searchBar}
 
       <div className="rounded-lg border bg-card">
         <Table>

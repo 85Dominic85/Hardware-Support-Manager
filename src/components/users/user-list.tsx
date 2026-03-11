@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { DataTable } from "@/components/shared/data-table";
+import { SearchBar } from "@/components/shared/search-bar";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { getUserColumns } from "@/components/users/user-columns";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
+import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { fetchUsers, deleteUser } from "@/server/actions/users";
 import type { UserRow } from "@/server/queries/users";
 import type { PaginatedResult, SortOrder } from "@/types";
@@ -17,18 +19,14 @@ interface UserListProps {
 
 export function UserList({ initialData }: UserListProps) {
   const queryClient = useQueryClient();
-  const { page, pageSize, search, sortBy, sortOrder, setSearch, setSorting, setPage } =
+  const { page, pageSize, sortBy, sortOrder, setSorting, setPage } =
     useTableSearchParams("createdAt");
+  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const queryKey = useMemo(
-    () => ["users", { page, pageSize, search, sortBy, sortOrder }],
-    [page, pageSize, search, sortBy, sortOrder]
-  );
-
   const { data: queryData, isLoading } = useQuery({
-    queryKey,
+    queryKey: ["users", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
       fetchUsers({
         page,
@@ -37,7 +35,6 @@ export function UserList({ initialData }: UserListProps) {
         sortBy,
         sortOrder: sortOrder as SortOrder,
       }),
-    placeholderData: keepPreviousData,
     staleTime: 0,
   });
 
@@ -91,11 +88,15 @@ export function UserList({ initialData }: UserListProps) {
         page={data.page}
         pageSize={data.pageSize}
         totalPages={data.totalPages}
-        searchValue={search}
-        searchPlaceholder="Buscar usuarios por nombre o email..."
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearchChange={setSearch}
+        searchBar={
+          <SearchBar
+            value={inputValue}
+            onChange={setInputValue}
+            placeholder="Buscar usuarios por nombre o email..."
+          />
+        }
       />
 
       <ConfirmDeleteDialog

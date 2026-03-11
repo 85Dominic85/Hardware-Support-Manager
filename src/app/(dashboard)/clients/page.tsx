@@ -20,14 +20,12 @@ export default async function ClientsPage({
 
   const page = Number(params.page) || 1;
   const pageSize = Number(params.pageSize) || 10;
-  const search = typeof params.search === "string" ? params.search : undefined;
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "createdAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
   const initialData = await getClients({
     page,
     pageSize,
-    search,
     sortBy,
     sortOrder,
   });

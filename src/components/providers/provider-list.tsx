@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchProviders, deleteProvider } from "@/server/actions/providers";
 import { getProviderColumns } from "@/components/providers/provider-columns";
 import { DataTable } from "@/components/shared/data-table";
+import { SearchBar } from "@/components/shared/search-bar";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
+import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import type { PaginatedResult, SortOrder } from "@/types";
 import type { ProviderRow } from "@/server/queries/providers";
 
@@ -17,8 +19,9 @@ interface ProviderListProps {
 
 export function ProviderList({ initialData }: ProviderListProps) {
   const queryClient = useQueryClient();
-  const { page, pageSize, search, sortBy, sortOrder, setSearch, setSorting, setPage } =
+  const { page, pageSize, sortBy, sortOrder, setSorting, setPage } =
     useTableSearchParams("createdAt");
+  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -26,7 +29,6 @@ export function ProviderList({ initialData }: ProviderListProps) {
     queryKey: ["providers", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
       fetchProviders({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    placeholderData: keepPreviousData,
     staleTime: 0,
   });
 
@@ -69,11 +71,15 @@ export function ProviderList({ initialData }: ProviderListProps) {
         page={data.page}
         pageSize={data.pageSize}
         totalPages={data.totalPages}
-        searchValue={search}
-        searchPlaceholder="Buscar proveedores..."
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearchChange={setSearch}
+        searchBar={
+          <SearchBar
+            value={inputValue}
+            onChange={setInputValue}
+            placeholder="Buscar proveedores..."
+          />
+        }
       />
 
       <ConfirmDeleteDialog

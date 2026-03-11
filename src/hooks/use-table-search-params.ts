@@ -8,16 +8,10 @@ export function useTableSearchParams(defaultSortBy: string = "createdAt") {
     {
       page: parseAsInteger.withDefault(1),
       pageSize: parseAsInteger.withDefault(10),
-      search: parseAsString.withDefault(""),
       sortBy: parseAsString.withDefault(defaultSortBy),
       sortOrder: parseAsString.withDefault("desc"),
     },
     { shallow: false }
-  );
-
-  const setSearch = useCallback(
-    (value: string) => setParams({ search: value, page: 1 }),
-    [setParams]
   );
 
   const setSorting = useCallback(
@@ -37,7 +31,6 @@ export function useTableSearchParams(defaultSortBy: string = "createdAt") {
 
   return {
     ...params,
-    setSearch,
     setSorting,
     setPage,
     setPageSize,

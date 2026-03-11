@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { DataTable } from "@/components/shared/data-table";
+import { SearchBar } from "@/components/shared/search-bar";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { getClientColumns } from "@/components/clients/client-columns";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
+import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { fetchClients, deleteClient } from "@/server/actions/clients";
 import type { ClientRow } from "@/server/queries/clients";
 import type { PaginatedResult, SortOrder } from "@/types";
@@ -17,18 +19,14 @@ interface ClientListProps {
 
 export function ClientList({ initialData }: ClientListProps) {
   const queryClient = useQueryClient();
-  const { page, pageSize, search, sortBy, sortOrder, setSearch, setSorting, setPage } =
+  const { page, pageSize, sortBy, sortOrder, setSorting, setPage } =
     useTableSearchParams("createdAt");
+  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const queryKey = useMemo(
-    () => ["clients", { page, pageSize, search, sortBy, sortOrder }],
-    [page, pageSize, search, sortBy, sortOrder]
-  );
-
   const { data: queryData, isLoading } = useQuery({
-    queryKey,
+    queryKey: ["clients", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
       fetchClients({
         page,
@@ -37,7 +35,6 @@ export function ClientList({ initialData }: ClientListProps) {
         sortBy,
         sortOrder: sortOrder as SortOrder,
       }),
-    placeholderData: keepPreviousData,
     staleTime: 0,
   });
 
@@ -91,11 +88,15 @@ export function ClientList({ initialData }: ClientListProps) {
         page={data.page}
         pageSize={data.pageSize}
         totalPages={data.totalPages}
-        searchValue={search}
-        searchPlaceholder="Buscar clientes por nombre, email o empresa..."
         isLoading={isLoading}
         onPageChange={setPage}
-        onSearchChange={setSearch}
+        searchBar={
+          <SearchBar
+            value={inputValue}
+            onChange={setInputValue}
+            placeholder="Buscar clientes por nombre, email o empresa..."
+          />
+        }
       />
 
       <ConfirmDeleteDialog

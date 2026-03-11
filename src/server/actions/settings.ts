@@ -2,7 +2,6 @@
 
 import { db } from "@/lib/db";
 import { appSettings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { getRequiredSession } from "@/lib/auth/get-session";
 import { requireRole } from "@/lib/auth/get-session";
 import type { ActionResult } from "@/types";

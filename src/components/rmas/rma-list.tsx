@@ -1,8 +1,10 @@
 "use client";
 
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
+import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { DataTable } from "@/components/shared/data-table";
+import { SearchBar } from "@/components/shared/search-bar";
 import { rmaColumns } from "./rma-columns";
 import { fetchRmas } from "@/server/actions/rmas";
 import type { PaginatedResult } from "@/types";
@@ -14,14 +16,14 @@ interface RmaListProps {
 }
 
 export function RmaList({ initialData }: RmaListProps) {
-  const { page, pageSize, search, sortBy, sortOrder, setSearch, setPage } =
+  const { page, pageSize, sortBy, sortOrder, setPage } =
     useTableSearchParams("createdAt");
+  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
   const { data: queryData, isLoading } = useQuery({
-    queryKey: ["rmas", page, pageSize, search, sortBy, sortOrder],
+    queryKey: ["rmas", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
-      fetchRmas({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    placeholderData: keepPreviousData,
+      fetchRmas({ page, pageSize, search: search || undefined, sortBy, sortOrder: sortOrder as SortOrder }),
     staleTime: 0,
   });
 
@@ -35,11 +37,15 @@ export function RmaList({ initialData }: RmaListProps) {
       page={data.page}
       pageSize={data.pageSize}
       totalPages={data.totalPages}
-      searchValue={search}
-      searchPlaceholder="Buscar RMA..."
       isLoading={isLoading}
       onPageChange={setPage}
-      onSearchChange={setSearch}
+      searchBar={
+        <SearchBar
+          value={inputValue}
+          onChange={setInputValue}
+          placeholder="Buscar RMA..."
+        />
+      }
     />
   );
 }

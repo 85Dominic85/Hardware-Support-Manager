@@ -13,7 +13,6 @@ interface ProvidersPageProps {
   searchParams: Promise<{
     page?: string;
     pageSize?: string;
-    search?: string;
     sortBy?: string;
     sortOrder?: string;
   }>;
@@ -24,14 +23,12 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
 
   const page = Number(params.page) || 1;
   const pageSize = Number(params.pageSize) || 10;
-  const search = params.search || "";
   const sortBy = params.sortBy || "createdAt";
   const sortOrder = (params.sortOrder as "asc" | "desc") || "desc";
 
   const initialData = await getProviders({
     page,
     pageSize,
-    search,
     sortBy,
     sortOrder,
   });
