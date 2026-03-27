@@ -1,6 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq, isNull, and } from "drizzle-orm";
 
 const emailOnlySchema = z.object({
   email: z.string().email(),
@@ -55,13 +58,25 @@ export const authConfig: NextAuthConfig = {
 
         const { email } = parsed.data;
 
-        // TODO: Re-enable DB lookup and password verification
-        // For now, accept any valid email as admin
+        // TODO: Re-enable password verification
+        const [user] = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+          })
+          .from(users)
+          .where(and(eq(users.email, email), isNull(users.deletedAt)))
+          .limit(1);
+
+        if (!user) return null;
+
         return {
-          id: email,
-          name: email.split("@")[0],
-          email,
-          role: "admin" as const,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
         };
       },
     }),

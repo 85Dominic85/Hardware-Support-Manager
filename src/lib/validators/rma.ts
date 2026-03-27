@@ -15,6 +15,9 @@ export const createRmaSchema = z.object({
   address: z.string().optional().or(z.literal("")),
   postalCode: z.string().max(20).optional().or(z.literal("")),
   phone: z.string().max(50).optional().or(z.literal("")),
+  trackingNumberOutgoing: z.string().max(255).optional().or(z.literal("")),
+  trackingNumberReturn: z.string().max(255).optional().or(z.literal("")),
+  providerRmaNumber: z.string().max(255).optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
 });
 

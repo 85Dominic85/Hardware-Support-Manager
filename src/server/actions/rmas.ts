@@ -48,6 +48,9 @@ export async function createRma(
         address: parsed.data.address || null,
         postalCode: parsed.data.postalCode || null,
         phone: parsed.data.phone || null,
+        trackingNumberOutgoing: parsed.data.trackingNumberOutgoing || null,
+        trackingNumberReturn: parsed.data.trackingNumberReturn || null,
+        providerRmaNumber: parsed.data.providerRmaNumber || null,
         notes: parsed.data.notes || null,
       })
       .returning({ id: rmas.id });
