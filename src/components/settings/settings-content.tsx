@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Palette, Clock, Settings2, Loader2 } from "lucide-react";
+import { Palette, Clock, Settings2, Loader2, MessageSquareText } from "lucide-react";
 import { ThemeSelector } from "./theme-selector";
 import { updateSetting } from "@/server/actions/settings";
 import { SLA_PRIORITY_LABELS, type SlaThresholds } from "@/lib/constants/sla";
@@ -204,6 +205,24 @@ export function SettingsContent({
           >
             {slaMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Guardar umbrales SLA
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Plantillas de mensajes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <MessageSquareText className="h-5 w-5" />
+            Plantillas de Mensajes
+          </CardTitle>
+          <CardDescription>
+            Plantillas para generar mensajes a clientes y proveedores desde incidencias y RMAs
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/settings/templates">Gestionar plantillas</Link>
           </Button>
         </CardContent>
       </Card>

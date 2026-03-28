@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
-import { incidents, users } from "@/lib/db/schema";
+import { incidents, users, clients } from "@/lib/db/schema";
 import { eq, or, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type IncidentRow = typeof incidents.$inferSelect & {
   assignedUserName: string | null;
+  clientCompanyName: string | null;
 };
 
 export async function getIncidents(
@@ -17,7 +18,9 @@ export async function getIncidents(
     ? or(
         sql`${incidents.incidentNumber} ILIKE ${`%${search}%`}`,
         sql`unaccent(${incidents.title}) ILIKE unaccent(${`%${search}%`})`,
-        sql`unaccent(${incidents.clientName}) ILIKE unaccent(${`%${search}%`})`
+        sql`unaccent(${incidents.clientName}) ILIKE unaccent(${`%${search}%`})`,
+        sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`${incidents.intercomEscalationId} ILIKE ${`%${search}%`}`
       )
     : undefined;
 
@@ -29,6 +32,8 @@ export async function getIncidents(
       .select({
         id: incidents.id,
         incidentNumber: incidents.incidentNumber,
+        clientId: incidents.clientId,
+        clientLocationId: incidents.clientLocationId,
         clientName: incidents.clientName,
         assignedUserId: incidents.assignedUserId,
         category: incidents.category,
@@ -40,14 +45,23 @@ export async function getIncidents(
         deviceModel: incidents.deviceModel,
         deviceType: incidents.deviceType,
         deviceSerialNumber: incidents.deviceSerialNumber,
+        intercomUrl: incidents.intercomUrl,
+        intercomEscalationId: incidents.intercomEscalationId,
+        contactName: incidents.contactName,
+        contactPhone: incidents.contactPhone,
+        pickupAddress: incidents.pickupAddress,
+        pickupPostalCode: incidents.pickupPostalCode,
+        pickupCity: incidents.pickupCity,
         createdAt: incidents.createdAt,
         updatedAt: incidents.updatedAt,
         resolvedAt: incidents.resolvedAt,
         stateChangedAt: incidents.stateChangedAt,
         assignedUserName: users.name,
+        clientCompanyName: clients.name,
       })
       .from(incidents)
       .leftJoin(users, eq(incidents.assignedUserId, users.id))
+      .leftJoin(clients, eq(incidents.clientId, clients.id))
       .where(searchCondition)
       .orderBy(orderBy)
       .limit(pageSize)
@@ -55,6 +69,7 @@ export async function getIncidents(
     db
       .select({ count: count() })
       .from(incidents)
+      .leftJoin(clients, eq(incidents.clientId, clients.id))
       .where(searchCondition),
   ]);
 
@@ -74,6 +89,8 @@ export async function getIncidentById(id: string): Promise<IncidentRow | null> {
     .select({
       id: incidents.id,
       incidentNumber: incidents.incidentNumber,
+      clientId: incidents.clientId,
+      clientLocationId: incidents.clientLocationId,
       clientName: incidents.clientName,
       assignedUserId: incidents.assignedUserId,
       category: incidents.category,
@@ -85,14 +102,23 @@ export async function getIncidentById(id: string): Promise<IncidentRow | null> {
       deviceBrand: incidents.deviceBrand,
       deviceModel: incidents.deviceModel,
       deviceSerialNumber: incidents.deviceSerialNumber,
+      intercomUrl: incidents.intercomUrl,
+      intercomEscalationId: incidents.intercomEscalationId,
+      contactName: incidents.contactName,
+      contactPhone: incidents.contactPhone,
+      pickupAddress: incidents.pickupAddress,
+      pickupPostalCode: incidents.pickupPostalCode,
+      pickupCity: incidents.pickupCity,
       createdAt: incidents.createdAt,
       updatedAt: incidents.updatedAt,
       resolvedAt: incidents.resolvedAt,
       stateChangedAt: incidents.stateChangedAt,
       assignedUserName: users.name,
+      clientCompanyName: clients.name,
     })
     .from(incidents)
     .leftJoin(users, eq(incidents.assignedUserId, users.id))
+    .leftJoin(clients, eq(incidents.clientId, clients.id))
     .where(eq(incidents.id, id))
     .limit(1);
 

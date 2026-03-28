@@ -2,7 +2,7 @@ import { uuid, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { hsmSchema } from "./hsm-schema";
 import { users } from "./users";
 
-export const entityTypeEnum = hsmSchema.enum("entity_type", ["incident", "rma", "event_log"]);
+export const entityTypeEnum = hsmSchema.enum("entity_type", ["incident", "rma", "event_log", "client"]);
 
 export const eventLogs = hsmSchema.table("event_logs", {
   id: uuid("id").defaultRandom().primaryKey(),

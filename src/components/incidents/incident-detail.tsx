@@ -31,6 +31,7 @@ import type { IncidentRow } from "@/server/queries/incidents";
 import { DEFAULT_SLA_THRESHOLDS } from "@/lib/constants/sla";
 import { DEVICE_TYPE_LABELS, type DeviceType } from "@/lib/constants/device-types";
 import type { CreateIncidentInput } from "@/lib/validators/incident";
+import { TemplatePicker } from "@/components/message-templates/template-picker";
 
 const PRIORITY_COLORS: Record<string, string> = {
   baja: "bg-green-500/15 text-green-700 hover:bg-green-500/15 dark:bg-green-500/25 dark:text-green-300",
@@ -82,6 +83,8 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
             <IncidentForm
               users={users}
               defaultValues={{
+                clientId: incident.clientId ?? "",
+                clientLocationId: incident.clientLocationId ?? "",
                 clientName: incident.clientName ?? "",
                 title: incident.title,
                 description: incident.description ?? "",
@@ -92,6 +95,13 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
                 deviceBrand: incident.deviceBrand ?? "",
                 deviceModel: incident.deviceModel ?? "",
                 deviceSerialNumber: incident.deviceSerialNumber ?? "",
+                intercomUrl: incident.intercomUrl ?? "",
+                intercomEscalationId: incident.intercomEscalationId ?? "",
+                contactName: incident.contactName ?? "",
+                contactPhone: incident.contactPhone ?? "",
+                pickupAddress: incident.pickupAddress ?? "",
+                pickupPostalCode: incident.pickupPostalCode ?? "",
+                pickupCity: incident.pickupCity ?? "",
               }}
               onSubmit={(data) => updateMutation.mutate(data)}
               isSubmitting={updateMutation.isPending}
@@ -121,6 +131,31 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
           <p className="mt-1 text-lg text-muted-foreground">{incident.title}</p>
         </div>
         <div className="flex items-center gap-2">
+          <TemplatePicker
+            context={{
+              incidentNumber: incident.incidentNumber,
+              title: incident.title,
+              description: incident.description ?? "",
+              status: incident.status,
+              category: INCIDENT_CATEGORY_LABELS[incident.category as IncidentCategory] ?? incident.category,
+              priority: INCIDENT_PRIORITY_LABELS[incident.priority as IncidentPriority] ?? incident.priority,
+              clientName: incident.clientCompanyName ?? incident.clientName ?? "",
+              assignedUserName: incident.assignedUserName ?? "",
+              deviceType: incident.deviceType
+                ? DEVICE_TYPE_LABELS[incident.deviceType as DeviceType] ?? incident.deviceType
+                : "",
+              deviceBrand: incident.deviceBrand ?? "",
+              deviceModel: incident.deviceModel ?? "",
+              deviceSerialNumber: incident.deviceSerialNumber ?? "",
+              intercomUrl: incident.intercomUrl ?? "",
+              intercomEscalationId: incident.intercomEscalationId ?? "",
+              contactName: incident.contactName ?? "",
+              contactPhone: incident.contactPhone ?? "",
+              pickupAddress: incident.pickupAddress ?? "",
+              pickupCity: incident.pickupCity ?? "",
+              pickupPostalCode: incident.pickupPostalCode ?? "",
+            }}
+          />
           <Button onClick={() => setIsEditing(true)}>Editar</Button>
           <Button variant="outline" asChild>
             <Link href="/incidents">Volver</Link>
@@ -155,7 +190,15 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
                 <dt className="text-sm font-medium text-muted-foreground">
                   Cliente
                 </dt>
-                <dd className="mt-1 text-sm">{incident.clientName ?? "-"}</dd>
+                <dd className="mt-1 text-sm">
+                  {incident.clientId ? (
+                    <Link href={`/clients/${incident.clientId}`} className="text-primary hover:underline">
+                      {incident.clientCompanyName ?? incident.clientName ?? "-"}
+                    </Link>
+                  ) : (
+                    incident.clientName ?? "-"
+                  )}
+                </dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">
@@ -233,6 +276,70 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Intercom + Contacto */}
+      {(incident.intercomUrl || incident.intercomEscalationId || incident.contactName || incident.pickupAddress) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {(incident.intercomUrl || incident.intercomEscalationId) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Referencia Intercom</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">URL Intercom</dt>
+                    <dd className="mt-1 text-sm">
+                      {incident.intercomUrl ? (
+                        <a
+                          href={incident.intercomUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline break-all"
+                        >
+                          Abrir conversación
+                        </a>
+                      ) : "-"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">ID Escalación</dt>
+                    <dd className="mt-1 text-sm">{incident.intercomEscalationId || "-"}</dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+          )}
+
+          {(incident.contactName || incident.pickupAddress) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Contacto y Recogida</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Persona de contacto</dt>
+                    <dd className="mt-1 text-sm">{incident.contactName || "-"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">Teléfono</dt>
+                    <dd className="mt-1 text-sm">{incident.contactPhone || "-"}</dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-muted-foreground">Dirección de recogida</dt>
+                    <dd className="mt-1 text-sm">
+                      {[incident.pickupAddress, incident.pickupCity, incident.pickupPostalCode]
+                        .filter(Boolean)
+                        .join(", ") || "-"}
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Dates */}
       <Card>

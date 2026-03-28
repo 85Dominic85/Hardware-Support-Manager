@@ -2,6 +2,7 @@ export const ENTITY_TYPES = {
   INCIDENT: "incident",
   RMA: "rma",
   EVENT_LOG: "event_log",
+  CLIENT: "client",
 } as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES];

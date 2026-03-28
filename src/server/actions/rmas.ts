@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { rmas, providers, eventLogs } from "@/lib/db/schema";
+import { rmas, providers, clients, eventLogs } from "@/lib/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/get-session";
@@ -31,13 +31,26 @@ export async function createRma(
   const rmaNumber = await generateSequentialId("RMA");
 
   const [rma] = await db.transaction(async (tx) => {
+    // Auto-fill clientName from client record if clientId is provided
+    let clientName = parsed.data.clientName || null;
+    if (parsed.data.clientId) {
+      const [client] = await tx
+        .select({ name: clients.name })
+        .from(clients)
+        .where(eq(clients.id, parsed.data.clientId))
+        .limit(1);
+      if (client) clientName = client.name;
+    }
+
     const [r] = await tx
       .insert(rmas)
       .values({
         rmaNumber,
         providerId: parsed.data.providerId,
         incidentId: parsed.data.incidentId || null,
-        clientName: parsed.data.clientName || null,
+        clientId: parsed.data.clientId || null,
+        clientLocationId: parsed.data.clientLocationId || null,
+        clientName,
         clientExternalId: parsed.data.clientExternalId || null,
         clientIntercomUrl: parsed.data.clientIntercomUrl || null,
         deviceType: parsed.data.deviceType || null,
@@ -47,6 +60,7 @@ export async function createRma(
         clientLocal: parsed.data.clientLocal || null,
         address: parsed.data.address || null,
         postalCode: parsed.data.postalCode || null,
+        city: parsed.data.city || null,
         phone: parsed.data.phone || null,
         trackingNumberOutgoing: parsed.data.trackingNumberOutgoing || null,
         trackingNumberReturn: parsed.data.trackingNumberReturn || null,
@@ -85,6 +99,10 @@ export async function updateRma(
   if (parsed.data.providerId) values.providerId = parsed.data.providerId;
   if (parsed.data.incidentId !== undefined)
     values.incidentId = parsed.data.incidentId || null;
+  if (parsed.data.clientId !== undefined)
+    values.clientId = parsed.data.clientId || null;
+  if (parsed.data.clientLocationId !== undefined)
+    values.clientLocationId = parsed.data.clientLocationId || null;
   if (parsed.data.clientName !== undefined)
     values.clientName = parsed.data.clientName || null;
   if (parsed.data.clientExternalId !== undefined)
@@ -105,8 +123,20 @@ export async function updateRma(
     values.address = parsed.data.address || null;
   if (parsed.data.postalCode !== undefined)
     values.postalCode = parsed.data.postalCode || null;
+  if (parsed.data.city !== undefined)
+    values.city = parsed.data.city || null;
   if (parsed.data.phone !== undefined)
     values.phone = parsed.data.phone || null;
+
+  // Auto-fill clientName from client record if clientId changed
+  if (values.clientId) {
+    const [client] = await db
+      .select({ name: clients.name })
+      .from(clients)
+      .where(eq(clients.id, values.clientId as string))
+      .limit(1);
+    if (client) values.clientName = client.name;
+  }
   if (parsed.data.trackingNumberOutgoing !== undefined)
     values.trackingNumberOutgoing = parsed.data.trackingNumberOutgoing || null;
   if (parsed.data.trackingNumberReturn !== undefined)

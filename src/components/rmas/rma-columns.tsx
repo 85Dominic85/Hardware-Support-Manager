@@ -33,7 +33,21 @@ export const rmaColumns: ColumnDef<RmaRow, unknown>[] = [
   {
     accessorKey: "clientName",
     header: "Cliente",
-    cell: ({ row }) => row.original.clientName ?? "-",
+    cell: ({ row }) => {
+      const name = row.original.clientCompanyName ?? row.original.clientName;
+      if (!name) return "-";
+      if (row.original.clientId) {
+        return (
+          <Link
+            href={`/clients/${row.original.clientId}`}
+            className="text-primary hover:underline"
+          >
+            {name}
+          </Link>
+        );
+      }
+      return name;
+    },
   },
   {
     accessorKey: "deviceBrand",

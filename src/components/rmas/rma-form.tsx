@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +30,11 @@ import {
   type RmaFormInput,
 } from "@/lib/validators/rma";
 import { DEVICE_TYPE_LABELS } from "@/lib/constants/device-types";
+import {
+  fetchClientsForSelect,
+  fetchClientLocationsForSelect,
+} from "@/server/actions/clients";
+import type { ClientLocationRow } from "@/server/queries/clients";
 
 interface RmaFormProps {
   providers: { id: string; name: string }[];
@@ -51,6 +58,8 @@ export function RmaForm({
     defaultValues: {
       providerId: defaultValues?.providerId ?? "",
       incidentId: defaultValues?.incidentId ?? "",
+      clientId: defaultValues?.clientId ?? "",
+      clientLocationId: defaultValues?.clientLocationId ?? "",
       clientName: defaultValues?.clientName ?? "",
       clientExternalId: defaultValues?.clientExternalId ?? "",
       clientIntercomUrl: defaultValues?.clientIntercomUrl ?? "",
@@ -61,6 +70,7 @@ export function RmaForm({
       clientLocal: defaultValues?.clientLocal ?? "",
       address: defaultValues?.address ?? "",
       postalCode: defaultValues?.postalCode ?? "",
+      city: defaultValues?.city ?? "",
       phone: defaultValues?.phone ?? "",
       trackingNumberOutgoing: defaultValues?.trackingNumberOutgoing ?? "",
       trackingNumberReturn: defaultValues?.trackingNumberReturn ?? "",
@@ -69,10 +79,54 @@ export function RmaForm({
     },
   });
 
+  const selectedClientId = form.watch("clientId");
+
+  const { data: clientsData = [] } = useQuery({
+    queryKey: ["clients", "select"],
+    queryFn: () => fetchClientsForSelect(),
+  });
+
+  const { data: locationsData = [] } = useQuery({
+    queryKey: ["client-locations", selectedClientId],
+    queryFn: () => fetchClientLocationsForSelect(selectedClientId!),
+    enabled: !!selectedClientId,
+  });
+
+  // Auto-fill from selected location
+  const handleLocationChange = (locationId: string) => {
+    form.setValue("clientLocationId", locationId);
+    if (!locationId) return;
+    const location = locationsData.find((l: ClientLocationRow) => l.id === locationId);
+    if (location) {
+      form.setValue("clientLocal", location.name ?? "");
+      form.setValue("address", location.address ?? "");
+      form.setValue("postalCode", location.postalCode ?? "");
+      form.setValue("city", location.city ?? "");
+      form.setValue("phone", location.contactPhone ?? "");
+    }
+  };
+
+  // Reset location when client changes
+  useEffect(() => {
+    if (!selectedClientId) {
+      form.setValue("clientLocationId", "");
+    }
+  }, [selectedClientId, form]);
+
+  const clientOptions = clientsData.map((c: { id: string; name: string }) => ({
+    value: c.id,
+    label: c.name,
+  }));
+
+  const locationOptions = locationsData.map((l: ClientLocationRow) => ({
+    value: l.id,
+    label: l.name,
+  }));
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Sección 1 — Relaciones */}
+        {/* Seccion 1 — Relaciones */}
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-4">Relaciones</h3>
           <div className="grid gap-6 sm:grid-cols-3">
@@ -89,7 +143,7 @@ export function RmaForm({
                       onValueChange={field.onChange}
                       placeholder="Seleccionar proveedor"
                       searchPlaceholder="Buscar proveedor..."
-                      emptyMessage="No se encontró proveedor."
+                      emptyMessage="No se encontro proveedor."
                     />
                   </FormControl>
                   <FormMessage />
@@ -99,12 +153,19 @@ export function RmaForm({
 
             <FormField
               control={form.control}
-              name="clientName"
+              name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
+                  <FormLabel>Cliente (empresa)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nombre del cliente" {...field} />
+                    <SearchableSelect
+                      options={clientOptions}
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      placeholder="Seleccionar cliente..."
+                      searchPlaceholder="Buscar cliente..."
+                      emptyMessage="No se encontraron clientes."
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -124,8 +185,46 @@ export function RmaForm({
                       onValueChange={field.onChange}
                       placeholder="Sin vincular"
                       searchPlaceholder="Buscar incidencia..."
-                      emptyMessage="No se encontró incidencia."
+                      emptyMessage="No se encontro incidencia."
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-3 mt-4">
+            <FormField
+              control={form.control}
+              name="clientLocationId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Local / Sucursal</FormLabel>
+                  <FormControl>
+                    <SearchableSelect
+                      options={locationOptions}
+                      value={field.value ?? ""}
+                      onValueChange={handleLocationChange}
+                      placeholder="Seleccionar local..."
+                      searchPlaceholder="Buscar local..."
+                      emptyMessage="Sin locales."
+                      disabled={!selectedClientId}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="clientName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre cliente (texto libre)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Si no hay cliente registrado" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -145,7 +244,9 @@ export function RmaForm({
                 </FormItem>
               )}
             />
+          </div>
 
+          <div className="mt-4">
             <FormField
               control={form.control}
               name="clientIntercomUrl"
@@ -164,9 +265,9 @@ export function RmaForm({
 
         <Separator />
 
-        {/* Sección 2 — Ubicación cliente */}
+        {/* Seccion 2 — Ubicacion cliente */}
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">Ubicación del cliente</h3>
+          <h3 className="text-sm font-medium text-muted-foreground mb-4">Ubicacion del cliente</h3>
           <div className="grid gap-6 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -187,9 +288,9 @@ export function RmaForm({
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Teléfono</FormLabel>
+                  <FormLabel>Telefono</FormLabel>
                   <FormControl>
-                    <Input placeholder="Teléfono de contacto" {...field} />
+                    <Input placeholder="Telefono de contacto" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -201,9 +302,23 @@ export function RmaForm({
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dirección</FormLabel>
+                  <FormLabel>Direccion</FormLabel>
                   <FormControl>
-                    <Input placeholder="Dirección completa" {...field} />
+                    <Input placeholder="Direccion completa" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ciudad</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ciudad" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -215,7 +330,7 @@ export function RmaForm({
               name="postalCode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Código postal</FormLabel>
+                  <FormLabel>Codigo postal</FormLabel>
                   <FormControl>
                     <Input placeholder="Ej: 28001" {...field} />
                   </FormControl>
@@ -228,7 +343,7 @@ export function RmaForm({
 
         <Separator />
 
-        {/* Sección 3 — Dispositivo */}
+        {/* Seccion 3 — Dispositivo */}
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-4">Dispositivo</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -292,9 +407,9 @@ export function RmaForm({
               name="deviceSerialNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nº de serie</FormLabel>
+                  <FormLabel>N de serie</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nº de serie" {...field} />
+                    <Input placeholder="N de serie" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -303,7 +418,7 @@ export function RmaForm({
           </div>
         </div>
 
-        {/* Sección 4 — Seguimiento (solo en modo edición) */}
+        {/* Seccion 4 — Seguimiento (solo en modo edicion) */}
         {mode === "edit" && (
           <>
             <Separator />
@@ -315,9 +430,9 @@ export function RmaForm({
                   name="trackingNumberOutgoing"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nº seguimiento envío</FormLabel>
+                      <FormLabel>N seguimiento envio</FormLabel>
                       <FormControl>
-                        <Input placeholder="Tracking de envío" {...field} />
+                        <Input placeholder="Tracking de envio" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -329,9 +444,9 @@ export function RmaForm({
                   name="trackingNumberReturn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nº seguimiento devolución</FormLabel>
+                      <FormLabel>N seguimiento devolucion</FormLabel>
                       <FormControl>
-                        <Input placeholder="Tracking de devolución" {...field} />
+                        <Input placeholder="Tracking de devolucion" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -343,9 +458,9 @@ export function RmaForm({
                   name="providerRmaNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nº RMA proveedor</FormLabel>
+                      <FormLabel>N RMA proveedor</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nº RMA del proveedor" {...field} />
+                        <Input placeholder="N RMA del proveedor" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -358,7 +473,7 @@ export function RmaForm({
 
         <Separator />
 
-        {/* Sección 5 — Notas */}
+        {/* Seccion 5 — Notas */}
         <FormField
           control={form.control}
           name="notes"

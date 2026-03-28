@@ -20,6 +20,7 @@ import { DEVICE_TYPE_LABELS, type DeviceType } from "@/lib/constants/device-type
 import type { RmaStatus } from "@/lib/constants/rmas";
 import type { RmaRow } from "@/server/queries/rmas";
 import type { RmaFormInput } from "@/lib/validators/rma";
+import { TemplatePicker } from "@/components/message-templates/template-picker";
 
 interface RmaDetailProps {
   rma: RmaRow;
@@ -73,6 +74,8 @@ export function RmaDetail({ rma }: RmaDetailProps) {
               defaultValues={{
                 providerId: rma.providerId,
                 incidentId: rma.incidentId ?? "",
+                clientId: rma.clientId ?? "",
+                clientLocationId: rma.clientLocationId ?? "",
                 clientName: rma.clientName ?? "",
                 clientExternalId: rma.clientExternalId ?? "",
                 clientIntercomUrl: rma.clientIntercomUrl ?? "",
@@ -83,6 +86,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
                 clientLocal: rma.clientLocal ?? "",
                 address: rma.address ?? "",
                 postalCode: rma.postalCode ?? "",
+                city: rma.city ?? "",
                 phone: rma.phone ?? "",
                 trackingNumberOutgoing: rma.trackingNumberOutgoing ?? "",
                 trackingNumberReturn: rma.trackingNumberReturn ?? "",
@@ -125,6 +129,29 @@ export function RmaDetail({ rma }: RmaDetailProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <TemplatePicker
+            context={{
+              rmaNumber: rma.rmaNumber,
+              clientName: rma.clientCompanyName ?? rma.clientName ?? "",
+              providerName: rma.providerName ?? "",
+              providerRmaNumber: rma.providerRmaNumber ?? "",
+              incidentNumber: rma.incidentNumber ?? "",
+              status: rma.status,
+              deviceType: rma.deviceType
+                ? DEVICE_TYPE_LABELS[rma.deviceType as DeviceType] ?? rma.deviceType
+                : "",
+              deviceBrand: rma.deviceBrand ?? "",
+              deviceModel: rma.deviceModel ?? "",
+              deviceSerialNumber: rma.deviceSerialNumber ?? "",
+              trackingNumberOutgoing: rma.trackingNumberOutgoing ?? "",
+              trackingNumberReturn: rma.trackingNumberReturn ?? "",
+              clientLocal: rma.clientLocal ?? "",
+              address: rma.address ?? "",
+              postalCode: rma.postalCode ?? "",
+              city: rma.city ?? "",
+              phone: rma.phone ?? "",
+            }}
+          />
           <Button onClick={() => setIsEditing(true)}>Editar</Button>
           <Button variant="outline" asChild>
             <Link href="/rmas">Volver</Link>
@@ -157,7 +184,15 @@ export function RmaDetail({ rma }: RmaDetailProps) {
                 <dt className="text-sm font-medium text-muted-foreground">
                   Cliente
                 </dt>
-                <dd className="mt-1 text-sm">{rma.clientName ?? "-"}</dd>
+                <dd className="mt-1 text-sm">
+                  {rma.clientId ? (
+                    <Link href={`/clients/${rma.clientId}`} className="text-primary hover:underline">
+                      {rma.clientCompanyName ?? rma.clientName ?? "-"}
+                    </Link>
+                  ) : (
+                    rma.clientName ?? "-"
+                  )}
+                </dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">
@@ -282,7 +317,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
             </CardContent>
           </Card>
 
-          {(rma.clientLocal || rma.address || rma.postalCode || rma.phone) && (
+          {(rma.clientLocal || rma.address || rma.postalCode || rma.city || rma.phone) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Ubicación del cliente</CardTitle>
@@ -301,17 +336,13 @@ export function RmaDetail({ rma }: RmaDetailProps) {
                     </dt>
                     <dd className="mt-1 text-sm">{rma.phone || "-"}</dd>
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <dt className="text-sm font-medium text-muted-foreground">
                       Dirección
                     </dt>
-                    <dd className="mt-1 text-sm">{rma.address || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">
-                      Código postal
-                    </dt>
-                    <dd className="mt-1 text-sm">{rma.postalCode || "-"}</dd>
+                    <dd className="mt-1 text-sm">
+                      {[rma.address, rma.city, rma.postalCode].filter(Boolean).join(", ") || "-"}
+                    </dd>
                   </div>
                 </dl>
               </CardContent>

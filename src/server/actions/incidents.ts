@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { incidents, users, eventLogs } from "@/lib/db/schema";
+import { incidents, users, clients, eventLogs } from "@/lib/db/schema";
 import { eq, isNull, notInArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/get-session";
@@ -30,12 +30,25 @@ export async function createIncident(
 
   const incidentNumber = await generateSequentialId("INC");
 
+  // Auto-fill clientName from client record if clientId is provided
+  let clientName = parsed.data.clientName || null;
+  if (parsed.data.clientId) {
+    const [client] = await db
+      .select({ name: clients.name })
+      .from(clients)
+      .where(eq(clients.id, parsed.data.clientId))
+      .limit(1);
+    if (client) clientName = client.name;
+  }
+
   const [incident] = await db.transaction(async (tx) => {
     const [inc] = await tx
       .insert(incidents)
       .values({
         incidentNumber,
-        clientName: parsed.data.clientName || null,
+        clientId: parsed.data.clientId || null,
+        clientLocationId: parsed.data.clientLocationId || null,
+        clientName,
         title: parsed.data.title,
         description: parsed.data.description || null,
         category: parsed.data.category,
@@ -45,6 +58,13 @@ export async function createIncident(
         deviceBrand: parsed.data.deviceBrand || null,
         deviceModel: parsed.data.deviceModel || null,
         deviceSerialNumber: parsed.data.deviceSerialNumber || null,
+        intercomUrl: parsed.data.intercomUrl || null,
+        intercomEscalationId: parsed.data.intercomEscalationId || null,
+        contactName: parsed.data.contactName || null,
+        contactPhone: parsed.data.contactPhone || null,
+        pickupAddress: parsed.data.pickupAddress || null,
+        pickupPostalCode: parsed.data.pickupPostalCode || null,
+        pickupCity: parsed.data.pickupCity || null,
       })
       .returning({ id: incidents.id });
 
@@ -75,6 +95,8 @@ export async function updateIncident(
   }
 
   const values: Record<string, unknown> = {};
+  if (parsed.data.clientId !== undefined) values.clientId = parsed.data.clientId || null;
+  if (parsed.data.clientLocationId !== undefined) values.clientLocationId = parsed.data.clientLocationId || null;
   if (parsed.data.clientName !== undefined) values.clientName = parsed.data.clientName || null;
   if (parsed.data.title) values.title = parsed.data.title;
   if (parsed.data.description !== undefined)
@@ -91,6 +113,30 @@ export async function updateIncident(
     values.deviceModel = parsed.data.deviceModel || null;
   if (parsed.data.deviceSerialNumber !== undefined)
     values.deviceSerialNumber = parsed.data.deviceSerialNumber || null;
+  if (parsed.data.intercomUrl !== undefined)
+    values.intercomUrl = parsed.data.intercomUrl || null;
+  if (parsed.data.intercomEscalationId !== undefined)
+    values.intercomEscalationId = parsed.data.intercomEscalationId || null;
+  if (parsed.data.contactName !== undefined)
+    values.contactName = parsed.data.contactName || null;
+  if (parsed.data.contactPhone !== undefined)
+    values.contactPhone = parsed.data.contactPhone || null;
+  if (parsed.data.pickupAddress !== undefined)
+    values.pickupAddress = parsed.data.pickupAddress || null;
+  if (parsed.data.pickupPostalCode !== undefined)
+    values.pickupPostalCode = parsed.data.pickupPostalCode || null;
+  if (parsed.data.pickupCity !== undefined)
+    values.pickupCity = parsed.data.pickupCity || null;
+
+  // Auto-fill clientName from client record if clientId changed
+  if (values.clientId) {
+    const [client] = await db
+      .select({ name: clients.name })
+      .from(clients)
+      .where(eq(clients.id, values.clientId as string))
+      .limit(1);
+    if (client) values.clientName = client.name;
+  }
 
   const [incident] = await db.transaction(async (tx) => {
     const [inc] = await tx
