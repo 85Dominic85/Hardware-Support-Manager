@@ -12,8 +12,10 @@ export function AgingBadge({ stateChangedAt, thresholdDays = 3 }: AgingBadgeProp
 
   if (aging.label === "-") return null;
 
+  const isCritical = aging.days >= thresholdDays;
+
   let colorClass: string;
-  if (aging.days >= thresholdDays) {
+  if (isCritical) {
     colorClass = "bg-red-500/15 text-red-700 hover:bg-red-500/15 dark:bg-red-500/25 dark:text-red-300";
   } else if (aging.days >= 1) {
     colorClass = "bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:bg-amber-500/25 dark:text-amber-300";
@@ -22,7 +24,7 @@ export function AgingBadge({ stateChangedAt, thresholdDays = 3 }: AgingBadgeProp
   }
 
   return (
-    <Badge variant="outline" className={`gap-1 ${colorClass}`}>
+    <Badge variant="outline" className={`gap-1 ${colorClass}${isCritical ? " animate-pulse" : ""}`}>
       <Clock className="h-3 w-3" />
       {aging.label}
     </Badge>

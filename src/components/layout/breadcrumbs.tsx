@@ -45,7 +45,7 @@ export function Breadcrumbs() {
                 {isLast ? (
                   <BreadcrumbPage>{label}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink asChild>
+                  <BreadcrumbLink asChild className="transition-colors duration-150">
                     <Link href={href}>{label}</Link>
                   </BreadcrumbLink>
                 )}

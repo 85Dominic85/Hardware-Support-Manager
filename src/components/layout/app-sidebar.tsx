@@ -83,11 +83,11 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            HSM
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <span className="text-xs font-bold tracking-tight">HSM</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold leading-tight text-sidebar-foreground">
+            <span className="text-sm font-bold tracking-tight leading-tight text-sidebar-foreground">
               Hardware Support
             </span>
             <span className="text-xs text-sidebar-foreground/60">
@@ -103,14 +103,22 @@ export function AppSidebar() {
             <SidebarMenu>
               {navigation.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith(item.href)}
+                    className="transition-colors duration-150"
+                  >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.name}</span>
                     </Link>
                   </SidebarMenuButton>
                   {badgeMap[item.href] != null && badgeMap[item.href]! > 0 && (
-                    <SidebarMenuBadge>{badgeMap[item.href]}</SidebarMenuBadge>
+                    <SidebarMenuBadge>
+                      <span className="inline-flex items-center justify-center min-w-[1.25rem]">
+                        {badgeMap[item.href]}
+                      </span>
+                    </SidebarMenuBadge>
                   )}
                 </SidebarMenuItem>
               ))}
@@ -124,7 +132,11 @@ export function AppSidebar() {
               <SidebarMenu>
                 {adminNavigation.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname.startsWith(item.href)}
+                      className="transition-colors duration-150"
+                    >
                       <Link href={item.href}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.name}</span>

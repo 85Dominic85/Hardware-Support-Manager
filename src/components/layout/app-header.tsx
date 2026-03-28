@@ -7,7 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 export function AppHeader() {
   return (
-    <header className="flex h-16 items-center gap-4 bg-card px-6 shadow-sm">
+    <header className="flex h-16 items-center gap-4 border-b border-border/60 bg-card/80 px-6 shadow-sm backdrop-blur-sm">
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-6" />
       <Breadcrumbs />

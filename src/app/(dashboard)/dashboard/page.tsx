@@ -25,6 +25,7 @@ import {
 } from "@/server/queries/dashboard";
 import { getAlertItems } from "@/server/queries/alerts";
 import { AttentionWidget } from "@/components/dashboard/attention-widget";
+import { StaggerList } from "@/components/shared/stagger-list";
 
 export const dynamic = "force-dynamic";
 
@@ -40,16 +41,19 @@ function formatHours(hours: number | null): string {
 }
 
 export default async function DashboardPage() {
+  const withTimeout = <T,>(promise: Promise<T>, fallback: T, ms = 10000): Promise<T> =>
+    Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+
   const [stats, activity, distribution, trend, sla, aging, technicians, alerts] =
     await Promise.all([
-      getDashboardStats(),
-      getRecentActivity(),
-      getIncidentStatusDistribution(),
-      getIncidentTrend(),
-      getSlaMetrics(),
-      getAgingDistribution(),
-      getTechnicianPerformance(),
-      getAlertItems(),
+      withTimeout(getDashboardStats(), { openIncidents: 0, activeRmas: 0, totalProviders: 0 }),
+      withTimeout(getRecentActivity(), []),
+      withTimeout(getIncidentStatusDistribution(), []),
+      withTimeout(getIncidentTrend(), []),
+      withTimeout(getSlaMetrics(), { avgResolutionHours: null, slaCompliancePercent: 100, overdueCount: 0, reopenRate: 0, avgRmaTurnaroundDays: null, incidentsByPriority: [] }),
+      withTimeout(getAgingDistribution(), []),
+      withTimeout(getTechnicianPerformance(), []),
+      withTimeout(getAlertItems(), { totalCount: 0, items: [], counts: { staleIncidents: 0, stuckRmas: 0, warehouseRmas: 0, slaWarnings: 0 } }),
     ]);
 
   return (
@@ -58,42 +62,44 @@ export default async function DashboardPage() {
 
       {/* Row 1: KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          title="Incidencias Abiertas"
-          value={stats.openIncidents}
-          icon={AlertTriangle}
-          color="blue"
-        />
-        <KpiCard
-          title="RMAs Activos"
-          value={stats.activeRmas}
-          icon={RotateCcw}
-          color="purple"
-        />
-        <KpiCard
-          title="SLA Cumplido"
-          value={`${sla.slaCompliancePercent}%`}
-          icon={ShieldCheck}
-          color={sla.slaCompliancePercent >= 90 ? "green" : sla.slaCompliancePercent >= 70 ? "amber" : "red"}
-        />
-        <KpiCard
-          title="Resolución Media"
-          value={formatHours(sla.avgResolutionHours)}
-          icon={Clock}
-          color="amber"
-        />
-        <KpiCard
-          title="Fuera de SLA"
-          value={sla.overdueCount}
-          icon={AlertOctagon}
-          color={sla.overdueCount > 0 ? "red" : "green"}
-        />
-        <KpiCard
-          title="Tasa Reapertura"
-          value={`${sla.reopenRate}%`}
-          icon={RefreshCcw}
-          color={sla.reopenRate > 5 ? "red" : "green"}
-        />
+        <StaggerList staggerMs={60}>
+          <KpiCard
+            title="Incidencias Abiertas"
+            value={stats.openIncidents}
+            icon={AlertTriangle}
+            color="blue"
+          />
+          <KpiCard
+            title="RMAs Activos"
+            value={stats.activeRmas}
+            icon={RotateCcw}
+            color="purple"
+          />
+          <KpiCard
+            title="SLA Cumplido"
+            value={`${sla.slaCompliancePercent}%`}
+            icon={ShieldCheck}
+            color={sla.slaCompliancePercent >= 90 ? "green" : sla.slaCompliancePercent >= 70 ? "amber" : "red"}
+          />
+          <KpiCard
+            title="Resolución Media"
+            value={formatHours(sla.avgResolutionHours)}
+            icon={Clock}
+            color="amber"
+          />
+          <KpiCard
+            title="Fuera de SLA"
+            value={sla.overdueCount}
+            icon={AlertOctagon}
+            color={sla.overdueCount > 0 ? "red" : "green"}
+          />
+          <KpiCard
+            title="Tasa Reapertura"
+            value={`${sla.reopenRate}%`}
+            icon={RefreshCcw}
+            color={sla.reopenRate > 5 ? "red" : "green"}
+          />
+        </StaggerList>
       </div>
 
       {/* Attention Widget */}

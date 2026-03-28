@@ -32,6 +32,7 @@ interface IncidentStateBadgeProps {
 export function IncidentStateBadge({ status }: IncidentStateBadgeProps) {
   return (
     <Badge variant="outline" className={INCIDENT_STATUS_COLORS[status]}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
       {INCIDENT_STATUS_LABELS[status]}
     </Badge>
   );
@@ -44,6 +45,7 @@ interface RmaStateBadgeProps {
 export function RmaStateBadge({ status }: RmaStateBadgeProps) {
   return (
     <Badge variant="outline" className={RMA_STATUS_COLORS[status]}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
       {RMA_STATUS_LABELS[status]}
     </Badge>
   );

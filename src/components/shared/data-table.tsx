@@ -93,7 +93,10 @@ export function DataTable<TData>({
               ))
             ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  className="hover:bg-muted/50 transition-colors duration-150"
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
@@ -110,7 +113,7 @@ export function DataTable<TData>({
                   colSpan={columns.length}
                   className="h-32 text-center"
                 >
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground opacity-0 animate-[fadeInUp_300ms_ease-out_forwards]">
                     <Inbox className="h-8 w-8" />
                     <p>No se encontraron resultados.</p>
                   </div>

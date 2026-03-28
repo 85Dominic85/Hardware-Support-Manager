@@ -15,16 +15,16 @@ interface KpiCardProps {
 }
 
 const COLOR_MAP = {
-  blue: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400",
-  green: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
-  purple: "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400",
-  red: "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400",
+  blue: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 ring-1 ring-inset ring-blue-500/20",
+  green: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  amber: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 ring-1 ring-inset ring-amber-500/20",
+  purple: "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 ring-1 ring-inset ring-purple-500/20",
+  red: "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 ring-1 ring-inset ring-red-500/20",
 };
 
 export function KpiCard({ title, value, subtitle, icon: Icon, color, trend }: KpiCardProps) {
   return (
-    <Card className="transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+    <Card className="cursor-default transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
       <CardContent className="flex items-center gap-4 p-6">
         <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${COLOR_MAP[color]}`}>
           <Icon className="h-6 w-6" />
