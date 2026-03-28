@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +35,7 @@ import {
   fetchClientsForSelect,
   fetchClientLocationsForSelect,
 } from "@/server/actions/clients";
+import { fetchIncidentById } from "@/server/actions/incidents";
 import type { ClientLocationRow } from "@/server/queries/clients";
 
 interface RmaFormProps {
@@ -80,6 +82,7 @@ export function RmaForm({
   });
 
   const selectedClientId = form.watch("clientId");
+  const selectedIncidentId = form.watch("incidentId");
 
   const { data: clientsData = [] } = useQuery({
     queryKey: ["clients", "select"],
@@ -91,6 +94,70 @@ export function RmaForm({
     queryFn: () => fetchClientLocationsForSelect(selectedClientId!),
     enabled: !!selectedClientId,
   });
+
+  const { data: incidentData } = useQuery({
+    queryKey: ["incident-for-rma", selectedIncidentId],
+    queryFn: () => fetchIncidentById(selectedIncidentId!),
+    enabled: !!selectedIncidentId && !defaultValues,
+  });
+
+  // Track which incident was last auto-filled to avoid re-running on unrelated re-renders
+  const lastAutoFilledIncidentId = useRef<string | null>(null);
+
+  // Auto-fill RMA form from incident data when an incident is selected in create mode
+  useEffect(() => {
+    if (!incidentData || !selectedIncidentId || defaultValues) return;
+    if (lastAutoFilledIncidentId.current === selectedIncidentId) return;
+
+    lastAutoFilledIncidentId.current = selectedIncidentId;
+
+    let didFill = false;
+
+    const setIfEmpty = (field: keyof RmaFormInput, value: string | null | undefined) => {
+      if (!value) return;
+      const current = form.getValues(field);
+      if (!current) {
+        form.setValue(field, value as never, { shouldDirty: true });
+        didFill = true;
+      }
+    };
+
+    // Client identity
+    if (incidentData.clientId) {
+      const currentClientId = form.getValues("clientId");
+      if (!currentClientId) {
+        form.setValue("clientId", incidentData.clientId, { shouldDirty: true });
+        didFill = true;
+      }
+    }
+
+    if (incidentData.clientLocationId) {
+      const currentLocationId = form.getValues("clientLocationId");
+      if (!currentLocationId) {
+        form.setValue("clientLocationId", incidentData.clientLocationId, { shouldDirty: true });
+        didFill = true;
+      }
+    }
+
+    // Device fields
+    setIfEmpty("deviceType", incidentData.deviceType);
+    setIfEmpty("deviceBrand", incidentData.deviceBrand);
+    setIfEmpty("deviceModel", incidentData.deviceModel);
+    setIfEmpty("deviceSerialNumber", incidentData.deviceSerialNumber);
+
+    // Location / contact fields
+    setIfEmpty("phone", incidentData.contactPhone);
+    setIfEmpty("address", incidentData.pickupAddress);
+    setIfEmpty("postalCode", incidentData.pickupPostalCode);
+    setIfEmpty("city", incidentData.pickupCity);
+
+    // Intercom
+    setIfEmpty("clientIntercomUrl", incidentData.intercomUrl);
+
+    if (didFill) {
+      toast.success("Datos importados de la incidencia");
+    }
+  }, [incidentData, selectedIncidentId, defaultValues, form]);
 
   // Auto-fill from selected location
   const handleLocationChange = (locationId: string) => {

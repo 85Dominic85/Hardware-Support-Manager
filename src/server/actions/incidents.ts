@@ -12,7 +12,7 @@ import {
 } from "@/lib/validators/incident";
 import { isValidTransition } from "@/lib/state-machines/incident";
 import { generateSequentialId } from "@/lib/utils/id-generator";
-import { getIncidents } from "@/server/queries/incidents";
+import { getIncidents, getIncidentById } from "@/server/queries/incidents";
 import type { ActionResult, PaginationParams, PaginatedResult } from "@/types";
 import type { IncidentRow } from "@/server/queries/incidents";
 import type { IncidentStatus } from "@/lib/constants/incidents";
@@ -263,4 +263,9 @@ export async function fetchIncidentsForSelect(): Promise<
     .from(incidents)
     .where(notInArray(incidents.status, ["cerrado", "cancelado"]))
     .orderBy(incidents.incidentNumber);
+}
+
+export async function fetchIncidentById(id: string): Promise<IncidentRow | null> {
+  await getRequiredSession();
+  return getIncidentById(id);
 }
