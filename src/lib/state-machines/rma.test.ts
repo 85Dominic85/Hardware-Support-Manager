@@ -24,13 +24,12 @@ describe("RMA State Machine", () => {
     it("follows linear flow from borrador to cerrado", () => {
       const expectedFlow = [
         ["borrador", "solicitado"],
-        ["solicitado", "aprobado_proveedor"],
-        ["aprobado_proveedor", "enviado_proveedor"],
-        ["enviado_proveedor", "recibido_proveedor"],
-        ["recibido_proveedor", "en_reparacion_proveedor"],
-        ["en_reparacion_proveedor", "devuelto"],
-        ["devuelto", "recibido_almacen"],
-        ["recibido_almacen", "cerrado"],
+        ["solicitado", "aprobado"],
+        ["aprobado", "enviado_proveedor"],
+        ["enviado_proveedor", "en_proveedor"],
+        ["en_proveedor", "devuelto"],
+        ["devuelto", "recibido_oficina"],
+        ["recibido_oficina", "cerrado"],
       ] as const;
       for (const [from, to] of expectedFlow) {
         expect(isValidRmaTransition(from, to, "technician")).toBe(true);

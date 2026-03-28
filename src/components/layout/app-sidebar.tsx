@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Store,
   Building2,
+  Package,
   UserCog,
   Settings,
   LogOut,
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Panel", href: "/dashboard", icon: LayoutDashboard },
   { name: "Incidencias", href: "/incidents", icon: AlertTriangle },
   { name: "RMAs", href: "/rmas", icon: RotateCcw },
+  { name: "Almacén", href: "/warehouse", icon: Package },
   { name: "Clientes", href: "/clients", icon: Store },
   { name: "Proveedores", href: "/providers", icon: Building2 },
 ];

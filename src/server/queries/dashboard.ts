@@ -161,7 +161,7 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
         avgDays: sql<number>`avg(extract(epoch from (${rmas.updatedAt} - ${rmas.createdAt})) / 86400)`,
       })
       .from(rmas)
-      .where(inArray(rmas.status, ["recibido_almacen", "cerrado"]));
+      .where(inArray(rmas.status, ["recibido_oficina", "cerrado"]));
 
     // By priority
     const byPriority = await db

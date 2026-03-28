@@ -28,8 +28,8 @@ export const updateIncidentSchema = createIncidentSchema.partial();
 export const transitionIncidentSchema = z.object({
   incidentId: z.string().uuid(),
   toStatus: z.enum([
-    "nuevo", "en_triaje", "en_diagnostico", "esperando_repuesto",
-    "en_reparacion", "esperando_cliente", "resuelto", "cerrado", "cancelado",
+    "nuevo", "en_triaje", "en_gestion", "esperando_cliente",
+    "esperando_proveedor", "resuelto", "cerrado", "cancelado",
   ]),
   comment: z.string().optional(),
 });

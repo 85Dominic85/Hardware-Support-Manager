@@ -5,8 +5,8 @@ import { clients } from "./clients";
 import { clientLocations } from "./client-locations";
 
 export const incidentStatusEnum = hsmSchema.enum("incident_status", [
-  "nuevo", "en_triaje", "en_diagnostico", "esperando_repuesto",
-  "en_reparacion", "esperando_cliente", "resuelto", "cerrado", "cancelado",
+  "nuevo", "en_triaje", "en_gestion", "esperando_cliente",
+  "esperando_proveedor", "resuelto", "cerrado", "cancelado",
 ]);
 
 export const incidentPriorityEnum = hsmSchema.enum("incident_priority", [

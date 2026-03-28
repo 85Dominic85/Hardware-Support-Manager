@@ -1,12 +1,11 @@
 export const RMA_STATUSES = {
   BORRADOR: "borrador",
   SOLICITADO: "solicitado",
-  APROBADO_PROVEEDOR: "aprobado_proveedor",
+  APROBADO: "aprobado",
   ENVIADO_PROVEEDOR: "enviado_proveedor",
-  RECIBIDO_PROVEEDOR: "recibido_proveedor",
-  EN_REPARACION_PROVEEDOR: "en_reparacion_proveedor",
+  EN_PROVEEDOR: "en_proveedor",
   DEVUELTO: "devuelto",
-  RECIBIDO_ALMACEN: "recibido_almacen",
+  RECIBIDO_OFICINA: "recibido_oficina",
   CERRADO: "cerrado",
   CANCELADO: "cancelado",
 } as const;
@@ -16,12 +15,11 @@ export type RmaStatus = (typeof RMA_STATUSES)[keyof typeof RMA_STATUSES];
 export const RMA_STATUS_LABELS: Record<RmaStatus, string> = {
   borrador: "Borrador",
   solicitado: "Solicitado",
-  aprobado_proveedor: "Aprobado por Proveedor",
+  aprobado: "Aprobado por Proveedor",
   enviado_proveedor: "Enviado a Proveedor",
-  recibido_proveedor: "Recibido por Proveedor",
-  en_reparacion_proveedor: "En Reparación (Proveedor)",
+  en_proveedor: "En Proveedor",
   devuelto: "Devuelto",
-  recibido_almacen: "Recibido en Almacén",
+  recibido_oficina: "Recibido en Oficina",
   cerrado: "Cerrado",
   cancelado: "Cancelado",
 };

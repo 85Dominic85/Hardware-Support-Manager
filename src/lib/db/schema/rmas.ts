@@ -6,9 +6,9 @@ import { clients } from "./clients";
 import { clientLocations } from "./client-locations";
 
 export const rmaStatusEnum = hsmSchema.enum("rma_status", [
-  "borrador", "solicitado", "aprobado_proveedor", "enviado_proveedor",
-  "recibido_proveedor", "en_reparacion_proveedor", "devuelto",
-  "recibido_almacen", "cerrado", "cancelado",
+  "borrador", "solicitado", "aprobado", "enviado_proveedor",
+  "en_proveedor", "devuelto", "recibido_oficina",
+  "cerrado", "cancelado",
 ]);
 
 export const rmas = hsmSchema.table("rmas", {

@@ -29,20 +29,18 @@ import type { IncidentRow } from "@/server/queries/incidents";
 const KANBAN_STATUSES: IncidentStatus[] = [
   "nuevo",
   "en_triaje",
-  "en_diagnostico",
-  "esperando_repuesto",
-  "en_reparacion",
+  "en_gestion",
   "esperando_cliente",
+  "esperando_proveedor",
   "resuelto",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
   nuevo: "#3b82f6",
   en_triaje: "#eab308",
-  en_diagnostico: "#f97316",
-  esperando_repuesto: "#a855f7",
-  en_reparacion: "#6366f1",
+  en_gestion: "#6366f1",
   esperando_cliente: "#f59e0b",
+  esperando_proveedor: "#a855f7",
   resuelto: "#22c55e",
 };
 

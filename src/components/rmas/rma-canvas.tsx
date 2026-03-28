@@ -13,23 +13,21 @@ interface RmaCanvasProps {
 const ACTIVE_STATUSES: RmaStatus[] = [
   "borrador",
   "solicitado",
-  "aprobado_proveedor",
+  "aprobado",
   "enviado_proveedor",
-  "recibido_proveedor",
-  "en_reparacion_proveedor",
+  "en_proveedor",
   "devuelto",
-  "recibido_almacen",
+  "recibido_oficina",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
   borrador: "#6b7280",
   solicitado: "#3b82f6",
-  aprobado_proveedor: "#22c55e",
+  aprobado: "#22c55e",
   enviado_proveedor: "#6366f1",
-  recibido_proveedor: "#a855f7",
-  en_reparacion_proveedor: "#f97316",
+  en_proveedor: "#f97316",
   devuelto: "#eab308",
-  recibido_almacen: "#14b8a6",
+  recibido_oficina: "#14b8a6",
 };
 
 export function RmaCanvas({ data }: RmaCanvasProps) {

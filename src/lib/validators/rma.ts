@@ -73,9 +73,9 @@ export const rmaFormSchema = z.object({
 export const transitionRmaSchema = z.object({
   rmaId: z.string().uuid(),
   toStatus: z.enum([
-    "borrador", "solicitado", "aprobado_proveedor", "enviado_proveedor",
-    "recibido_proveedor", "en_reparacion_proveedor", "devuelto",
-    "recibido_almacen", "cerrado", "cancelado",
+    "borrador", "solicitado", "aprobado", "enviado_proveedor",
+    "en_proveedor", "devuelto", "recibido_oficina",
+    "cerrado", "cancelado",
   ]),
   comment: z.string().optional(),
 });

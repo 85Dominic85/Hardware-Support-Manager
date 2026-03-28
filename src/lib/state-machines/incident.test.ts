@@ -22,7 +22,7 @@ describe("Incident State Machine", () => {
     });
 
     it("admin can cancel from most states", () => {
-      const statesWithCancel = ["nuevo", "en_triaje", "en_diagnostico", "esperando_repuesto", "en_reparacion", "esperando_cliente"] as const;
+      const statesWithCancel = ["nuevo", "en_triaje", "en_gestion", "esperando_cliente", "esperando_proveedor"] as const;
       for (const state of statesWithCancel) {
         const transitions = getAvailableTransitions(state, "admin");
         expect(transitions.some((t) => t.to === "cancelado")).toBe(true);
@@ -31,12 +31,12 @@ describe("Incident State Machine", () => {
 
     it("admin can reopen from resuelto", () => {
       const transitions = getAvailableTransitions("resuelto", "admin");
-      expect(transitions.some((t) => t.to === "en_diagnostico")).toBe(true);
+      expect(transitions.some((t) => t.to === "en_gestion")).toBe(true);
     });
 
     it("technician cannot reopen from resuelto", () => {
       const transitions = getAvailableTransitions("resuelto", "technician");
-      expect(transitions.some((t) => t.to === "en_diagnostico")).toBe(false);
+      expect(transitions.some((t) => t.to === "en_gestion")).toBe(false);
     });
   });
 
