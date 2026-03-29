@@ -19,7 +19,7 @@ interface ProviderListProps {
 
 export function ProviderList({ initialData }: ProviderListProps) {
   const queryClient = useQueryClient();
-  const { page, pageSize, sortBy, sortOrder, setSorting, setPage } =
+  const { page, pageSize, sortBy, sortOrder, setSorting, setPage, setPageSize } =
     useTableSearchParams("createdAt");
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
@@ -73,6 +73,7 @@ export function ProviderList({ initialData }: ProviderListProps) {
         totalPages={data.totalPages}
         isLoading={isLoading}
         onPageChange={setPage}
+        onPageSizeChange={setPageSize}
         searchBar={
           <SearchBar
             value={inputValue}

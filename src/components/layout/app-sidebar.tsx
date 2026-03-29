@@ -34,15 +34,17 @@ import {
   Settings,
   LogOut,
   ChevronUp,
+  MessageSquareText,
 } from "lucide-react";
 
 const navigation = [
-  { name: "Panel", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Incidencias", href: "/incidents", icon: AlertTriangle },
-  { name: "RMAs", href: "/rmas", icon: RotateCcw },
-  { name: "Almacén", href: "/warehouse", icon: Package },
-  { name: "Clientes", href: "/clients", icon: Store },
-  { name: "Proveedores", href: "/providers", icon: Building2 },
+  { name: "Panel", href: "/dashboard", icon: LayoutDashboard, exact: false },
+  { name: "Incidencias", href: "/incidents", icon: AlertTriangle, exact: false, excludePrefix: "/incidents/quick-capture" },
+  { name: "Captura Rápida", href: "/incidents/quick-capture", icon: MessageSquareText, exact: true },
+  { name: "RMAs", href: "/rmas", icon: RotateCcw, exact: false },
+  { name: "Almacén", href: "/warehouse", icon: Package, exact: false },
+  { name: "Clientes", href: "/clients", icon: Store, exact: false },
+  { name: "Proveedores", href: "/providers", icon: Building2, exact: false },
 ];
 
 const adminNavigation = [
@@ -101,11 +103,16 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => (
+              {navigation.map((item) => {
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href) &&
+                    (!("excludePrefix" in item) || !pathname.startsWith((item as { excludePrefix: string }).excludePrefix));
+                return (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname.startsWith(item.href)}
+                    isActive={isActive}
                     className="transition-colors duration-150"
                   >
                     <Link href={item.href}>
@@ -121,7 +128,8 @@ export function AppSidebar() {
                     </SidebarMenuBadge>
                   )}
                 </SidebarMenuItem>
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

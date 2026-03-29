@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { incidents, users, clients, rmas } from "@/lib/db/schema";
-import { eq, or, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
+import { eq, or, and, asc, desc, count, sql, gte, lte, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type IncidentRow = typeof incidents.$inferSelect & {
@@ -11,7 +11,7 @@ export type IncidentRow = typeof incidents.$inferSelect & {
 export async function getIncidents(
   params: PaginationParams
 ): Promise<PaginatedResult<IncidentRow>> {
-  const { page, pageSize, search, sortBy = "createdAt", sortOrder = "desc" } = params;
+  const { page, pageSize, search, sortBy = "createdAt", sortOrder = "desc", filters } = params;
   const offset = (page - 1) * pageSize;
 
   const searchCondition = search
@@ -23,6 +23,26 @@ export async function getIncidents(
         sql`${incidents.intercomEscalationId} ILIKE ${`%${search}%`}`
       )
     : undefined;
+
+  // Build filter conditions
+  const filterConditions = [];
+  if (searchCondition) filterConditions.push(searchCondition);
+  if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
+    filterConditions.push(sql`${incidents.status} = ANY(${filters.status})`);
+  }
+  if (filters?.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
+    filterConditions.push(sql`${incidents.priority} = ANY(${filters.priority})`);
+  }
+  if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
+    filterConditions.push(sql`${incidents.category} = ANY(${filters.category})`);
+  }
+  if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
+    filterConditions.push(gte(incidents.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));
+  }
+  if (filters?.dateRangeTo && typeof filters.dateRangeTo === "string") {
+    filterConditions.push(lte(incidents.createdAt, new Date(filters.dateRangeTo + "T23:59:59")));
+  }
+  const whereCondition = filterConditions.length > 0 ? and(...filterConditions) : undefined;
 
   const sortColumn = getSortColumn(sortBy);
   const orderBy = sortOrder === "asc" ? asc(sortColumn) : desc(sortColumn);
@@ -64,7 +84,7 @@ export async function getIncidents(
       .from(incidents)
       .leftJoin(users, eq(incidents.assignedUserId, users.id))
       .leftJoin(clients, eq(incidents.clientId, clients.id))
-      .where(searchCondition)
+      .where(whereCondition)
       .orderBy(orderBy)
       .limit(pageSize)
       .offset(offset),
@@ -72,7 +92,7 @@ export async function getIncidents(
       .select({ count: count() })
       .from(incidents)
       .leftJoin(clients, eq(incidents.clientId, clients.id))
-      .where(searchCondition),
+      .where(whereCondition),
   ]);
 
   const totalCount = totalResult[0].count;

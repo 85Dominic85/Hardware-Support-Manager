@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RotateCcw, Zap } from "lucide-react";
+import { AlertTriangle, RotateCcw, Zap, MessageSquareText } from "lucide-react";
 
 export function QuickActions() {
   return (

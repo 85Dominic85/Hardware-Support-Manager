@@ -17,6 +17,7 @@ export interface PaginationParams {
   search?: string;
   sortBy?: string;
   sortOrder?: SortOrder;
+  filters?: Record<string, string | string[] | undefined>;
 }
 
 export interface PaginatedResult<T> {

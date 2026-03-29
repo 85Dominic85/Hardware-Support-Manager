@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { rmas, incidents, providers, clients } from "@/lib/db/schema";
-import { eq, or, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
+import { eq, or, and, asc, desc, count, sql, gte, lte, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type RmaRow = typeof rmas.$inferSelect & {
@@ -12,7 +12,7 @@ export type RmaRow = typeof rmas.$inferSelect & {
 export async function getRmas(
   params: PaginationParams
 ): Promise<PaginatedResult<RmaRow>> {
-  const { page, pageSize, search, sortBy = "createdAt", sortOrder = "desc" } = params;
+  const { page, pageSize, search, sortBy = "createdAt", sortOrder = "desc", filters } = params;
   const offset = (page - 1) * pageSize;
 
   const searchCondition = search
@@ -25,6 +25,22 @@ export async function getRmas(
         sql`unaccent(${rmas.deviceModel}) ILIKE unaccent(${`%${search}%`})`
       )
     : undefined;
+
+  const filterConditions = [];
+  if (searchCondition) filterConditions.push(searchCondition);
+  if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
+    filterConditions.push(sql`${rmas.status} = ANY(${filters.status})`);
+  }
+  if (filters?.providerId && typeof filters.providerId === "string") {
+    filterConditions.push(eq(rmas.providerId, filters.providerId));
+  }
+  if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
+    filterConditions.push(gte(rmas.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));
+  }
+  if (filters?.dateRangeTo && typeof filters.dateRangeTo === "string") {
+    filterConditions.push(lte(rmas.createdAt, new Date(filters.dateRangeTo + "T23:59:59")));
+  }
+  const whereCondition = filterConditions.length > 0 ? and(...filterConditions) : undefined;
 
   const sortColumn = getSortColumn(sortBy);
   const orderBy = sortOrder === "asc" ? asc(sortColumn) : desc(sortColumn);
@@ -66,7 +82,7 @@ export async function getRmas(
       .leftJoin(providers, eq(rmas.providerId, providers.id))
       .leftJoin(incidents, eq(rmas.incidentId, incidents.id))
       .leftJoin(clients, eq(rmas.clientId, clients.id))
-      .where(searchCondition)
+      .where(whereCondition)
       .orderBy(orderBy)
       .limit(pageSize)
       .offset(offset),
@@ -75,7 +91,7 @@ export async function getRmas(
       .from(rmas)
       .leftJoin(providers, eq(rmas.providerId, providers.id))
       .leftJoin(clients, eq(rmas.clientId, clients.id))
-      .where(searchCondition),
+      .where(whereCondition),
   ]);
 
   const totalCount = totalResult[0].count;

@@ -23,6 +23,7 @@ import {
   ChevronsRight,
   Inbox,
 } from "lucide-react";
+import { PageSizeSelector } from "@/components/shared/page-size-selector";
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
@@ -33,6 +34,7 @@ interface DataTableProps<TData> {
   totalPages: number;
   isLoading?: boolean;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
   searchBar?: React.ReactNode;
 }
 
@@ -45,6 +47,7 @@ export function DataTable<TData>({
   totalPages,
   isLoading,
   onPageChange,
+  onPageSizeChange,
   searchBar,
 }: DataTableProps<TData>) {
   const table = useReactTable({
@@ -124,12 +127,15 @@ export function DataTable<TData>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground shrink-0">
           {totalCount > 0
             ? `Mostrando ${startItem}-${endItem} de ${totalCount}`
             : "Sin resultados"}
         </p>
+        {onPageSizeChange && (
+          <PageSizeSelector value={pageSize} onChange={onPageSizeChange} />
+        )}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

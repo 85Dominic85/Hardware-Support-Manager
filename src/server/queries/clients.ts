@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { clients, clientLocations } from "@/lib/db/schema";
-import { eq, and, or, isNull, asc, desc, count, sql, type AnyColumn } from "drizzle-orm";
+import { eq, and, or, isNull, asc, desc, count, sql, gte, lte, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type ClientRow = typeof clients.$inferSelect;
@@ -13,23 +13,29 @@ export type ClientWithLocations = ClientRow & {
 export async function getClients(
   params: PaginationParams
 ): Promise<PaginatedResult<ClientRow>> {
-  const { page, pageSize, search, sortBy = "name", sortOrder = "asc" } = params;
+  const { page, pageSize, search, sortBy = "name", sortOrder = "asc", filters } = params;
   const offset = (page - 1) * pageSize;
 
-  const baseCondition = isNull(clients.deletedAt);
+  const conditions = [isNull(clients.deletedAt)];
 
-  const searchCondition = search
-    ? or(
+  if (search) {
+    conditions.push(
+      or(
         sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
         sql`unaccent(${clients.email}) ILIKE unaccent(${`%${search}%`})`,
         sql`${clients.externalId} ILIKE ${`%${search}%`}`,
         sql`${clients.phone} ILIKE ${`%${search}%`}`
-      )
-    : undefined;
+      )!
+    );
+  }
+  if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
+    conditions.push(gte(clients.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));
+  }
+  if (filters?.dateRangeTo && typeof filters.dateRangeTo === "string") {
+    conditions.push(lte(clients.createdAt, new Date(filters.dateRangeTo + "T23:59:59")));
+  }
 
-  const where = searchCondition
-    ? and(baseCondition, searchCondition)
-    : baseCondition;
+  const where = and(...conditions);
 
   const sortColumn = getSortColumn(sortBy);
   const orderBy = sortOrder === "asc" ? asc(sortColumn) : desc(sortColumn);

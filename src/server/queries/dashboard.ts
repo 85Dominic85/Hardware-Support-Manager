@@ -1,8 +1,13 @@
 import { db } from "@/lib/db";
 import { incidents, rmas, providers, eventLogs } from "@/lib/db/schema";
-import { eq, count, isNull, sql, desc, gte, not, inArray, and } from "drizzle-orm";
+import { eq, count, isNull, sql, desc, gte, lte, not, inArray, and } from "drizzle-orm";
 import { users } from "@/lib/db/schema";
 import { getSlaThresholds } from "./settings";
+
+export interface DateRangeParams {
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 export interface DashboardStats {
   openIncidents: number;
@@ -52,18 +57,38 @@ export interface AgingBucket {
 const CLOSED_INCIDENT_STATUSES = ["cerrado", "cancelado"] as const;
 const CLOSED_RMA_STATUSES = ["cerrado", "cancelado"] as const;
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+function incidentDateConds(range?: DateRangeParams) {
+  const conds = [];
+  if (range?.dateFrom) conds.push(gte(incidents.createdAt, new Date(range.dateFrom + "T00:00:00")));
+  if (range?.dateTo) conds.push(lte(incidents.createdAt, new Date(range.dateTo + "T23:59:59")));
+  return conds;
+}
+
+function rmaDateConds(range?: DateRangeParams) {
+  const conds = [];
+  if (range?.dateFrom) conds.push(gte(rmas.createdAt, new Date(range.dateFrom + "T00:00:00")));
+  if (range?.dateTo) conds.push(lte(rmas.createdAt, new Date(range.dateTo + "T23:59:59")));
+  return conds;
+}
+
+export async function getDashboardStats(range?: DateRangeParams): Promise<DashboardStats> {
   try {
     const [openIncidentsResult, activeRmasResult, totalProvidersResult] =
       await Promise.all([
         db
           .select({ count: count() })
           .from(incidents)
-          .where(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES]))),
+          .where(and(
+            not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
+            ...incidentDateConds(range)
+          )),
         db
           .select({ count: count() })
           .from(rmas)
-          .where(not(inArray(rmas.status, [...CLOSED_RMA_STATUSES]))),
+          .where(and(
+            not(inArray(rmas.status, [...CLOSED_RMA_STATUSES])),
+            ...rmaDateConds(range)
+          )),
         db
           .select({ count: count() })
           .from(providers)
@@ -80,9 +105,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }
 }
 
-export async function getSlaMetrics(): Promise<SlaMetrics> {
+export async function getSlaMetrics(range?: DateRangeParams): Promise<SlaMetrics> {
   try {
     const sla = await getSlaThresholds();
+    const dateConds = incidentDateConds(range);
 
     // Average resolution time (resolved incidents only) — subtracting paused time
     const avgResResult = await db
@@ -93,7 +119,8 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
       .where(
         and(
           eq(incidents.status, "resuelto"),
-          sql`${incidents.resolvedAt} is not null`
+          sql`${incidents.resolvedAt} is not null`,
+          ...dateConds
         )
       );
 
@@ -112,7 +139,8 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
       .where(
         and(
           inArray(incidents.status, ["resuelto", "cerrado"]),
-          sql`${incidents.resolvedAt} is not null`
+          sql`${incidents.resolvedAt} is not null`,
+          ...dateConds
         )
       );
 
@@ -132,11 +160,12 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
             (${incidents.priority} = 'alta' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.alta}) or
             (${incidents.priority} = 'media' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.media}) or
             (${incidents.priority} = 'baja' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.baja})
-          )`
+          )`,
+          ...dateConds
         )
       );
 
-    // Reopen rate: transitions from resuelto back to another state
+    // Reopen rate
     const reopenResult = await db
       .select({ count: count() })
       .from(eventLogs)
@@ -144,13 +173,18 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
         and(
           eq(eventLogs.entityType, "incident"),
           eq(eventLogs.action, "transition"),
-          eq(eventLogs.fromState, "resuelto")
+          eq(eventLogs.fromState, "resuelto"),
+          ...(range?.dateFrom ? [gte(eventLogs.createdAt, new Date(range.dateFrom + "T00:00:00"))] : []),
+          ...(range?.dateTo ? [lte(eventLogs.createdAt, new Date(range.dateTo + "T23:59:59"))] : [])
         )
       );
     const totalResolved = await db
       .select({ count: count() })
       .from(incidents)
-      .where(inArray(incidents.status, ["resuelto", "cerrado"]));
+      .where(and(
+        inArray(incidents.status, ["resuelto", "cerrado"]),
+        ...dateConds
+      ));
     const reopenRate = totalResolved[0].count > 0
       ? Math.round((reopenResult[0].count / totalResolved[0].count) * 100 * 10) / 10
       : 0;
@@ -161,7 +195,10 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
         avgDays: sql<number>`avg(extract(epoch from (${rmas.updatedAt} - ${rmas.createdAt})) / 86400)`,
       })
       .from(rmas)
-      .where(inArray(rmas.status, ["recibido_oficina", "cerrado"]));
+      .where(and(
+        inArray(rmas.status, ["recibido_oficina", "cerrado"]),
+        ...rmaDateConds(range)
+      ));
 
     // By priority
     const byPriority = await db
@@ -170,7 +207,10 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
         count: count(),
       })
       .from(incidents)
-      .where(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])))
+      .where(and(
+        not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
+        ...dateConds
+      ))
       .groupBy(incidents.priority);
 
     return {
@@ -193,8 +233,10 @@ export async function getSlaMetrics(): Promise<SlaMetrics> {
   }
 }
 
-export async function getAgingDistribution(): Promise<AgingBucket[]> {
+export async function getAgingDistribution(range?: DateRangeParams): Promise<AgingBucket[]> {
   try {
+    const dateConds = incidentDateConds(range);
+
     const result = await db
       .select({
         bucket: sql<string>`case
@@ -206,7 +248,10 @@ export async function getAgingDistribution(): Promise<AgingBucket[]> {
         count: count(),
       })
       .from(incidents)
-      .where(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])))
+      .where(and(
+        not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
+        ...dateConds
+      ))
       .groupBy(sql`case
         when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 1 then '< 1 día'
         when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 3 then '1-3 días'
@@ -224,8 +269,10 @@ export async function getAgingDistribution(): Promise<AgingBucket[]> {
   }
 }
 
-export async function getTechnicianPerformance(): Promise<TechnicianPerformance[]> {
+export async function getTechnicianPerformance(range?: DateRangeParams): Promise<TechnicianPerformance[]> {
   try {
+    const dateConds = incidentDateConds(range);
+
     const result = await db
       .select({
         name: users.name,
@@ -237,7 +284,8 @@ export async function getTechnicianPerformance(): Promise<TechnicianPerformance[
       .where(
         and(
           inArray(incidents.status, ["resuelto", "cerrado"]),
-          sql`${incidents.resolvedAt} is not null`
+          sql`${incidents.resolvedAt} is not null`,
+          ...dateConds
         )
       )
       .groupBy(users.name)
@@ -254,8 +302,15 @@ export async function getTechnicianPerformance(): Promise<TechnicianPerformance[
   }
 }
 
-export async function getRecentActivity(limit: number = 10): Promise<RecentActivity[]> {
+export async function getRecentActivity(limit: number = 10, range?: DateRangeParams): Promise<RecentActivity[]> {
   try {
+    const dateConds = range ? [
+      ...(range.dateFrom ? [gte(eventLogs.createdAt, new Date(range.dateFrom + "T00:00:00"))] : []),
+      ...(range.dateTo ? [lte(eventLogs.createdAt, new Date(range.dateTo + "T23:59:59"))] : []),
+    ] : [];
+
+    const whereCondition = dateConds.length > 0 ? and(...dateConds) : undefined;
+
     const results = await db
       .select({
         id: eventLogs.id,
@@ -267,6 +322,7 @@ export async function getRecentActivity(limit: number = 10): Promise<RecentActiv
       })
       .from(eventLogs)
       .leftJoin(users, eq(eventLogs.userId, users.id))
+      .where(whereCondition)
       .orderBy(desc(eventLogs.createdAt))
       .limit(limit);
 
@@ -276,15 +332,20 @@ export async function getRecentActivity(limit: number = 10): Promise<RecentActiv
   }
 }
 
-export async function getIncidentStatusDistribution(): Promise<StatusDistribution[]> {
+export async function getIncidentStatusDistribution(range?: DateRangeParams): Promise<StatusDistribution[]> {
   try {
+    const dateConds = incidentDateConds(range);
+
     const results = await db
       .select({
         status: incidents.status,
         count: count(),
       })
       .from(incidents)
-      .where(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])))
+      .where(and(
+        not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
+        ...dateConds
+      ))
       .groupBy(incidents.status);
 
     return results;
@@ -293,10 +354,17 @@ export async function getIncidentStatusDistribution(): Promise<StatusDistributio
   }
 }
 
-export async function getIncidentTrend(days: number = 30): Promise<TrendPoint[]> {
+export async function getIncidentTrend(range?: DateRangeParams): Promise<TrendPoint[]> {
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const days = 30;
+    const defaultFrom = new Date();
+    defaultFrom.setDate(defaultFrom.getDate() - days);
+
+    const fromDate = range?.dateFrom ? new Date(range.dateFrom + "T00:00:00") : defaultFrom;
+    const toDate = range?.dateTo ? new Date(range.dateTo + "T23:59:59") : undefined;
+
+    const conditions = [gte(incidents.createdAt, fromDate)];
+    if (toDate) conditions.push(lte(incidents.createdAt, toDate));
 
     const results = await db
       .select({
@@ -304,7 +372,7 @@ export async function getIncidentTrend(days: number = 30): Promise<TrendPoint[]>
         count: count(),
       })
       .from(incidents)
-      .where(gte(incidents.createdAt, startDate))
+      .where(and(...conditions))
       .groupBy(sql`${incidents.createdAt}::date`)
       .orderBy(sql`${incidents.createdAt}::date`);
 

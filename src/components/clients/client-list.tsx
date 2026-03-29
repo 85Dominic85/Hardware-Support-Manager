@@ -7,9 +7,12 @@ import { fetchClients, deleteClient } from "@/server/actions/clients";
 import { getClientColumns } from "@/components/clients/client-columns";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchBar } from "@/components/shared/search-bar";
+import { FilterBar } from "@/components/shared/filter-bar";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
+import { useFilterParams } from "@/hooks/use-filter-params";
 import { useDebouncedSearch } from "@/hooks/use-debounced-search";
+import { CLIENT_FILTERS } from "@/lib/constants/filter-options";
 import type { PaginatedResult, SortOrder } from "@/types";
 import type { ClientRow } from "@/server/queries/clients";
 
@@ -19,16 +22,25 @@ interface ClientListProps {
 
 export function ClientList({ initialData }: ClientListProps) {
   const queryClient = useQueryClient();
-  const { page, pageSize, sortBy, sortOrder, setSorting, setPage } =
+  const { page, pageSize, sortBy, sortOrder, setSorting, setPage, setPageSize } =
     useTableSearchParams("createdAt");
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
+  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
+    useFilterParams(CLIENT_FILTERS);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: queryData, isLoading } = useQuery({
-    queryKey: ["clients", { page, pageSize, search, sortBy, sortOrder }],
+    queryKey: ["clients", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],
     queryFn: () =>
-      fetchClients({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
+      fetchClients({
+        page,
+        pageSize,
+        search,
+        sortBy,
+        sortOrder: sortOrder as SortOrder,
+        filters: filterValues,
+      }),
     staleTime: 0,
   });
 
@@ -73,12 +85,22 @@ export function ClientList({ initialData }: ClientListProps) {
         totalPages={data.totalPages}
         isLoading={isLoading}
         onPageChange={setPage}
+        onPageSizeChange={setPageSize}
         searchBar={
-          <SearchBar
-            value={inputValue}
-            onChange={setInputValue}
-            placeholder="Buscar clientes..."
-          />
+          <div className="space-y-3">
+            <SearchBar
+              value={inputValue}
+              onChange={setInputValue}
+              placeholder="Buscar clientes..."
+            />
+            <FilterBar
+              filters={CLIENT_FILTERS}
+              params={filterParams}
+              onFilterChange={setFilter}
+              onClearFilters={clearFilters}
+              activeFilterCount={activeFilterCount}
+            />
+          </div>
         }
       />
 
