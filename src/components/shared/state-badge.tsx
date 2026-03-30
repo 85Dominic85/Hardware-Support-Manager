@@ -13,6 +13,8 @@ const INCIDENT_STATUS_COLORS: Record<IncidentStatus, string> = {
   cancelado: "bg-red-500/15 text-red-700 hover:bg-red-500/15 dark:bg-red-500/25 dark:text-red-300",
 };
 
+const INCIDENT_ACTIVE_STATUSES = new Set<IncidentStatus>(["nuevo", "en_triaje", "en_gestion"]);
+
 const RMA_STATUS_COLORS: Record<RmaStatus, string> = {
   borrador: "bg-gray-500/15 text-gray-700 hover:bg-gray-500/15 dark:bg-gray-500/25 dark:text-gray-300",
   solicitado: "bg-blue-500/15 text-blue-700 hover:bg-blue-500/15 dark:bg-blue-500/25 dark:text-blue-300",
@@ -25,6 +27,20 @@ const RMA_STATUS_COLORS: Record<RmaStatus, string> = {
   cancelado: "bg-red-500/15 text-red-700 hover:bg-red-500/15 dark:bg-red-500/25 dark:text-red-300",
 };
 
+const RMA_ACTIVE_STATUSES = new Set<RmaStatus>(["solicitado", "aprobado", "enviado_proveedor", "en_proveedor"]);
+
+function StatusDot({ isActive }: { isActive: boolean }) {
+  if (isActive) {
+    return (
+      <span className="relative inline-flex w-1.5 h-1.5 mr-1.5">
+        <span className="absolute inset-0 rounded-full bg-current animate-ping opacity-30" />
+        <span className="relative inline-block w-1.5 h-1.5 rounded-full bg-current" />
+      </span>
+    );
+  }
+  return <span className="inline-block w-1.5 h-1.5 rounded-full bg-current mr-1.5" />;
+}
+
 interface IncidentStateBadgeProps {
   status: IncidentStatus;
 }
@@ -32,7 +48,7 @@ interface IncidentStateBadgeProps {
 export function IncidentStateBadge({ status }: IncidentStateBadgeProps) {
   return (
     <Badge variant="outline" className={INCIDENT_STATUS_COLORS[status]}>
-      <span className="inline-block w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
+      <StatusDot isActive={INCIDENT_ACTIVE_STATUSES.has(status)} />
       {INCIDENT_STATUS_LABELS[status]}
     </Badge>
   );
@@ -45,7 +61,7 @@ interface RmaStateBadgeProps {
 export function RmaStateBadge({ status }: RmaStateBadgeProps) {
   return (
     <Badge variant="outline" className={RMA_STATUS_COLORS[status]}>
-      <span className="inline-block w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
+      <StatusDot isActive={RMA_ACTIVE_STATUSES.has(status)} />
       {RMA_STATUS_LABELS[status]}
     </Badge>
   );

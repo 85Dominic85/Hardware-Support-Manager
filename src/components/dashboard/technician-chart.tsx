@@ -52,6 +52,8 @@ export function TechnicianChart({ data }: TechnicianChartProps) {
                 dataKey="resolved"
                 fill="var(--color-chart-2)"
                 radius={[0, 4, 4, 0]}
+                animationBegin={200}
+                animationDuration={800}
               />
             </BarChart>
           </ChartContainer>

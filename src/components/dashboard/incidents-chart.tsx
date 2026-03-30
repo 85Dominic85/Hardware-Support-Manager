@@ -57,6 +57,8 @@ export function IncidentsChart({ data }: IncidentsChartProps) {
                 fill="var(--color-chart-1)"
                 fillOpacity={0.15}
                 strokeWidth={2}
+                animationBegin={200}
+                animationDuration={800}
               />
             </AreaChart>
           </ChartContainer>

@@ -24,13 +24,13 @@ const COLOR_MAP = {
 
 export function KpiCard({ title, value, subtitle, icon: Icon, color, trend }: KpiCardProps) {
   return (
-    <Card className="cursor-default transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+    <Card className="cursor-default transition-all duration-200 hover:shadow-[0_8px_30px_oklch(0.623_0.214_259/0.08)] hover:-translate-y-0.5 dark:hover:shadow-[0_8px_30px_oklch(0.623_0.214_259/0.15)]">
       <CardContent className="flex items-center gap-4 p-6">
         <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${COLOR_MAP[color]}`}>
           <Icon className="h-6 w-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-3xl font-bold leading-none">{value}</p>
+          <p className="text-3xl font-bold leading-none animate-count-up">{value}</p>
           <p className="mt-1 text-sm font-medium text-muted-foreground">{title}</p>
           {subtitle && (
             <p className="text-xs text-muted-foreground/70">{subtitle}</p>

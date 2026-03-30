@@ -60,7 +60,7 @@ function AlertSection({ title, icon: Icon, items }: SectionProps) {
       {items.map((item) => (
         <div
           key={item.id}
-          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/50"
+          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-all duration-150 hover:bg-muted/60 hover:translate-x-0.5"
         >
           <Link
             href={item.entityUrl}
@@ -116,7 +116,7 @@ export function AttentionWidget({ initialData }: AttentionWidgetProps) {
     : "border-l-4 border-l-amber-500 border-amber-200 dark:border-amber-900/50";
 
   return (
-    <Card className={borderClass}>
+    <Card className={cn(borderClass, totalCount > 5 ? "bg-gradient-to-r from-red-500/[0.03] via-transparent to-transparent" : "bg-gradient-to-r from-amber-500/[0.03] via-transparent to-transparent")}>
       <CardHeader className="flex flex-row items-center gap-2 pb-2 pt-4 px-4">
         <AlertTriangle className={cn("h-4 w-4 shrink-0 text-amber-500", totalCount > 3 && "animate-pulse")} />
         <CardTitle className="text-sm font-semibold">

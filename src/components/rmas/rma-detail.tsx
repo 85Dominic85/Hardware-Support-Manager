@@ -81,6 +81,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Editar RMA</h1>
+        <div style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
         <Card>
           <CardContent className="pt-6">
             <RmaForm
@@ -114,6 +115,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
             />
           </CardContent>
         </Card>
+        </div>
       </div>
     );
   }
@@ -125,7 +127,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 0ms both' }}>
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{rma.rmaNumber}</h1>
@@ -175,15 +177,18 @@ export function RmaDetail({ rma }: RmaDetailProps) {
       </div>
 
       {/* Transition buttons */}
+      <div style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both' }}>
       <RmaTransitionButtons
         rmaId={rma.id}
         currentStatus={rma.status as RmaStatus}
         onTransitionComplete={handleTransitionComplete}
       />
+      </div>
 
       {/* Info cards */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both' }}>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
           <CardHeader>
             <CardTitle className="text-lg">Información General</CardTitle>
           </CardHeader>
@@ -280,7 +285,8 @@ export function RmaDetail({ rma }: RmaDetailProps) {
         </Card>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
             <CardHeader>
               <CardTitle className="text-lg">Dispositivo y Envío</CardTitle>
             </CardHeader>
@@ -367,7 +373,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
       </div>
 
       {/* Dates */}
-      <Card>
+      <Card style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both' }}>
         <CardHeader>
           <CardTitle className="text-lg">Fechas</CardTitle>
         </CardHeader>
@@ -398,7 +404,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
       </Card>
 
       {/* Attachments & Event Log */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both' }}>
         <AttachmentSection entityType="rma" entityId={rma.id} />
         <EventLogTimeline entityType="rma" entityId={rma.id} />
       </div>

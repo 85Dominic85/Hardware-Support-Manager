@@ -53,7 +53,7 @@ export function AgingChart({ data }: AgingChartProps) {
               <XAxis dataKey="bucket" tickLine={false} axisLine={false} fontSize={11} />
               <YAxis tickLine={false} axisLine={false} fontSize={12} allowDecimals={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]} animationBegin={200} animationDuration={800} />
             </BarChart>
           </ChartContainer>
         )}

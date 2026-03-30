@@ -134,7 +134,7 @@ export function IncidentForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Cliente y Referencia Intercom */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />
             Cliente y Referencia
           </h3>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -239,11 +239,11 @@ export function IncidentForm({
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/40" />
 
         {/* Incidencia */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />
             Incidencia
           </h3>
           <FormField
@@ -360,11 +360,11 @@ export function IncidentForm({
           />
         </div>
 
-        <Separator />
+        <Separator className="bg-border/40" />
 
         {/* Dispositivo */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />
             Dispositivo
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -439,11 +439,11 @@ export function IncidentForm({
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/40" />
 
         {/* Contacto y Recogida */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />
             Contacto y Recogida
           </h3>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -109,7 +109,10 @@ export function AppSidebar() {
                   : pathname.startsWith(item.href) &&
                     (!("excludePrefix" in item) || !pathname.startsWith((item as { excludePrefix: string }).excludePrefix));
                 return (
-                <SidebarMenuItem key={item.href}>
+                <SidebarMenuItem key={item.href} className="relative">
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-full bg-sidebar-primary" />
+                  )}
                   <SidebarMenuButton
                     asChild
                     isActive={isActive}

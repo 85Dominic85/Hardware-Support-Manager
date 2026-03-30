@@ -200,7 +200,7 @@ export function RmaForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Seccion 1 — Relaciones */}
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">Relaciones</h3>
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide mb-4"><span className="h-4 w-1 rounded-full bg-primary" />Relaciones</h3>
           <div className="grid gap-6 sm:grid-cols-3">
             <FormField
               control={form.control}
@@ -347,11 +347,11 @@ export function RmaForm({
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/40" />
 
         {/* Seccion 2 — Ubicacion cliente */}
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">Ubicacion del cliente</h3>
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide mb-4"><span className="h-4 w-1 rounded-full bg-primary" />Ubicacion del cliente</h3>
           <div className="grid gap-6 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -425,11 +425,11 @@ export function RmaForm({
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-border/40" />
 
         {/* Seccion 3 — Dispositivo */}
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">Dispositivo</h3>
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide mb-4"><span className="h-4 w-1 rounded-full bg-primary" />Dispositivo</h3>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <FormField
               control={form.control}
@@ -505,9 +505,9 @@ export function RmaForm({
         {/* Seccion 4 — Seguimiento (solo en modo edicion) */}
         {mode === "edit" && (
           <>
-            <Separator />
+            <Separator className="bg-border/40" />
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">Seguimiento</h3>
+              <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide mb-4"><span className="h-4 w-1 rounded-full bg-primary" />Seguimiento</h3>
               <div className="grid gap-6 sm:grid-cols-3">
                 <FormField
                   control={form.control}
@@ -555,7 +555,7 @@ export function RmaForm({
           </>
         )}
 
-        <Separator />
+        <Separator className="bg-border/40" />
 
         {/* Seccion 5 — Notas */}
         <FormField

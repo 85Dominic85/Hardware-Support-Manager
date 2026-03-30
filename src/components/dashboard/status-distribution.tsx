@@ -58,6 +58,8 @@ export function StatusDistribution({ data }: StatusDistributionProps) {
                 dataKey="count"
                 fill="var(--color-chart-1)"
                 radius={[0, 4, 4, 0]}
+                animationBegin={200}
+                animationDuration={800}
               />
             </BarChart>
           </ChartContainer>

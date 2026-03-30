@@ -101,6 +101,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Editar Incidencia</h1>
+        <div style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
         <Card>
           <CardContent className="pt-6">
             <IncidentForm
@@ -132,6 +133,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
             />
           </CardContent>
         </Card>
+        </div>
       </div>
     );
   }
@@ -139,7 +141,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 0ms both' }}>
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{incident.incidentNumber}</h1>
@@ -193,7 +195,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
       </div>
 
       {/* Transition buttons + SLA */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_300px]" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both' }}>
         <StateTransitionButtons
           incidentId={incident.id}
           currentStatus={incident.status as IncidentStatus}
@@ -210,8 +212,9 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
       </div>
 
       {/* Info cards */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both' }}>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
           <CardHeader>
             <CardTitle className="text-lg">Información General</CardTitle>
           </CardHeader>
@@ -267,7 +270,8 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
           <CardHeader>
             <CardTitle className="text-lg">Dispositivo</CardTitle>
           </CardHeader>
@@ -310,7 +314,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
 
       {/* RMAs vinculados */}
       {linkedRmas.length > 0 && (
-        <Card>
+        <Card style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both' }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <RotateCcw className="h-5 w-5" />
@@ -399,7 +403,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
       )}
 
       {/* Dates */}
-      <Card>
+      <Card style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both' }}>
         <CardHeader>
           <CardTitle className="text-lg">Fechas</CardTitle>
         </CardHeader>
@@ -438,7 +442,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
       </Card>
 
       {/* Attachments & Event Log */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2" style={{ animation: 'fadeInUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 400ms both' }}>
         <AttachmentSection entityType="incident" entityId={incident.id} />
         <EventLogTimeline entityType="incident" entityId={incident.id} />
       </div>

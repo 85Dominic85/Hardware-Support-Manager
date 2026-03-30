@@ -70,7 +70,7 @@ export function ExpandableKpiCard({
         "cursor-pointer transition-all duration-200",
         isExpanded
           ? "shadow-lg -translate-y-0.5 ring-2 ring-primary/20"
-          : "hover:shadow-md hover:-translate-y-0.5"
+          : "hover:shadow-[0_8px_30px_oklch(0.623_0.214_259/0.08)] hover:-translate-y-0.5 dark:hover:shadow-[0_8px_30px_oklch(0.623_0.214_259/0.15)]"
       )}
       onClick={() => setIsExpanded(!isExpanded)}
     >
@@ -82,7 +82,7 @@ export function ExpandableKpiCard({
             <Icon className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-3xl font-bold leading-none">{value}</p>
+            <p className="text-3xl font-bold leading-none animate-count-up">{value}</p>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
               {title}
             </p>

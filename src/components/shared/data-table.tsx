@@ -67,7 +67,7 @@ export function DataTable<TData>({
 
       <div className="rounded-lg border bg-card">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/30 dark:bg-muted/10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -95,10 +95,11 @@ export function DataTable<TData>({
                 </TableRow>
               ))
             ) : table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row, index) => (
                 <TableRow
                   key={row.id}
                   className="hover:bg-muted/50 transition-colors duration-150"
+                  style={index < 10 ? { animation: `fadeInUp 200ms cubic-bezier(0.16, 1, 0.3, 1) ${index * 30}ms both` } : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -127,7 +128,7 @@ export function DataTable<TData>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/30 p-2">
         <p className="text-sm text-muted-foreground shrink-0">
           {totalCount > 0
             ? `Mostrando ${startItem}-${endItem} de ${totalCount}`
@@ -154,7 +155,7 @@ export function DataTable<TData>({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm">
-            Página {page} de {totalPages || 1}
+            Página <span className="font-bold text-primary">{page}</span> de {totalPages || 1}
           </span>
           <Button
             variant="outline"

@@ -70,14 +70,19 @@ export function EventLogTimeline({
           </p>
         ) : (
           <div className="relative space-y-0">
-            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
-            {logs.map((log) => {
+            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-primary/20 via-border to-transparent" />
+            {logs.map((log, index) => {
               const Icon = ACTION_ICONS[log.action] ?? Plus;
               const details = log.details as Record<string, string> | null;
+              const isFirst = index === 0;
               return (
-                <div key={log.id} className="relative flex gap-4 pb-6 last:pb-0">
-                  <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                <div
+                  key={log.id}
+                  className="relative flex gap-4 pb-6 last:pb-0"
+                  style={{ animation: `slideInLeft 250ms cubic-bezier(0.16, 1, 0.3, 1) ${index * 60}ms both` }}
+                >
+                  <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isFirst ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                    <Icon className={`h-4 w-4 ${isFirst ? "text-primary-foreground" : "text-muted-foreground"}`} />
                   </div>
                   <div className="flex-1 min-w-0 pt-0.5">
                     <div className="flex items-center gap-2 flex-wrap">

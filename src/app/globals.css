@@ -203,6 +203,81 @@
     animation: contentReveal 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
+  /* Scale in for badges and small elements */
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 200ms var(--ease-out-expo) forwards;
+  }
+
+  /* Slide in from left for timeline entries */
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 300ms var(--ease-out-expo) forwards;
+  }
+
+  /* Count up for KPI values */
+  @keyframes countUp {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-count-up {
+    animation: countUp 400ms var(--ease-out-expo) forwards;
+  }
+
+  /* Shimmer for skeleton loading */
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(90deg, transparent 25%, oklch(0 0 0 / 0.04) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  .dark .skeleton-shimmer {
+    background: linear-gradient(90deg, transparent 25%, oklch(1 0 0 / 0.03) 50%, transparent 75%);
+    background-size: 200% 100%;
+  }
+
+  /* Input focus easing alignment (Emil) */
+  [data-slot="input"],
+  [data-slot="textarea"] {
+    transition-timing-function: var(--ease-out-expo);
+  }
+
   /* Reduced motion: keep opacity, remove movement */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
