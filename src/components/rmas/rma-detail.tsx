@@ -21,6 +21,7 @@ import type { RmaStatus } from "@/lib/constants/rmas";
 import type { RmaRow } from "@/server/queries/rmas";
 import type { RmaFormInput } from "@/lib/validators/rma";
 import { TemplatePicker } from "@/components/message-templates/template-picker";
+import { Loader2 } from "lucide-react";
 
 interface RmaDetailProps {
   rma: RmaRow;
@@ -30,13 +31,13 @@ export function RmaDetail({ rma }: RmaDetailProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: providers = [] } = useQuery({
+  const { data: providers = [], isLoading: isLoadingProviders } = useQuery({
     queryKey: ["providers", "select"],
     queryFn: () => fetchProvidersForSelect(),
     enabled: isEditing,
   });
 
-  const { data: incidents = [] } = useQuery({
+  const { data: incidents = [], isLoading: isLoadingIncidents } = useQuery({
     queryKey: ["incidents", "select"],
     queryFn: () => fetchIncidentsForSelect(),
     enabled: isEditing,
@@ -63,6 +64,20 @@ export function RmaDetail({ rma }: RmaDetailProps) {
   };
 
   if (isEditing) {
+    if (isLoadingProviders || isLoadingIncidents) {
+      return (
+        <div className="space-y-6">
+          <h1 className="text-3xl font-bold">Editar RMA</h1>
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Editar RMA</h1>

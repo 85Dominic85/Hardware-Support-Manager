@@ -35,7 +35,7 @@ import { RmaStateBadge } from "@/components/shared/state-badge";
 import type { RmaStatus } from "@/lib/constants/rmas";
 import type { CreateIncidentInput } from "@/lib/validators/incident";
 import { TemplatePicker } from "@/components/message-templates/template-picker";
-import { RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw } from "lucide-react";
 
 const PRIORITY_COLORS: Record<string, string> = {
   baja: "bg-green-500/15 text-green-700 hover:bg-green-500/15 dark:bg-green-500/25 dark:text-green-300",
@@ -52,7 +52,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ["users", "select"],
     queryFn: () => fetchUsersForSelect(),
     enabled: isEditing,
@@ -84,6 +84,20 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
   };
 
   if (isEditing) {
+    if (isLoadingUsers) {
+      return (
+        <div className="space-y-6">
+          <h1 className="text-3xl font-bold">Editar Incidencia</h1>
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Editar Incidencia</h1>

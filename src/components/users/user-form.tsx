@@ -26,12 +26,14 @@ import { z } from "zod";
 import { createUserSchema } from "@/lib/validators/user";
 import { USER_ROLE_LABELS } from "@/lib/constants/roles";
 
-const userFormSchema = createUserSchema.extend({
+const userCreateFormSchema = createUserSchema;
+
+const userEditFormSchema = createUserSchema.extend({
   active: z.boolean().optional(),
-  password: z.string().optional().or(z.string().min(6, "La contraseña debe tener al menos 6 caracteres")),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres").optional().or(z.literal("")),
 });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+type UserFormValues = z.infer<typeof userEditFormSchema>;
 
 interface UserFormProps {
   defaultValues?: Partial<UserFormValues>;
@@ -47,9 +49,10 @@ export function UserForm({
   mode,
 }: UserFormProps) {
   const isEdit = mode === "edit";
+  const formSchema = isEdit ? userEditFormSchema : userCreateFormSchema;
 
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: {
       name: defaultValues?.name ?? "",
       email: defaultValues?.email ?? "",
