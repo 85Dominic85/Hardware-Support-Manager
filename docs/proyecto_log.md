@@ -615,16 +615,170 @@ src/components/ui/popover.tsx                  # zoom-97, duration 250/180, roun
 
 ---
 
+### Sesión 2026-04-01 — Settings fix, responsive, dashboard KPIs, force transition, Intercom Inbox
+
+**16 commits** | **~50 archivos modificados/creados** | Deploy manual Vercel
+
+---
+
+#### Entregable 1: Fix configuración no aplica cambios (`e9649e3`, `7c5f7d8`)
+
+- `updateSetting` faltaba `revalidatePath` → añadido para `/settings`, `/incidents`, `/rmas`, `/dashboard`
+- `updatedAt` no se actualizaba en upsert → añadido al `set`
+- `useState(initialSla)` no se reseteaba con nuevos props → añadido `key={JSON.stringify(data)}` al SettingsContent
+- Limpios 2 lint warnings (imports no usados en quick-actions y quick-capture)
+
+#### Entregable 2: App responsive completo (`2dc9df2`)
+
+16 archivos — responsive mobile/tablet/desktop:
+- Layout: `p-4 sm:p-6`, header `px-4 sm:px-6`
+- 5 page headers: `flex-col sm:flex-row` con botones `w-full sm:w-auto`
+- Data table: `overflow-x-auto` + `min-w-[700px]` + pagination stack en mobile
+- Detail pages: grids `lg:grid-cols-2` → `md:grid-cols-2`
+- Forms RMA: `sm:grid-cols-3` → `sm:grid-cols-2 lg:grid-cols-3`
+- Popovers: `w-[90vw] max-w-sm sm:w-96`
+- Dashboard: KPI `grid-cols-2 md:3 xl:6`, charts `md:grid-cols-2`
+- Kanban: `overflow-x-auto`
+- Search bar: `w-full sm:max-w-sm`
+
+#### Entregable 3: Conectar default_page_size a todas las tablas (`6643975`)
+
+- `useTableSearchParams` acepta `defaultPageSize` (antes hardcoded 10)
+- 5 server pages fetching `getDefaultPageSize()` de BD
+- Flujo: page → page-content → list → hook → nuqs default
+
+#### Entregable 4: Auto-refresh polling (`50c56d4`)
+
+- Tablas (incidents, RMAs, clients, providers, users): `refetchInterval: 30_000`
+- Dashboard stats + alertas: `refetchInterval: 60_000`
+
+#### Entregable 5: Dashboard KPIs corregidos (`f0f5c82`, `d693026`)
+
+- `CLOSED_INCIDENT_STATUSES`: añadido `"resuelto"` (antes contaba resueltas como abiertas)
+- `CLOSED_RMA_STATUSES`: añadido `"recibido_oficina"`
+- Separado `CLOSED_STATUSES` en drilldown en `CLOSED_INCIDENT_STATUSES` + `CLOSED_RMA_STATUSES` (fix tipo TypeScript)
+
+#### Entregable 6: Botón force transition admin (`b268022`)
+
+- Server actions: `forceTransitionIncident` / `forceTransitionRma` (admin-only, skip state machine)
+- Componente `ForceTransitionButton`: botón shield ámbar redondo
+- Popover con grid de estados + stagger fadeInUp + confirmación en 2 pasos
+- Event log registra `forced: true` en details para auditoría
+- Respeta SLA pause accumulation y resolvedAt
+
+#### Entregable 7: Bandeja Intercom — integración webhook (`0775ab9` → `428fc9e`)
+
+**17 archivos nuevos**, +1238 líneas. Full-stack Intercom integration:
+
+**Infraestructura:**
+- Schema Drizzle: `intercom_inbox` (status, contact, subject, rawPayload, convertedIncidentId)
+- Cliente API Intercom: `getConversation`, `searchContacts`, `addNote`
+- Tipos TypeScript para Intercom REST API v2.11
+- Validators Zod para convert-to-incident y dismiss
+
+**Webhook:**
+- `POST /api/webhooks/intercom` — acepta cualquier topic de Intercom
+- Filtra solo escalados Hardware/RMA por keywords en payload
+- HMAC signature check cuando disponible, fallback a validación de estructura
+- Upsert idempotente por `intercom_conversation_id`
+
+**Server layer:**
+- `fetchIntercomInbox` (paginado, filtrable por status)
+- `convertToIncident` (atómico: crea incidencia + actualiza inbox en transacción)
+- `dismissInboxItem` / `restoreInboxItem`
+- Prevención duplicados: verifica `incidents.intercomEscalationId`
+
+**UI — Split-pane estilo email (/intercom):**
+- Panel izquierdo: lista scrollable con bordes color prioridad
+- Panel derecho: detalle + formulario inline para crear incidencia
+- Pre-fill título, descripción, categoría, prioridad desde datos Intercom
+- Tabs: Pendiente / Convertida / Descartada (nuqs URL state)
+- Items convertidos muestran número de incidencia con link
+
+**Sidebar:**
+- "Bandeja Intercom" con icono Inbox + badge pendientes
+
+**Configuración Intercom (en progreso):**
+- App "Hw sync HSM" creada en Developer Hub
+- Topics activados: `conversation_part.tag.created`, `conversation.admin.assigned`, `conversation.read`, `ticket.created`
+- Permisos: todos activados (read/write conversations, tickets, users, companies, tags, admins)
+- Webhook URL: `https://hardware-support-manager.vercel.app/api/webhooks/intercom`
+- **Pendiente**: verificar que webhooks llegan con 200 OK tras fix de firma HMAC
+
+**Env vars configuradas en Vercel:**
+- `INTERCOM_ACCESS_TOKEN` ✅
+- `INTERCOM_WEBHOOK_SECRET` ✅
+
+---
+
+#### Archivos principales de esta sesión
+
+```
+# Settings fix
+src/server/actions/settings.ts              # revalidatePath + updatedAt
+src/app/(dashboard)/settings/page.tsx       # key prop para re-mount
+
+# Responsive
+src/app/(dashboard)/layout.tsx              # p-4 sm:p-6
+src/components/layout/app-header.tsx        # px-4 sm:px-6
+src/app/(dashboard)/*/page.tsx              # 5 headers responsive
+src/components/shared/data-table.tsx        # overflow-x-auto + pagination
+src/components/shared/search-bar.tsx        # w-full sm:max-w-sm
+src/components/incidents/incident-detail.tsx # md:grid-cols-2
+src/components/rmas/rma-detail.tsx          # md:grid-cols-2
+src/components/rmas/rma-form.tsx            # sm:2 lg:3
+src/components/incidents/incident-preview.tsx # w-[90vw] max-w-sm
+src/components/rmas/rma-preview.tsx         # w-[90vw] max-w-sm
+src/components/dashboard/dashboard-content.tsx # grid-cols-2 md:3 xl:6
+src/components/rmas/rma-kanban.tsx          # overflow-x-auto
+
+# Page size setting
+src/hooks/use-table-search-params.ts        # defaultPageSize param
+src/components/*/list.tsx                   # 5 list components
+
+# Dashboard fix
+src/server/queries/dashboard.ts            # CLOSED_*_STATUSES con resuelto
+src/server/actions/dashboard-drilldown.ts  # Separar por entity type
+
+# Force transition
+src/components/shared/force-transition-button.tsx  # NUEVO
+src/server/actions/incidents.ts            # forceTransitionIncident
+src/server/actions/rmas.ts                 # forceTransitionRma
+src/components/incidents/state-transition-buttons.tsx # integración
+src/components/rmas/state-transition-buttons.tsx     # integración
+
+# Intercom Inbox
+src/lib/db/schema/intercom-inbox.ts        # NUEVO — schema
+src/lib/intercom/client.ts                 # NUEVO — API client
+src/lib/intercom/types.ts                  # NUEVO — tipos
+src/lib/constants/intercom.ts              # NUEVO — constantes
+src/lib/validators/intercom-inbox.ts       # NUEVO — Zod
+src/app/api/webhooks/intercom/route.ts     # NUEVO — webhook
+src/server/queries/intercom-inbox.ts       # NUEVO — queries
+src/server/actions/intercom-inbox.ts       # NUEVO — actions
+src/app/(dashboard)/intercom/page.tsx      # NUEVO — página
+src/components/intercom/intercom-inbox.tsx  # NUEVO — shell split-pane
+src/components/intercom/conversation-list.tsx    # NUEVO
+src/components/intercom/conversation-detail.tsx  # NUEVO
+src/components/intercom/inbox-status-badge.tsx   # NUEVO
+src/components/layout/app-sidebar.tsx      # Bandeja Intercom entry + badge
+src/server/queries/alerts.ts               # intercom pending count
+.env.example                               # INTERCOM vars
+```
+
+---
+
 ## Próximas Fases
 
-### Fase 4: Importación Manual desde Intercom (Pendiente)
-- Formulario para pegar datos de Intercom y crear incidencia/RMA
-- Parsing automático de información del cliente
+### Intercom — Pendiente de completar
+- Verificar webhook funciona end-to-end (crear escalado → aparece en Bandeja)
+- Sync estado HSM → Intercom (nota interna al transicionar incidencia)
+- Buscar contacto Intercom → auto-rellenar cliente
+- Ver conversación Intercom dentro de incident-detail
 
 ### Futuro
 - KPIs de proveedor: qué proveedores fallan más, tiempos medios de aprobación/reparación
 - Export CSV
-- Responsive mobile-first
 - Notificaciones email
 
 ## Migraciones SQL Pendientes / Ejecutadas
@@ -635,6 +789,7 @@ src/components/ui/popover.tsx                  # zoom-97, duration 250/180, roun
 | `sql/002-clients-and-enrichment.sql` | Ejecutado | Client locations + clients |
 | `sql/003-message-templates.sql` | Ejecutado | Tabla message_templates + seed |
 | `sql/004-update-state-machines.sql` | Ejecutado | ALTER TYPE enums + UPDATE datos |
+| (manual en Supabase) | Ejecutado | Tabla `intercom_inbox` + enum `intercom_inbox_status` + índice |
 
 > **Nota**: Las migraciones se ejecutan manualmente en el SQL Editor de Supabase porque el usuario `hsm_app` no tiene permisos DDL. Los ALTER TYPE deben ejecutarse separados de los UPDATE (Supabase no soporta BEGIN/COMMIT explícitos).
 

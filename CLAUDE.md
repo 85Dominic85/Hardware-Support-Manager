@@ -170,6 +170,16 @@ Return Merchandise Authorizations for sending defective hardware to providers.
 - **Users**: Internal team members with roles (admin, technician, viewer)
 - **EventLog**: Polymorphic audit trail (linked to incidents or RMAs)
 - **Attachments**: Polymorphic file attachments (linked to incidents, RMAs, or event log entries)
+- **IntercomInbox**: Triage queue for Intercom escalations (webhook-driven, converts to incidents)
+
+### Intercom Integration
+
+- **Webhook**: `POST /api/webhooks/intercom` receives escalated conversations/tickets
+- **Bandeja Intercom**: `/intercom` page — split-pane email-style inbox for reviewing escalations
+- **Flow**: Intercom escalation → webhook → `intercom_inbox` table → team reviews → "Crear Incidencia" inline
+- **Filters**: Only Hardware/RMA escalations are captured (keyword filtering in webhook)
+- **Dedup**: Unique constraint on `intercom_conversation_id` + check `incidents.intercomEscalationId` before creating
+- **API Client**: `src/lib/intercom/client.ts` — REST API v2.11 (getConversation, searchContacts, addNote)
 
 ### ID Format
 
@@ -323,6 +333,8 @@ DATABASE_URL=              # Supabase PostgreSQL pooler connection string
 NEXTAUTH_SECRET=           # NextAuth.js secret (generate with openssl rand -base64 32)
 NEXTAUTH_URL=              # App URL (http://localhost:3000 in dev)
 BLOB_READ_WRITE_TOKEN=     # Vercel Blob token
+INTERCOM_ACCESS_TOKEN=     # Intercom API key (for API calls)
+INTERCOM_WEBHOOK_SECRET=   # Secret for webhook HMAC verification
 ```
 
 ### Auth Security

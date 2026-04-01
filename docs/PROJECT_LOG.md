@@ -582,6 +582,54 @@
 
 ---
 
+## SESSION 9 — 2026-04-01
+
+**Objetivo**: Fix settings, responsive, dashboard KPIs, force transition, Intercom Inbox
+**Estado final**: COMPLETADA CON EXITO (16 commits, deploy Vercel OK)
+
+### Que se hizo
+
+| Commit | Tipo | Descripcion |
+|--------|------|-------------|
+| `e9649e3` | fix | Settings revalidatePath + lint cleanup |
+| `7c5f7d8` | fix | Settings re-mount via key prop |
+| `2dc9df2` | feat | Full responsive (16 archivos, mobile/tablet/desktop) |
+| `6643975` | fix | default_page_size conectado a todas las tablas |
+| `50c56d4` | feat | Auto-refresh polling 30s tablas, 60s dashboard |
+| `f0f5c82` | fix | Dashboard KPIs excluyen resuelto de "abiertas" |
+| `d693026` | fix | Separar CLOSED_STATUSES por entity type (TypeScript) |
+| `b268022` | feat | Force transition admin (shield button + popover) |
+| `0775ab9` | feat | Intercom Inbox full-stack (+1238 lineas, 17 archivos) |
+| `8b02642` | fix | generateSequentialId args |
+| `84950c9` | fix | Suspense boundary para nuqs/useSearchParams |
+| `680fb01` | fix | Webhook acepta todos los topics Intercom |
+| `d4a3b09` | fix | Filtro Hardware/RMA en webhook |
+| `428fc9e` | fix | Webhook acepta payloads sin firma HMAC |
+
+### Metricas
+
+| Metrica | Valor |
+|---------|-------|
+| Commits | 16 |
+| Archivos modificados | ~50 |
+| Archivos nuevos | ~15 (Intercom inbox, force transition, etc.) |
+| Tabla SQL nueva | intercom_inbox (creada manual en Supabase) |
+| Env vars nuevas | INTERCOM_ACCESS_TOKEN, INTERCOM_WEBHOOK_SECRET |
+
+### Decisiones de la sesion
+
+| Decision | Razon |
+|----------|-------|
+| DB-backed inbox (no live API) | Rapido, resiliente, sin dependencia de Intercom API en hot path |
+| Split-pane email-style | Optimo para 10-30 items/dia, triage secuencial, minimos clicks |
+| Inline incident creation | Sin navegacion ni dialog, formulario visible junto a conversacion |
+| force-dynamic + Suspense | nuqs useSearchParams requiere ambos para prerender en Turbopack |
+| Webhook sin filtro de topic | Intercom tickets usan topic diferente a conversations |
+| Filtro por keywords en payload | Solo Hardware/RMA llegan a bandeja, resto se ignora silenciosamente |
+| Deploy manual en Vercel | Seguridad: el usuario controla cuando se despliega |
+
+---
+
 ## Decisiones Tecnicas Importantes
 
 | Decision | Razon |
