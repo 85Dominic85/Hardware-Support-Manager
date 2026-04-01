@@ -134,9 +134,19 @@ export async function POST(request: NextRequest) {
   const { conversationId, contactName, contactEmail, subject, assigneeName } = extractData(payload);
   const relevant = isRelevantEscalation(payload);
 
-  // Detailed logging for Vercel runtime
+  // Detailed logging for Vercel runtime — includes payload structure for debugging
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const item = (payload as any)?.data?.item;
+  const itemKeys = item ? Object.keys(item).join(",") : "no-item";
+  const contactsDebug = item?.contacts
+    ? JSON.stringify(item.contacts).substring(0, 300)
+    : item?.user
+      ? JSON.stringify(item.user).substring(0, 300)
+      : item?.source?.author
+        ? JSON.stringify(item.source.author).substring(0, 300)
+        : "no-contacts-found";
   console.log(
-    `[Intercom Webhook] Topic: ${topic} | ID: ${conversationId} | Contact: ${contactName ?? "null"} | Email: ${contactEmail ?? "null"} | Subject: ${subject ?? "null"} | Relevant: ${relevant}`
+    `[Intercom Webhook] Topic: ${topic} | ID: ${conversationId} | Contact: ${contactName ?? "null"} | Email: ${contactEmail ?? "null"} | Subject: ${subject ?? "null"} | Relevant: ${relevant} | Keys: ${itemKeys} | ContactsRaw: ${contactsDebug}`
   );
 
   if (!relevant) {
