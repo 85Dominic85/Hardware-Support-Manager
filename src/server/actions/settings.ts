@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { appSettings } from "@/lib/db/schema";
 import { getRequiredSession } from "@/lib/auth/get-session";
@@ -16,8 +17,13 @@ export async function updateSetting(key: string, value: unknown): Promise<Action
       .values({ key, value })
       .onConflictDoUpdate({
         target: appSettings.key,
-        set: { value },
+        set: { value, updatedAt: new Date() },
       });
+
+    revalidatePath("/settings");
+    revalidatePath("/incidents");
+    revalidatePath("/rmas");
+    revalidatePath("/dashboard");
 
     return { success: true, data: undefined };
   } catch {
