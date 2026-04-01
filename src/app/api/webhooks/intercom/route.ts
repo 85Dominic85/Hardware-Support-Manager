@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { db } from "@/lib/db";
 import { intercomInbox } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { getConversation } from "@/lib/intercom/client";
+import { getConversation, getContact } from "@/lib/intercom/client";
 
 function verifySignature(body: string, signature: string | null, secret: string): boolean {
   if (!signature) return false;
@@ -170,17 +170,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // Enrich: if contact is missing, fetch from Intercom API using conversation ID
+  // Enrich: if contact is missing, fetch from Intercom API
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const itemData = (payload as any)?.data?.item;
   if (!contactName && !contactEmail && process.env.INTERCOM_ACCESS_TOKEN) {
     try {
-      const conv = await getConversation(conversationId);
-      const enrichedContact = conv.contacts?.contacts?.[0];
-      const enrichedName =
-        enrichedContact?.name ??
-        (enrichedContact?.email ? enrichedContact.email.split("@")[0] : null);
-      const enrichedEmail = enrichedContact?.email ?? null;
-      const enrichedAssignee = conv.teammates?.admins?.[0]?.name ?? assigneeName;
-      const enrichedSubject = conv.source?.subject ?? subject;
+      let enrichedName: string | null = null;
+      let enrichedEmail: string | null = null;
+
+      // Strategy 1: ticket has contacts[].id — fetch contact by ID
+      const contactRef = itemData?.contacts?.[0] ?? itemData?.contacts?.contacts?.[0];
+      if (contactRef?.id && contactRef?.type === "contact") {
+        console.log(`[Intercom Webhook] Fetching contact by ID: ${contactRef.id}`);
+        const contact = await getContact(contactRef.id);
+        enrichedName = contact.name ?? (contact.email ? contact.email.split("@")[0] : null);
+        enrichedEmail = contact.email ?? null;
+      }
+
+      // Strategy 2: try fetching the conversation for more data
+      if (!enrichedName && !enrichedEmail) {
+        console.log(`[Intercom Webhook] Fetching conversation: ${conversationId}`);
+        const conv = await getConversation(conversationId);
+        const convContact = conv.contacts?.contacts?.[0];
+        enrichedName = convContact?.name ?? null;
+        enrichedEmail = convContact?.email ?? null;
+      }
 
       if (enrichedName || enrichedEmail) {
         await db
@@ -188,17 +202,16 @@ export async function POST(request: NextRequest) {
           .set({
             contactName: enrichedName,
             contactEmail: enrichedEmail,
-            assigneeName: enrichedAssignee,
-            subject: enrichedSubject ?? subject ?? `Webhook: ${topic}`,
             updatedAt: new Date(),
           })
           .where(eq(intercomInbox.intercomConversationId, conversationId));
 
         console.log(`[Intercom Webhook] Enriched ${conversationId}: ${enrichedName} <${enrichedEmail}>`);
+      } else {
+        console.log(`[Intercom Webhook] No contact data found for ${conversationId}`);
       }
     } catch (err) {
-      // Enrichment is best-effort — don't fail the webhook
-      console.log(`[Intercom Webhook] Enrichment failed for ${conversationId}: ${err}`);
+      console.log(`[Intercom Webhook] Enrichment failed: ${err}`);
     }
   }
 
