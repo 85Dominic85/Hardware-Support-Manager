@@ -32,9 +32,12 @@ function extractData(payload: any): {
   const item = payload?.data?.item;
   if (!item) return { conversationId: null, contactName: null, contactEmail: null, subject: null, assigneeName: null };
 
-  const conversationId = String(item.conversation_id ?? item.id ?? "");
+  // For tickets, use linked conversation ID if available; fallback to ticket ID
+  const linkedConvId = item.linked_objects?.data?.[0]?.id;
+  const conversationId = String(linkedConvId ?? item.conversation_id ?? item.id ?? "");
 
   const contact =
+    (item.contacts?.type === "contact" ? item.contacts : null) ??
     item.contacts?.contacts?.[0] ??
     item.contacts?.[0] ??
     item.user ??
@@ -54,18 +57,19 @@ function extractData(payload: any): {
     contact?.email_address ??
     null;
 
-  const subject =
-    item.source?.subject ??
-    item.title ??
-    item.ticket_type?.name ??
-    item.source?.body?.substring?.(0, 200) ??
-    null;
+  // Build subject: prefer ticket_type name, add problem summary if available
+  const attrs = item.ticket_attributes ?? {};
+  const problemSummary = attrs["﻿Resumen del problema del cliente:"] ?? attrs["Resumen del problema del cliente:"] ?? null;
+  const ticketTypeName = item.ticket_type?.name ?? null;
+  const subject = problemSummary
+    ? `${ticketTypeName ?? "Ticket"}: ${problemSummary}`
+    : item.source?.subject ?? item.title ?? ticketTypeName ?? null;
 
-  const assignee =
-    item.teammates?.admins?.[0] ??
-    item.admin_assignee ??
-    null;
-  const assigneeName = assignee?.name ?? null;
+  // Assignee: find the admin who created the ticket (not bot)
+  const adminPart = item.ticket_parts?.ticket_parts?.find?.(
+    (p: any) => p.author?.type === "admin"
+  );
+  const assigneeName = adminPart?.author?.name ?? null;
 
   return { conversationId, contactName, contactEmail, subject, assigneeName };
 }
@@ -178,8 +182,11 @@ export async function POST(request: NextRequest) {
       let enrichedName: string | null = null;
       let enrichedEmail: string | null = null;
 
-      // Strategy 1: ticket has contacts[].id — fetch contact by ID
-      const contactRef = itemData?.contacts?.[0] ?? itemData?.contacts?.contacts?.[0];
+      // Strategy 1: ticket has contact ref — could be object, array, or nested
+      const contactRef =
+        (itemData?.contacts?.type === "contact" ? itemData.contacts : null) ??
+        itemData?.contacts?.[0] ??
+        itemData?.contacts?.contacts?.[0];
       if (contactRef?.id && contactRef?.type === "contact") {
         console.log(`[Intercom Webhook] Fetching contact by ID: ${contactRef.id}`);
         const contact = await getContact(contactRef.id);

@@ -31,14 +31,33 @@ interface ConversationDetailProps {
   onDismiss: () => void;
 }
 
-function extractSnippet(payload: unknown): string {
-  try {
-    const p = payload as IntercomWebhookPayload;
-    const body = p?.data?.item?.source?.body;
-    if (body) return body.slice(0, 500);
-  } catch { /* ignore */ }
-  return "";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function extractTicketData(payload: unknown) {
+  const p = payload as any;
+  const item = p?.data?.item;
+  const attrs = item?.ticket_attributes ?? {};
+
+  // Extract ticket-specific fields
+  const problemSummary = attrs["﻿Resumen del problema del cliente:"] ?? attrs["Resumen del problema del cliente:"] ?? "";
+  const troubleshootingSteps = attrs["Pasos realizados de troubleshooting:"] ?? "";
+  const urgency = (attrs["Urgencia:"] ?? "").toLowerCase();
+  const ticketTypeName = item?.ticket_type?.name ?? "";
+  const ticketTypeDesc = item?.ticket_type?.description ?? "";
+  const linkedConvId = item?.linked_objects?.data?.[0]?.id ?? null;
+  const companyId = item?.company_id ?? null;
+
+  // Build description from all available text
+  const descParts = [];
+  if (problemSummary) descParts.push(`Problema: ${problemSummary}`);
+  if (troubleshootingSteps) descParts.push(`Troubleshooting: ${troubleshootingSteps}`);
+  const description = descParts.join("\n\n");
+
+  // Snippet fallback for conversations (non-tickets)
+  const snippet = item?.source?.body?.slice?.(0, 500) ?? "";
+
+  return { problemSummary, troubleshootingSteps, urgency, ticketTypeName, ticketTypeDesc, linkedConvId, companyId, description: description || snippet };
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 function detectCategory(text: string): IncidentCategory {
   const lower = text.toLowerCase();
@@ -50,22 +69,26 @@ function detectCategory(text: string): IncidentCategory {
   return "otro";
 }
 
-function detectPriority(text: string): "baja" | "media" | "alta" | "critica" {
-  const lower = text.toLowerCase();
-  if (/no puede trabajar|perdiendo dinero|cr[ií]tico|emergencia/.test(lower)) return "critica";
-  if (/urgente|bloqueado|no funciona|sin servicio/.test(lower)) return "alta";
+function mapPriority(urgency: string): "baja" | "media" | "alta" | "critica" {
+  if (/urgente|critica|cr[ií]tico/.test(urgency)) return "critica";
+  if (/alta|high/.test(urgency)) return "alta";
+  if (/baja|low/.test(urgency)) return "baja";
   return "media";
 }
 
 export function ConversationDetail({ item, onConvert, onDismiss }: ConversationDetailProps) {
-  const snippet = extractSnippet(item.rawPayload);
+  const ticketData = extractTicketData(item.rawPayload);
   const intercomUrl = `https://app.intercom.com/a/inbox/conversation/${item.intercomConversationId}`;
 
-  // Pre-fill form from parsed data
-  const [title, setTitle] = useState(item.subject ?? "");
-  const [description, setDescription] = useState(snippet);
-  const [category, setCategory] = useState<IncidentCategory>(detectCategory(snippet || item.subject || ""));
-  const [priority, setPriority] = useState(detectPriority(snippet || item.subject || ""));
+  // Pre-fill form from ticket data
+  const [title, setTitle] = useState(ticketData.problemSummary || item.subject || "");
+  const [description, setDescription] = useState(ticketData.description);
+  const [category, setCategory] = useState<IncidentCategory>(
+    detectCategory(ticketData.description || ticketData.ticketTypeName || item.subject || "")
+  );
+  const [priority, setPriority] = useState(
+    ticketData.urgency ? mapPriority(ticketData.urgency) : "media"
+  );
 
   const convertMutation = useMutation({
     mutationFn: () =>
@@ -157,17 +180,39 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
         </div>
       )}
 
-      {/* Subject */}
-      {item.subject && (
-        <div>
-          <p className="text-sm font-medium">{item.subject}</p>
+      {/* Ticket type */}
+      {ticketData.ticketTypeName && (
+        <p className="text-sm font-medium">{ticketData.ticketTypeName}</p>
+      )}
+
+      {/* Ticket data extracted from Intercom */}
+      {(ticketData.problemSummary || ticketData.troubleshootingSteps || ticketData.urgency) && (
+        <div className="rounded-lg bg-muted/30 p-4 space-y-3 max-h-64 overflow-y-auto">
+          {ticketData.problemSummary && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Resumen del problema</p>
+              <p className="text-sm whitespace-pre-wrap">{ticketData.problemSummary}</p>
+            </div>
+          )}
+          {ticketData.troubleshootingSteps && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pasos de troubleshooting</p>
+              <p className="text-sm whitespace-pre-wrap">{ticketData.troubleshootingSteps}</p>
+            </div>
+          )}
+          {ticketData.urgency && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Urgencia Intercom</p>
+              <p className="text-sm font-medium">{ticketData.urgency.toUpperCase()}</p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Conversation snippet */}
-      {snippet && (
+      {/* Fallback: conversation snippet if no ticket attributes */}
+      {!ticketData.problemSummary && !ticketData.troubleshootingSteps && ticketData.description && (
         <div className="rounded-lg bg-muted/30 p-4 max-h-48 overflow-y-auto">
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{snippet}</p>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{ticketData.description}</p>
         </div>
       )}
 
