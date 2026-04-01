@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { incidents, rmas, providers, clients } from "@/lib/db/schema";
+import { incidents, rmas, providers, clients, intercomInbox } from "@/lib/db/schema";
 import { count, sql, not, inArray, and, eq } from "drizzle-orm";
 import { getAlertThresholds } from "./settings";
 import { getSlaThresholds } from "./settings";
@@ -30,6 +30,7 @@ export interface AlertBadgeCounts {
   incidents: number;
   rmas: number;
   warehouse: number;
+  intercom: number;
   total: number;
 }
 
@@ -206,7 +207,7 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
       getSlaThresholds(),
     ]);
 
-    const [staleResult, stuckResult, warehouseResult, slaResult] =
+    const [staleResult, stuckResult, warehouseResult, slaResult, intercomResult] =
       await Promise.all([
         db
           .select({ count: count() })
@@ -249,19 +250,25 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
               )`
             )
           ),
+        db
+          .select({ count: count() })
+          .from(intercomInbox)
+          .where(eq(intercomInbox.status, "pendiente")),
       ]);
 
     const incidentCount = staleResult[0].count + slaResult[0].count;
     const rmaCount = stuckResult[0].count;
     const warehouseCount = warehouseResult[0].count;
+    const intercomCount = intercomResult[0].count;
 
     return {
       incidents: incidentCount,
       rmas: rmaCount,
       warehouse: warehouseCount,
-      total: incidentCount + rmaCount + warehouseCount,
+      intercom: intercomCount,
+      total: incidentCount + rmaCount + warehouseCount + intercomCount,
     };
   } catch {
-    return { incidents: 0, rmas: 0, warehouse: 0, total: 0 };
+    return { incidents: 0, rmas: 0, warehouse: 0, intercom: 0, total: 0 };
   }
 }

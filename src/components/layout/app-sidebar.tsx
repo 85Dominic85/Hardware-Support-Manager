@@ -30,6 +30,7 @@ import {
   Store,
   Building2,
   Package,
+  Inbox,
   UserCog,
   Settings,
   LogOut,
@@ -41,6 +42,7 @@ const navigation = [
   { name: "Panel", href: "/dashboard", icon: LayoutDashboard, exact: false },
   { name: "Incidencias", href: "/incidents", icon: AlertTriangle, exact: false, excludePrefix: "/incidents/quick-capture" },
   { name: "Captura Rápida", href: "/incidents/quick-capture", icon: MessageSquareText, exact: true },
+  { name: "Bandeja Intercom", href: "/intercom", icon: Inbox, exact: false },
   { name: "RMAs", href: "/rmas", icon: RotateCcw, exact: false },
   { name: "Almacén", href: "/warehouse", icon: Package, exact: false },
   { name: "Clientes", href: "/clients", icon: Store, exact: false },
@@ -71,6 +73,7 @@ export function AppSidebar() {
     "/incidents": badges?.incidents,
     "/rmas": badges?.rmas,
     "/warehouse": badges?.warehouse,
+    "/intercom": badges?.intercom,
   };
   const userName = session?.user?.name ?? "Usuario";
   const userRole = session?.user?.role ?? "viewer";

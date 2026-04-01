@@ -10,4 +10,5 @@ export * from "./event-logs";
 export * from "./attachments";
 export * from "./settings";
 export * from "./message-templates";
+export * from "./intercom-inbox";
 export * from "./relations";
