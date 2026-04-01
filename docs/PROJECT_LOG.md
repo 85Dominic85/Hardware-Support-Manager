@@ -610,11 +610,12 @@
 
 | Metrica | Valor |
 |---------|-------|
-| Commits | 16 |
-| Archivos modificados | ~50 |
+| Commits | 30 |
+| Archivos modificados | ~60 |
 | Archivos nuevos | ~15 (Intercom inbox, force transition, etc.) |
 | Tabla SQL nueva | intercom_inbox (creada manual en Supabase) |
 | Env vars nuevas | INTERCOM_ACCESS_TOKEN, INTERCOM_WEBHOOK_SECRET |
+| Webhook funcional | ticket.created → filtro Hardware/RMA → enrich contacto → Bandeja |
 
 ### Decisiones de la sesion
 
@@ -624,8 +625,10 @@
 | Split-pane email-style | Optimo para 10-30 items/dia, triage secuencial, minimos clicks |
 | Inline incident creation | Sin navegacion ni dialog, formulario visible junto a conversacion |
 | force-dynamic + Suspense | nuqs useSearchParams requiere ambos para prerender en Turbopack |
-| Webhook sin filtro de topic | Intercom tickets usan topic diferente a conversations |
-| Filtro por keywords en payload | Solo Hardware/RMA llegan a bandeja, resto se ignora silenciosamente |
+| Aceptar webhooks sin HMAC | Apps privadas Intercom no envian firma; validacion por estructura |
+| Filtro semantico (no JSON completo) | Solo ticket_type.name, subject, tags — evita falsos positivos |
+| Enriquecimiento via getContact(id) | Tickets solo traen contact ID; API devuelve name, email, phone, company |
+| enrichedContact en rawPayload | Almacena datos extra sin necesitar columnas nuevas en BD |
 | Deploy manual en Vercel | Seguridad: el usuario controla cuando se despliega |
 
 ---

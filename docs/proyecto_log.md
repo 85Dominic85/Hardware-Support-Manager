@@ -615,9 +615,9 @@ src/components/ui/popover.tsx                  # zoom-97, duration 250/180, roun
 
 ---
 
-### Sesión 2026-04-01 — Settings fix, responsive, dashboard KPIs, force transition, Intercom Inbox
+### Sesión 2026-04-01 — Settings fix, responsive, dashboard KPIs, force transition, Intercom Inbox completo
 
-**16 commits** | **~50 archivos modificados/creados** | Deploy manual Vercel
+**30 commits** | **~60 archivos modificados/creados** | Deploy manual Vercel
 
 ---
 
@@ -768,13 +768,58 @@ src/server/queries/alerts.ts               # intercom pending count
 
 ---
 
+#### Entregable 8: Webhook Intercom — debugging y puesta en marcha (`8b02642` → `2eedae5`)
+
+**14 commits adicionales** — iteración de webhook hasta funcionar end-to-end.
+
+**Problemas resueltos:**
+1. `generateSequentialId` no acepta tx como argumento → fix
+2. `useSearchParams` requiere Suspense boundary + `force-dynamic` → fix
+3. Webhook solo aceptaba conversation topics → ampliado a todos los topics incluido `ticket.created`
+4. Filtro buscaba keywords en todo el JSON → filtro solo en campos semánticos (ticket_type.name, subject, tags)
+5. Firma HMAC no disponible en apps privadas de Intercom → aceptar payloads sin firma con validación de estructura
+6. Contacto "Desconocido" → tickets de Intercom solo tienen contact ID, no datos inline
+7. `contacts` es objeto directo, no array → ajustar path de extracción
+8. Enriquecimiento via `getContact(contactId)` de la API Intercom → nombre, email, teléfono, empresa
+9. `ticket_attributes` contienen resumen del problema, pasos de troubleshooting, urgencia → extraer para pre-rellenar formulario
+10. Auto-fill: empresa como cliente, contacto, teléfono, urgencia mapeada a prioridad HSM
+
+**Configuración Intercom completada:**
+- App "Hw sync HSM" instalada en workspace Qamarero
+- Topics: `conversation_part.tag.created`, `conversation.admin.assigned`, `conversation.read`, `ticket.created`
+- Permisos: todos activados
+- Webhook URL activo y respondiendo 200 OK
+- Enriquecimiento de contacto funciona via API (`getContact`)
+
+**Flujo verificado end-to-end:**
+1. Agente en Intercom crea folio "Escalado a Hardware" ✅
+2. Webhook recibe ticket.created → filtra por keyword "hardware" ✅
+3. Guarda en intercom_inbox + enriquece contacto desde API ✅
+4. Aparece en Bandeja Intercom con nombre, email, empresa ✅
+5. Pre-rellena formulario con problema, troubleshooting, prioridad, contacto, teléfono ✅
+6. "Crear Incidencia" genera INC-YYYY-NNNNN con datos completos ✅
+
+**Datos auto-extraídos del ticket Intercom:**
+
+| Campo ticket Intercom | → Campo incidencia HSM |
+|----------------------|----------------------|
+| ticket_attributes["Resumen del problema"] | Título + Descripción |
+| ticket_attributes["Pasos troubleshooting"] | Descripción (sección Troubleshooting) |
+| ticket_attributes["Urgencia"] | Prioridad (BAJA→baja, Urgente→critica) |
+| contact.name (via API) | Persona de contacto |
+| contact.email (via API) | Mostrado como referencia |
+| contact.phone (via API) | Teléfono de contacto |
+| contact.company.name (via API) | Cliente (empresa) |
+| linked_objects.data[0].id | intercomUrl + intercomEscalationId |
+
+---
+
 ## Próximas Fases
 
-### Intercom — Pendiente de completar
-- Verificar webhook funciona end-to-end (crear escalado → aparece en Bandeja)
+### Intercom — Pendiente
 - Sync estado HSM → Intercom (nota interna al transicionar incidencia)
-- Buscar contacto Intercom → auto-rellenar cliente
 - Ver conversación Intercom dentro de incident-detail
+- Auto-crear/vincular cliente HSM desde contacto Intercom (si empresa existe en BD)
 
 ### Futuro
 - KPIs de proveedor: qué proveedores fallan más, tiempos medios de aprobación/reparación
