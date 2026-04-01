@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getClients } from "@/server/queries/clients";
+import { getDefaultPageSize } from "@/server/queries/settings";
 import { ClientList } from "@/components/clients/client-list";
 
 export const metadata: Metadata = {
@@ -21,8 +22,9 @@ interface ClientsPageProps {
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const params = await searchParams;
 
+  const defaultPageSize = await getDefaultPageSize();
   const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || 10;
+  const pageSize = Number(params.pageSize) || defaultPageSize;
   const sortBy = params.sortBy || "name";
   const sortOrder = (params.sortOrder as "asc" | "desc") || "asc";
 
@@ -53,7 +55,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
         </Button>
       </div>
 
-      <ClientList initialData={initialData} />
+      <ClientList initialData={initialData} defaultPageSize={defaultPageSize} />
     </div>
   );
 }

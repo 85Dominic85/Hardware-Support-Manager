@@ -16,11 +16,12 @@ import type { SortOrder } from "@/types";
 
 interface IncidentListProps {
   initialData: PaginatedResult<IncidentRow>;
+  defaultPageSize?: number;
 }
 
-export function IncidentList({ initialData }: IncidentListProps) {
+export function IncidentList({ initialData, defaultPageSize }: IncidentListProps) {
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
-    useTableSearchParams("stateChangedAt");
+    useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
   const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(INCIDENT_FILTERS);

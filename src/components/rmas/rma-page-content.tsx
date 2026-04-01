@@ -11,9 +11,10 @@ import type { RmaRow } from "@/server/queries/rmas";
 
 interface RmaPageContentProps {
   initialData: PaginatedResult<RmaRow>;
+  defaultPageSize?: number;
 }
 
-export function RmaPageContent({ initialData }: RmaPageContentProps) {
+export function RmaPageContent({ initialData, defaultPageSize }: RmaPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
 
   // For kanban, fetch all (no pagination)
@@ -30,7 +31,7 @@ export function RmaPageContent({ initialData }: RmaPageContentProps) {
         <ViewToggle view={view} onViewChange={setView} altLabel="Kanban" />
       </div>
       {view === "table" ? (
-        <RmaList initialData={initialData} />
+        <RmaList initialData={initialData} defaultPageSize={defaultPageSize} />
       ) : (
         <RmaKanban data={kanbanData?.data ?? initialData.data} />
       )}

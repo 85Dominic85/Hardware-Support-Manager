@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getIncidents } from "@/server/queries/incidents";
+import { getDefaultPageSize } from "@/server/queries/settings";
 import { IncidentPageContent } from "@/components/incidents/incident-page-content";
 import type { SortOrder } from "@/types";
 
@@ -17,8 +18,9 @@ export default async function IncidentsPage({
 }) {
   const params = await searchParams;
 
+  const defaultPageSize = await getDefaultPageSize();
   const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || 10;
+  const pageSize = Number(params.pageSize) || defaultPageSize;
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
@@ -50,7 +52,7 @@ export default async function IncidentsPage({
           </Link>
         </Button>
       </div>
-      <IncidentPageContent initialData={initialData} />
+      <IncidentPageContent initialData={initialData} defaultPageSize={defaultPageSize} />
     </div>
   );
 }

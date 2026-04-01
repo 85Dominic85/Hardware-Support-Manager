@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getProviders } from "@/server/queries/providers";
+import { getDefaultPageSize } from "@/server/queries/settings";
 import { ProviderList } from "@/components/providers/provider-list";
 
 export const metadata: Metadata = {
@@ -21,8 +22,9 @@ interface ProvidersPageProps {
 export default async function ProvidersPage({ searchParams }: ProvidersPageProps) {
   const params = await searchParams;
 
+  const defaultPageSize = await getDefaultPageSize();
   const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || 10;
+  const pageSize = Number(params.pageSize) || defaultPageSize;
   const sortBy = params.sortBy || "createdAt";
   const sortOrder = (params.sortOrder as "asc" | "desc") || "desc";
 
@@ -53,7 +55,7 @@ export default async function ProvidersPage({ searchParams }: ProvidersPageProps
         </Button>
       </div>
 
-      <ProviderList initialData={initialData} />
+      <ProviderList initialData={initialData} defaultPageSize={defaultPageSize} />
     </div>
   );
 }

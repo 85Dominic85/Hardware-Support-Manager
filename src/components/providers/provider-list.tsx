@@ -15,12 +15,13 @@ import type { ProviderRow } from "@/server/queries/providers";
 
 interface ProviderListProps {
   initialData: PaginatedResult<ProviderRow>;
+  defaultPageSize?: number;
 }
 
-export function ProviderList({ initialData }: ProviderListProps) {
+export function ProviderList({ initialData, defaultPageSize }: ProviderListProps) {
   const queryClient = useQueryClient();
   const { page, pageSize, sortBy, sortOrder, setSorting, setPage, setPageSize } =
-    useTableSearchParams("createdAt");
+    useTableSearchParams("createdAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);

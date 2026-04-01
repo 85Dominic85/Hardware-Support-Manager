@@ -5,6 +5,7 @@ import { Plus, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserList } from "@/components/users/user-list";
 import { getUsers } from "@/server/queries/users";
+import { getDefaultPageSize } from "@/server/queries/settings";
 import { requireRole } from "@/lib/auth/get-session";
 import type { SortOrder } from "@/types";
 
@@ -25,8 +26,9 @@ export default async function UsersPage({
 
   const params = await searchParams;
 
+  const defaultPageSize = await getDefaultPageSize();
   const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || 10;
+  const pageSize = Number(params.pageSize) || defaultPageSize;
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "createdAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
@@ -56,7 +58,7 @@ export default async function UsersPage({
           </Link>
         </Button>
       </div>
-      <UserList initialData={initialData} />
+      <UserList initialData={initialData} defaultPageSize={defaultPageSize} />
     </div>
   );
 }

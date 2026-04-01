@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RotateCcw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRmas } from "@/server/queries/rmas";
+import { getDefaultPageSize } from "@/server/queries/settings";
 import { RmaPageContent } from "@/components/rmas/rma-page-content";
 import type { SortOrder } from "@/types";
 
@@ -17,8 +18,9 @@ export default async function RmasPage({
 }) {
   const params = await searchParams;
 
+  const defaultPageSize = await getDefaultPageSize();
   const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || 10;
+  const pageSize = Number(params.pageSize) || defaultPageSize;
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
@@ -50,7 +52,7 @@ export default async function RmasPage({
           </Link>
         </Button>
       </div>
-      <RmaPageContent initialData={initialData} />
+      <RmaPageContent initialData={initialData} defaultPageSize={defaultPageSize} />
     </div>
   );
 }

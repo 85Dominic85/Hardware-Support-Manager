@@ -18,12 +18,13 @@ import type { ClientRow } from "@/server/queries/clients";
 
 interface ClientListProps {
   initialData: PaginatedResult<ClientRow>;
+  defaultPageSize?: number;
 }
 
-export function ClientList({ initialData }: ClientListProps) {
+export function ClientList({ initialData, defaultPageSize }: ClientListProps) {
   const queryClient = useQueryClient();
   const { page, pageSize, sortBy, sortOrder, setSorting, setPage, setPageSize } =
-    useTableSearchParams("createdAt");
+    useTableSearchParams("createdAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
   const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(CLIENT_FILTERS);

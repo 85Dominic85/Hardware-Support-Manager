@@ -15,12 +15,13 @@ import type { PaginatedResult, SortOrder } from "@/types";
 
 interface UserListProps {
   initialData: PaginatedResult<UserRow>;
+  defaultPageSize?: number;
 }
 
-export function UserList({ initialData }: UserListProps) {
+export function UserList({ initialData, defaultPageSize }: UserListProps) {
   const queryClient = useQueryClient();
   const { page, pageSize, sortBy, sortOrder, setSorting, setPage } =
-    useTableSearchParams("createdAt");
+    useTableSearchParams("createdAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
   const [deleteId, setDeleteId] = useState<string | null>(null);

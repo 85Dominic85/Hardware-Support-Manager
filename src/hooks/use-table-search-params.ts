@@ -3,11 +3,11 @@
 import { useCallback } from "react";
 import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 
-export function useTableSearchParams(defaultSortBy: string = "createdAt") {
+export function useTableSearchParams(defaultSortBy: string = "createdAt", defaultPageSize: number = 10) {
   const [params, setParams] = useQueryStates(
     {
       page: parseAsInteger.withDefault(1),
-      pageSize: parseAsInteger.withDefault(10),
+      pageSize: parseAsInteger.withDefault(defaultPageSize),
       sortBy: parseAsString.withDefault(defaultSortBy),
       sortOrder: parseAsString.withDefault("desc"),
     },

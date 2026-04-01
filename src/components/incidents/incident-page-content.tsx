@@ -11,9 +11,10 @@ import type { IncidentRow } from "@/server/queries/incidents";
 
 interface IncidentPageContentProps {
   initialData: PaginatedResult<IncidentRow>;
+  defaultPageSize?: number;
 }
 
-export function IncidentPageContent({ initialData }: IncidentPageContentProps) {
+export function IncidentPageContent({ initialData, defaultPageSize }: IncidentPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
 
   // For kanban, fetch all (no pagination)
@@ -30,7 +31,7 @@ export function IncidentPageContent({ initialData }: IncidentPageContentProps) {
         <ViewToggle view={view} onViewChange={setView} altLabel="Kanban" />
       </div>
       {view === "table" ? (
-        <IncidentList initialData={initialData} />
+        <IncidentList initialData={initialData} defaultPageSize={defaultPageSize} />
       ) : (
         <IncidentKanban data={kanbanData?.data ?? initialData.data} />
       )}

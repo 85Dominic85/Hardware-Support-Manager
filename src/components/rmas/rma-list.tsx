@@ -16,11 +16,12 @@ import type { SortOrder } from "@/types";
 
 interface RmaListProps {
   initialData: PaginatedResult<RmaRow>;
+  defaultPageSize?: number;
 }
 
-export function RmaList({ initialData }: RmaListProps) {
+export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
-    useTableSearchParams("stateChangedAt");
+    useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
   const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(RMA_FILTERS);
