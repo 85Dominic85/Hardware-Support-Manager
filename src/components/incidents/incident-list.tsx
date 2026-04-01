@@ -38,6 +38,7 @@ export function IncidentList({ initialData, defaultPageSize }: IncidentListProps
         filters: filterValues,
       }),
     staleTime: 0,
+    refetchInterval: 30_000,
   });
 
   const data = queryData ?? initialData;

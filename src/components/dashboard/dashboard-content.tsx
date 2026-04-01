@@ -81,6 +81,7 @@ export function DashboardContent({
     queryFn: () => fetchDashboardStats(dateRange),
     initialData: hasCustomRange ? undefined : initialStats,
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const { data: sla } = useQuery({
@@ -130,6 +131,7 @@ export function DashboardContent({
     queryFn: () => fetchAlertItems(),
     initialData: initialAlerts,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 
   const s = stats ?? initialStats;
