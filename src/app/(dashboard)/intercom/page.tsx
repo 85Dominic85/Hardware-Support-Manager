@@ -3,6 +3,8 @@ import { Inbox } from "lucide-react";
 import { IntercomInbox } from "@/components/intercom/intercom-inbox";
 import { getIntercomInboxItems } from "@/server/queries/intercom-inbox";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Bandeja Intercom",
 };
