@@ -54,8 +54,8 @@ export interface AgingBucket {
   count: number;
 }
 
-const CLOSED_INCIDENT_STATUSES = ["cerrado", "cancelado"] as const;
-const CLOSED_RMA_STATUSES = ["cerrado", "cancelado"] as const;
+const CLOSED_INCIDENT_STATUSES = ["resuelto", "cerrado", "cancelado"] as const;
+const CLOSED_RMA_STATUSES = ["recibido_oficina", "cerrado", "cancelado"] as const;
 
 function incidentDateConds(range?: DateRangeParams) {
   const conds = [];

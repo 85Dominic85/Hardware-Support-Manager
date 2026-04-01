@@ -28,7 +28,7 @@ export interface DrilldownRma {
   createdAt: Date;
 }
 
-const CLOSED_STATUSES = ["cerrado", "cancelado"] as const;
+const CLOSED_STATUSES = ["resuelto", "cerrado", "cancelado"] as const;
 
 function incidentDateConds(range?: DateRangeParams) {
   const conds = [];
@@ -103,7 +103,7 @@ export async function fetchOverdueIncidents(range?: DateRangeParams): Promise<Dr
     .leftJoin(users, eq(incidents.assignedUserId, users.id))
     .where(
       and(
-        not(inArray(incidents.status, [...CLOSED_STATUSES, "resuelto"])),
+        not(inArray(incidents.status, [...CLOSED_STATUSES])),
         sql`(
           (${incidents.priority} = 'critica' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.critica}) or
           (${incidents.priority} = 'alta' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.alta}) or
