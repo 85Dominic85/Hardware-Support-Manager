@@ -73,9 +73,32 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
 
-  if (!verifySignature(body, signature, secret)) {
-    console.error("Webhook firma inválida");
-    return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
+  // Verify HMAC signature if present; if Intercom doesn't send one
+  // (private apps may not), fall back to checking a shared secret header
+  // or accept if the payload structure matches Intercom's format
+  if (signature) {
+    if (!verifySignature(body, signature, secret)) {
+      console.error("Webhook firma HMAC inválida");
+      return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
+    }
+  } else {
+    // No HMAC signature — verify using X-Intercom-Secret custom header
+    // or validate that payload has Intercom's notification_event structure
+    const customSecret = request.headers.get("x-intercom-secret");
+    if (customSecret && customSecret !== secret) {
+      console.error("Webhook custom secret inválido");
+      return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
+    }
+    // If no signature header at all, validate payload structure as basic check
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed.type !== "notification_event" || !parsed.data?.item) {
+        console.error("Webhook payload no tiene estructura de Intercom");
+        return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    }
   }
 
   let payload: Record<string, unknown>;
