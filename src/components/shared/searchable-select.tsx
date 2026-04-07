@@ -11,23 +11,18 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+/** Máximo de opciones visibles en el desplegable */
+const MAX_VISIBLE = 50;
+
 /** Normaliza texto: minúsculas, sin acentos ni diacríticos */
 function normalize(text: string): string {
   return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-/** Busca si las letras de `query` aparecen en orden dentro de `text` (subsecuencia).
- *  Ej: "burguer" matchea "hamBURGUEseRia" porque b,u,r,g,u,e,r aparecen en orden. */
-function fuzzyMatch(text: string, query: string): boolean {
-  const t = normalize(text);
-  const q = normalize(query);
-  let ti = 0;
-  for (let qi = 0; qi < q.length; qi++) {
-    const idx = t.indexOf(q[qi], ti);
-    if (idx === -1) return false;
-    ti = idx + 1;
-  }
-  return true;
+/** Busca si `query` está contenido dentro de `text` (case y accent insensitive).
+ *  Ej: "taberna" matchea "Taberna Albero", "La Taberna del Río", etc. */
+function containsMatch(text: string, query: string): boolean {
+  return normalize(text).includes(normalize(query));
 }
 
 interface SearchableSelectProps {
@@ -39,6 +34,9 @@ interface SearchableSelectProps {
   emptyMessage?: string;
   emptyAction?: React.ReactNode;
   disabled?: boolean;
+  /** Mínimo de caracteres para empezar a filtrar (defecto: 0).
+   *  Útil para listas grandes donde mostrar todo de golpe es lento. */
+  minSearchLength?: number;
 }
 
 export function SearchableSelect({
@@ -50,16 +48,28 @@ export function SearchableSelect({
   emptyMessage = "Sin resultados.",
   emptyAction,
   disabled,
+  minSearchLength = 0,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
+  /** Si hay muchas opciones (>MAX_VISIBLE) y no se ha escrito nada, pedimos que escriba */
+  const needsSearch = options.length > MAX_VISIBLE && search.length < Math.max(minSearchLength, 1);
+
   const filtered = useMemo(() => {
-    if (!search) return options;
-    return options.filter((o) => fuzzyMatch(o.label, search));
-  }, [options, search]);
+    if (needsSearch) return [];
+    if (!search) return options.slice(0, MAX_VISIBLE);
+    const matches = options.filter((o) => containsMatch(o.label, search));
+    return matches.slice(0, MAX_VISIBLE);
+  }, [options, search, needsSearch]);
+
+  const totalMatches = useMemo(() => {
+    if (needsSearch) return options.length;
+    if (!search) return options.length;
+    return options.filter((o) => containsMatch(o.label, search)).length;
+  }, [options, search, needsSearch]);
 
   return (
     <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
@@ -94,30 +104,41 @@ export function SearchableSelect({
 
         {/* Lista de opciones */}
         <div className="max-h-[300px] overflow-y-auto p-1">
-          {filtered.length > 0 ? (
-            filtered.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  onValueChange(option.value === value ? "" : option.value);
-                  setOpen(false);
-                  setSearch("");
-                }}
-                className={cn(
-                  "relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground",
-                  value === option.value && "bg-accent"
-                )}
-              >
-                <Check
+          {needsSearch ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Escribe para buscar entre {options.length.toLocaleString("es-ES")} opciones...
+            </p>
+          ) : filtered.length > 0 ? (
+            <>
+              {filtered.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onValueChange(option.value === value ? "" : option.value);
+                    setOpen(false);
+                    setSearch("");
+                  }}
                   className={cn(
-                    "h-4 w-4 shrink-0",
-                    value === option.value ? "opacity-100" : "opacity-0"
+                    "relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground",
+                    value === option.value && "bg-accent"
                   )}
-                />
-                {option.label}
-              </button>
-            ))
+                >
+                  <Check
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </button>
+              ))}
+              {totalMatches > MAX_VISIBLE && (
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  Mostrando {MAX_VISIBLE} de {totalMatches.toLocaleString("es-ES")} resultados. Escribe más para filtrar.
+                </p>
+              )}
+            </>
           ) : (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {emptyMessage}
@@ -126,7 +147,7 @@ export function SearchableSelect({
         </div>
 
         {/* Acción cuando no hay resultados (ej: añadir cliente) */}
-        {emptyAction && filtered.length === 0 && search.length > 0 && (
+        {emptyAction && filtered.length === 0 && search.length > 0 && !needsSearch && (
           <div className="border-t p-2">{emptyAction}</div>
         )}
       </PopoverContent>
