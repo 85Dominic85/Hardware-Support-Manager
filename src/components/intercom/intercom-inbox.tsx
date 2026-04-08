@@ -134,6 +134,7 @@ export function IntercomInbox({ initialData }: IntercomInboxProps) {
         <div className="rounded-lg border bg-card overflow-hidden">
           {selectedItem ? (
             <ConversationDetail
+              key={selectedItem.id}
               item={selectedItem}
               onConvert={handleConvert}
               onDismiss={handleDismiss}
