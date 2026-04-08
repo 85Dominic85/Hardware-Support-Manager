@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MonitorSmartphone, Truck, CircleDollarSign } from "lucide-react";
 import { DeviceTypeDistribution } from "./device-type-distribution";
 import { DeviceBrandRanking } from "./device-brand-ranking";
 import { FailingModelsTable } from "./failing-models-table";
@@ -20,8 +21,16 @@ import {
   fetchCostSummary,
 } from "@/server/actions/analytics";
 
+const TAB_META: Record<string, { icon: typeof MonitorSmartphone; description: string }> = {
+  dispositivos: { icon: MonitorSmartphone, description: "Análisis de fallos por tipo de equipo, marca y modelo" },
+  proveedores: { icon: Truck, description: "Rendimiento de proveedores: turnaround, volumen y tasa de éxito" },
+  costes: { icon: CircleDollarSign, description: "Desglose de costes por reparación, envío y sustitución" },
+};
+
 export function AnalyticsContent() {
   const [tab, setTab] = useState("dispositivos");
+  const meta = TAB_META[tab];
+  const Icon = meta.icon;
 
   const { data: deviceTypes = [] } = useQuery({
     queryKey: ["analytics", "device-types"],
@@ -64,21 +73,39 @@ export function AnalyticsContent() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div
+        style={{ animation: "fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+      >
         <h1 className="text-2xl font-bold tracking-tight">Analítica</h1>
-        <p className="text-sm text-muted-foreground">
-          Métricas de dispositivos, proveedores y costes
-        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            {meta.description}
+          </p>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="dispositivos">Dispositivos</TabsTrigger>
-          <TabsTrigger value="proveedores">Proveedores</TabsTrigger>
-          <TabsTrigger value="costes">Costes</TabsTrigger>
+          <TabsTrigger value="dispositivos" className="gap-1.5">
+            <MonitorSmartphone className="h-3.5 w-3.5" />
+            Dispositivos
+          </TabsTrigger>
+          <TabsTrigger value="proveedores" className="gap-1.5">
+            <Truck className="h-3.5 w-3.5" />
+            Proveedores
+          </TabsTrigger>
+          <TabsTrigger value="costes" className="gap-1.5">
+            <CircleDollarSign className="h-3.5 w-3.5" />
+            Costes
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dispositivos" className="space-y-6 mt-6">
+        <TabsContent
+          value="dispositivos"
+          className="space-y-6 mt-6"
+          style={{ animation: "fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+        >
           <div className="grid gap-6 lg:grid-cols-2">
             <DeviceTypeDistribution data={deviceTypes} />
             <DeviceBrandRanking data={brands} />
@@ -86,7 +113,11 @@ export function AnalyticsContent() {
           <FailingModelsTable data={models} />
         </TabsContent>
 
-        <TabsContent value="proveedores" className="space-y-6 mt-6">
+        <TabsContent
+          value="proveedores"
+          className="space-y-6 mt-6"
+          style={{ animation: "fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+        >
           <div className="grid gap-6 lg:grid-cols-2">
             <ProviderTurnaroundChart data={turnaround} />
             <ProviderSuccessRateChart data={successRate} />
@@ -94,7 +125,11 @@ export function AnalyticsContent() {
           <ProviderVolumeChart data={volume} />
         </TabsContent>
 
-        <TabsContent value="costes" className="mt-6">
+        <TabsContent
+          value="costes"
+          className="mt-6"
+          style={{ animation: "fadeInUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+        >
           <CostPlaceholder summary={costSummary} />
         </TabsContent>
       </Tabs>

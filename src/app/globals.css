@@ -156,6 +156,13 @@
     }
   }
 
+  /* Bar grow animation for progress bars */
+  @keyframes barGrow {
+    from {
+      width: 0%;
+    }
+  }
+
   /* Tooltip scale: subtle zoom from 97% for a less jarring entrance */
   @keyframes zoom-in-97 {
     from {
