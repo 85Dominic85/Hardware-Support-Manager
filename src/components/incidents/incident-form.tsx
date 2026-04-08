@@ -40,6 +40,11 @@ import {
   fetchClientsForSelect,
   fetchClientLocationsForSelect,
 } from "@/server/actions/clients";
+import {
+  fetchArticleTypes,
+  fetchArticleBrands,
+  fetchArticleModels,
+} from "@/server/actions/articles";
 import type { ClientLocationRow } from "@/server/queries/clients";
 
 interface IncidentFormProps {
@@ -68,6 +73,7 @@ export function IncidentForm({
       category: defaultValues?.category ?? "hardware",
       priority: defaultValues?.priority ?? "media",
       assignedUserId: defaultValues?.assignedUserId ?? "",
+      articleId: defaultValues?.articleId ?? "",
       deviceType: defaultValues?.deviceType ?? "",
       deviceBrand: defaultValues?.deviceBrand ?? "",
       deviceModel: defaultValues?.deviceModel ?? "",
@@ -118,6 +124,46 @@ export function IncidentForm({
       form.setValue("clientLocationId", "");
     }
   }, [selectedClientId, form]);
+
+  // Article cascading dropdowns
+  const selectedDeviceType = form.watch("deviceType");
+  const selectedDeviceBrand = form.watch("deviceBrand");
+
+  const { data: articleTypes = [] } = useQuery({
+    queryKey: ["article-types"],
+    queryFn: () => fetchArticleTypes(),
+  });
+
+  const { data: articleBrands = [] } = useQuery({
+    queryKey: ["article-brands", selectedDeviceType],
+    queryFn: () => fetchArticleBrands(selectedDeviceType!),
+    enabled: !!selectedDeviceType && selectedDeviceType !== "otro" && selectedDeviceType !== "desconocido",
+  });
+
+  const { data: articleModels = [] } = useQuery({
+    queryKey: ["article-models", selectedDeviceType, selectedDeviceBrand],
+    queryFn: () => fetchArticleModels(selectedDeviceType!, selectedDeviceBrand!),
+    enabled: !!selectedDeviceType && !!selectedDeviceBrand && selectedDeviceType !== "otro",
+  });
+
+  // Reset brand/model when type changes
+  useEffect(() => {
+    if (selectedDeviceType) {
+      form.setValue("deviceBrand", "");
+      form.setValue("deviceModel", "");
+      form.setValue("articleId", "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeviceType]);
+
+  // Reset model when brand changes
+  useEffect(() => {
+    if (selectedDeviceBrand) {
+      form.setValue("deviceModel", "");
+      form.setValue("articleId", "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeviceBrand]);
 
   const clientOptions = clientsData.map((c: { id: string; name: string }) => ({
     value: c.id,
@@ -381,13 +427,13 @@ export function IncidentForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.entries(DEVICE_TYPE_LABELS).map(
-                        ([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        )
-                      )}
+                      {articleTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {DEVICE_TYPE_LABELS[type as keyof typeof DEVICE_TYPE_LABELS] ?? type}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="otro">Otro</SelectItem>
+                      <SelectItem value="desconocido">Desconocido</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -401,9 +447,24 @@ export function IncidentForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Marca</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Dell, HP, Lenovo" {...field} />
-                  </FormControl>
+                  {articleBrands.length > 0 ? (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar marca" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {articleBrands.map((brand) => (
+                          <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <FormControl>
+                      <Input placeholder="Escribir marca" {...field} />
+                    </FormControl>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -415,9 +476,31 @@ export function IncidentForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Modelo</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Latitude 5520" {...field} />
-                  </FormControl>
+                  {articleModels.length > 0 ? (
+                    <Select
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        const article = articleModels.find((a) => a.model === v);
+                        if (article) form.setValue("articleId", article.id);
+                      }}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar modelo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {articleModels.map((a) => (
+                          <SelectItem key={a.id} value={a.model}>{a.model}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <FormControl>
+                      <Input placeholder="Escribir modelo" {...field} />
+                    </FormControl>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
