@@ -36,10 +36,12 @@ import {
   LogOut,
   ChevronUp,
   MessageSquareText,
+  BarChart3,
 } from "lucide-react";
 
 const navigation = [
   { name: "Panel", href: "/dashboard", icon: LayoutDashboard, exact: false },
+  { name: "Analítica", href: "/analytics", icon: BarChart3, exact: false },
   { name: "Incidencias", href: "/incidents", icon: AlertTriangle, exact: false, excludePrefix: "/incidents/quick-capture" },
   { name: "Captura Rápida", href: "/incidents/quick-capture", icon: MessageSquareText, exact: true },
   { name: "Bandeja Intercom", href: "/intercom", icon: Inbox, exact: false },
