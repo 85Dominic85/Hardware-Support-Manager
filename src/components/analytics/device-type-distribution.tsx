@@ -68,6 +68,7 @@ export function DeviceTypeDistribution({ data }: Props) {
                     color: "hsl(var(--popover-foreground))",
                     fontSize: "12px",
                   }}
+                  itemStyle={{ color: "hsl(var(--popover-foreground))" }}
                 />
               </PieChart>
             </ResponsiveContainer>

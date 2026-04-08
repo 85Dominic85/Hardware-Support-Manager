@@ -55,6 +55,7 @@ export function ProviderSuccessRateChart({ data }: Props) {
                   color: "hsl(var(--popover-foreground))",
                   fontSize: "12px",
                 }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
               />
               <Bar
                 dataKey="rate"

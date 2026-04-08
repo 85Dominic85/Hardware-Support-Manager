@@ -45,6 +45,7 @@ export function ProviderVolumeChart({ data }: Props) {
                   color: "hsl(var(--popover-foreground))",
                   fontSize: "12px",
                 }}
+                itemStyle={{ color: "hsl(var(--popover-foreground))" }}
               />
               <Legend
                 wrapperStyle={{ fontSize: "12px" }}
