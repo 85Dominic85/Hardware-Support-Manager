@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Loader2, CheckCircle, X } from "lucide-react";
+import { ExternalLink, Loader2, CheckCircle, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,13 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { SearchableSelect } from "@/components/shared/searchable-select";
 import { InboxStatusBadge } from "./inbox-status-badge";
 import { convertToIncident, dismissInboxItem } from "@/server/actions/intercom-inbox";
+import { fetchClientsForSelect, fetchClientByExternalId } from "@/server/actions/clients";
 import { INCIDENT_CATEGORY_LABELS, type IncidentCategory } from "@/lib/constants/incidents";
 import { formatRelativeTime } from "@/lib/utils/date-format";
 import type { IntercomInboxRow } from "@/server/queries/intercom-inbox";
 import type { IntercomInboxStatus } from "@/lib/constants/intercom";
-import type { IntercomWebhookPayload } from "@/lib/intercom/types";
 
 interface ConversationDetailProps {
   item: IntercomInboxRow;
@@ -35,16 +36,36 @@ interface ConversationDetailProps {
 function extractTicketData(payload: unknown) {
   const p = payload as any;
   const item = p?.data?.item;
-  const attrs = item?.ticket_attributes ?? {};
+  const ticketAttrs = item?.ticket_attributes ?? {};
+  const convAttrs = item?.custom_attributes ?? {};
 
-  // Extract ticket-specific fields
-  const problemSummary = attrs["﻿Resumen del problema del cliente:"] ?? attrs["Resumen del problema del cliente:"] ?? "";
-  const troubleshootingSteps = attrs["Pasos realizados de troubleshooting:"] ?? "";
-  const urgency = (attrs["Urgencia:"] ?? "").toLowerCase();
+  // Extract ticket-specific fields (from ticket_attributes)
+  const problemSummary = ticketAttrs["﻿Resumen del problema del cliente:"] ?? ticketAttrs["Resumen del problema del cliente:"] ?? "";
+  const troubleshootingSteps = ticketAttrs["Pasos realizados de troubleshooting:"] ?? "";
   const ticketTypeName = item?.ticket_type?.name ?? "";
   const ticketTypeDesc = item?.ticket_type?.description ?? "";
   const linkedConvId = item?.linked_objects?.data?.[0]?.id ?? null;
-  const companyId = item?.company_id ?? null;
+
+  // Extract conversation custom_attributes (set by CX team)
+  const categoria = convAttrs["Categoría"] ?? null;
+  const categoria2 = convAttrs["Categoría - 2"] ?? null;
+  const categoria3 = convAttrs["Categoría - 3"] ?? null;
+  const tipo = convAttrs["Tipo"] ?? null;
+  const urgencia = (convAttrs["Urgencia"] ?? ticketAttrs["Urgencia:"] ?? "").toLowerCase();
+  const resumenIncidencia = convAttrs["Resumen de la incidencia"] ?? null;
+  const atendidoEnLlamada = convAttrs["Atendido en llamada"] ?? null;
+  const aiIssueSummary = convAttrs["AI Issue summary"] ?? null;
+
+  // Also check pre-extracted attributes from webhook enrichment
+  const extracted = p?.extractedAttributes ?? {};
+  const enrichedCompany = p?.enrichedCompany ?? {};
+
+  // Company data
+  const companyId = enrichedCompany.companyId ?? item?.company?.company_id ?? null;
+  const restaurantName = enrichedCompany.restaurantName ?? item?.company?.custom_attributes?.restaurant_name ?? null;
+  const serialNumber = enrichedCompany.serialNumber ?? item?.company?.custom_attributes?.serial_number ?? null;
+  const accountManager = enrichedCompany.accountManager ?? item?.company?.custom_attributes?.account_manager ?? null;
+  const companyIntercomName = enrichedCompany.companyIntercomName ?? item?.company?.name ?? null;
 
   // Build description from all available text
   const descParts = [];
@@ -58,14 +79,42 @@ function extractTicketData(payload: unknown) {
   // Enriched contact data (phone, company) added by webhook enrichment
   const enriched = p?.enrichedContact ?? {};
   const contactPhone = enriched.phone ?? null;
-  const companyName = enriched.companyName ?? null;
+  const companyName = enriched.companyName ?? companyIntercomName ?? null;
   const contactEmail = enriched.email ?? null;
 
-  return { problemSummary, troubleshootingSteps, urgency, ticketTypeName, ticketTypeDesc, linkedConvId, companyId, description: description || snippet, contactPhone, companyName, contactEmail };
+  return {
+    // Ticket fields
+    problemSummary, troubleshootingSteps, ticketTypeName, ticketTypeDesc, linkedConvId,
+    // Conversation custom_attributes
+    categoria: extracted.categoria ?? categoria,
+    categoria2: extracted.categoria2 ?? categoria2,
+    categoria3: extracted.categoria3 ?? categoria3,
+    tipo: extracted.tipo ?? tipo,
+    urgencia: extracted.urgencia?.toLowerCase() ?? urgencia,
+    resumenIncidencia: extracted.resumenIncidencia ?? resumenIncidencia,
+    atendidoEnLlamada: extracted.atendidoEnLlamada ?? atendidoEnLlamada,
+    aiIssueSummary: extracted.aiIssueSummary ?? aiIssueSummary,
+    // Company
+    companyId, restaurantName, serialNumber, accountManager, companyIntercomName, companyName,
+    // Contact
+    contactPhone, contactEmail,
+    // Description
+    description: description || snippet,
+  };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-function detectCategory(text: string): IncidentCategory {
+function detectCategory(text: string, categoria2?: string | null): IncidentCategory {
+  // Prefer Intercom's Categoría - 2 if available
+  if (categoria2) {
+    const c2 = categoria2.toLowerCase();
+    if (/tpv/.test(c2)) return "hardware";
+    if (/impresora/.test(c2)) return "impresora";
+    if (/red|wifi|internet/.test(c2)) return "red";
+    if (/monitor|pantalla/.test(c2)) return "monitor";
+    if (/caj[oó]n|portamonedas/.test(c2)) return "hardware";
+    if (/perif[eé]rico/.test(c2)) return "periferico";
+  }
   const lower = text.toLowerCase();
   if (/tpv|sunmi|opal|flint|terminal/.test(lower)) return "hardware";
   if (/impresora|printer|epson|star/.test(lower)) return "impresora";
@@ -78,7 +127,7 @@ function detectCategory(text: string): IncidentCategory {
 function mapPriority(urgency: string): "baja" | "media" | "alta" | "critica" {
   if (/urgente|critica|cr[ií]tico/.test(urgency)) return "critica";
   if (/alta|high/.test(urgency)) return "alta";
-  if (/baja|low/.test(urgency)) return "baja";
+  if (/baja|low|sin prisa/.test(urgency)) return "baja";
   return "media";
 }
 
@@ -86,18 +135,45 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
   const ticketData = extractTicketData(item.rawPayload);
   const intercomUrl = `https://app.intercom.com/a/inbox/conversation/${item.intercomConversationId}`;
 
+  // Fetch clients for SearchableSelect
+  const { data: clientsData = [] } = useQuery({
+    queryKey: ["clients", "select"],
+    queryFn: () => fetchClientsForSelect(),
+  });
+  const clientOptions = clientsData.map((c: { id: string; name: string }) => ({
+    value: c.id,
+    label: c.name,
+  }));
+
+  // Auto-match client by external_id (companyId = restaurant_id)
+  const { data: matchedClient } = useQuery({
+    queryKey: ["client-by-external", ticketData.companyId],
+    queryFn: () => fetchClientByExternalId(ticketData.companyId!),
+    enabled: !!ticketData.companyId,
+  });
+
   // Pre-fill form from ticket data + enriched contact
-  const [title, setTitle] = useState(ticketData.problemSummary || item.subject || "");
+  const [title, setTitle] = useState(ticketData.resumenIncidencia || ticketData.problemSummary || item.subject || "");
   const [description, setDescription] = useState(ticketData.description);
   const [category, setCategory] = useState<IncidentCategory>(
-    detectCategory(ticketData.description || ticketData.ticketTypeName || item.subject || "")
+    detectCategory(ticketData.description || ticketData.ticketTypeName || item.subject || "", ticketData.categoria2)
   );
   const [priority, setPriority] = useState(
-    ticketData.urgency ? mapPriority(ticketData.urgency) : "media"
+    ticketData.urgencia ? mapPriority(ticketData.urgencia) : "media"
   );
-  const [clientName, setClientName] = useState(ticketData.companyName ?? item.contactName ?? "");
+  const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState(ticketData.restaurantName ?? ticketData.companyName ?? item.contactName ?? "");
   const [contactName, setContactName] = useState(item.contactName ?? "");
   const [contactPhone, setContactPhone] = useState(ticketData.contactPhone ?? "");
+  const [previewOpen, setPreviewOpen] = useState(true);
+
+  // Set clientId when auto-match resolves
+  useEffect(() => {
+    if (matchedClient?.id && !clientId) {
+      setClientId(matchedClient.id);
+      setClientName(matchedClient.name);
+    }
+  }, [matchedClient, clientId]);
 
   const convertMutation = useMutation({
     mutationFn: () =>
@@ -107,6 +183,7 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
         description,
         category,
         priority,
+        clientId: clientId || undefined,
         clientName,
         contactName,
         contactPhone,
@@ -190,41 +267,147 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
         </div>
       )}
 
-      {/* Ticket type */}
-      {ticketData.ticketTypeName && (
-        <p className="text-sm font-medium">{ticketData.ticketTypeName}</p>
-      )}
-
-      {/* Ticket data extracted from Intercom */}
-      {(ticketData.problemSummary || ticketData.troubleshootingSteps || ticketData.urgency) && (
-        <div className="rounded-lg bg-muted/30 p-4 space-y-3 max-h-64 overflow-y-auto">
-          {ticketData.problemSummary && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Resumen del problema</p>
-              <p className="text-sm whitespace-pre-wrap">{ticketData.problemSummary}</p>
-            </div>
-          )}
-          {ticketData.troubleshootingSteps && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pasos de troubleshooting</p>
-              <p className="text-sm whitespace-pre-wrap">{ticketData.troubleshootingSteps}</p>
-            </div>
-          )}
-          {ticketData.urgency && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Urgencia Intercom</p>
-              <p className="text-sm font-medium">{ticketData.urgency.toUpperCase()}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Fallback: conversation snippet if no ticket attributes */}
-      {!ticketData.problemSummary && !ticketData.troubleshootingSteps && ticketData.description && (
-        <div className="rounded-lg bg-muted/30 p-4 max-h-48 overflow-y-auto">
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{ticketData.description}</p>
-        </div>
-      )}
+      {/* Datos extraídos del escalado - panel de verificación */}
+      <div className="rounded-lg border border-border/60 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setPreviewOpen(!previewOpen)}
+          className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/60 transition-colors"
+        >
+          <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
+            Datos extraídos del escalado
+          </span>
+          {previewOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </button>
+        {previewOpen && (
+          <div className="p-4">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-xs">
+              {ticketData.restaurantName && (
+                <div>
+                  <dt className="text-muted-foreground">Restaurante</dt>
+                  <dd className="font-medium">{ticketData.restaurantName}</dd>
+                </div>
+              )}
+              {ticketData.companyId && (
+                <div>
+                  <dt className="text-muted-foreground">ID Restaurante</dt>
+                  <dd className="font-mono text-[11px]">{ticketData.companyId}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-muted-foreground">Cliente HSM</dt>
+                <dd className="font-medium">
+                  {matchedClient ? (
+                    <span className="text-green-600 dark:text-green-400">{matchedClient.name}</span>
+                  ) : ticketData.companyId ? (
+                    <span className="text-amber-600 dark:text-amber-400">No encontrado</span>
+                  ) : (
+                    <span className="text-muted-foreground">Sin ID empresa</span>
+                  )}
+                </dd>
+              </div>
+              {ticketData.companyIntercomName && (
+                <div>
+                  <dt className="text-muted-foreground">Empresa Intercom</dt>
+                  <dd className="font-medium">{ticketData.companyIntercomName}</dd>
+                </div>
+              )}
+              {item.contactName && (
+                <div>
+                  <dt className="text-muted-foreground">Contacto</dt>
+                  <dd className="font-medium">{item.contactName}</dd>
+                </div>
+              )}
+              {(ticketData.contactEmail || item.contactEmail) && (
+                <div>
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd className="font-medium">{ticketData.contactEmail ?? item.contactEmail}</dd>
+                </div>
+              )}
+              {ticketData.contactPhone && (
+                <div>
+                  <dt className="text-muted-foreground">Teléfono</dt>
+                  <dd className="font-medium">{ticketData.contactPhone}</dd>
+                </div>
+              )}
+              {ticketData.categoria && (
+                <div>
+                  <dt className="text-muted-foreground">Categoría IC</dt>
+                  <dd className="font-medium">
+                    {[ticketData.categoria, ticketData.categoria2, ticketData.categoria3].filter(Boolean).join(" / ")}
+                  </dd>
+                </div>
+              )}
+              {ticketData.urgencia && (
+                <div>
+                  <dt className="text-muted-foreground">Urgencia IC</dt>
+                  <dd className="font-medium capitalize">{ticketData.urgencia}</dd>
+                </div>
+              )}
+              {ticketData.tipo && (
+                <div>
+                  <dt className="text-muted-foreground">Tipo</dt>
+                  <dd className="font-medium">{ticketData.tipo}</dd>
+                </div>
+              )}
+              {ticketData.resumenIncidencia && (
+                <div className="col-span-2">
+                  <dt className="text-muted-foreground">Resumen de la incidencia</dt>
+                  <dd className="font-medium">{ticketData.resumenIncidencia}</dd>
+                </div>
+              )}
+              {ticketData.serialNumber && (
+                <div>
+                  <dt className="text-muted-foreground">Serial Number</dt>
+                  <dd className="font-mono text-[11px]">{ticketData.serialNumber}</dd>
+                </div>
+              )}
+              {ticketData.accountManager && (
+                <div>
+                  <dt className="text-muted-foreground">Account Manager</dt>
+                  <dd className="font-medium">{ticketData.accountManager}</dd>
+                </div>
+              )}
+              {ticketData.atendidoEnLlamada && (
+                <div>
+                  <dt className="text-muted-foreground">Atendido en llamada</dt>
+                  <dd className="font-medium">{ticketData.atendidoEnLlamada}</dd>
+                </div>
+              )}
+              {item.assigneeName && (
+                <div>
+                  <dt className="text-muted-foreground">Asignado en Intercom</dt>
+                  <dd className="font-medium">{item.assigneeName}</dd>
+                </div>
+              )}
+            </dl>
+            {/* Ticket-specific data */}
+            {(ticketData.problemSummary || ticketData.troubleshootingSteps) && (
+              <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                {ticketData.problemSummary && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Resumen del problema</p>
+                    <p className="text-sm whitespace-pre-wrap">{ticketData.problemSummary}</p>
+                  </div>
+                )}
+                {ticketData.troubleshootingSteps && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pasos de troubleshooting</p>
+                    <p className="text-sm whitespace-pre-wrap">{ticketData.troubleshootingSteps}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Fallback: conversation snippet */}
+            {!ticketData.problemSummary && !ticketData.troubleshootingSteps && ticketData.description && (
+              <div className="mt-3 pt-3 border-t border-border/40">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Mensaje original</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">{ticketData.description}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Create incident form (only for pending items) */}
       {isPending && (
@@ -283,10 +466,25 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Cliente (empresa)</Label>
+                <SearchableSelect
+                  options={clientOptions}
+                  value={clientId}
+                  onValueChange={(v) => {
+                    setClientId(v);
+                    const selected = clientsData.find((c: { id: string; name: string }) => c.id === v);
+                    if (selected) setClientName(selected.name);
+                  }}
+                  placeholder="Buscar cliente..."
+                  searchPlaceholder="Buscar cliente..."
+                  emptyMessage="No se encontraron clientes."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nombre cliente (texto libre)</Label>
                 <Input
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Nombre de la empresa"
+                  placeholder="Si no hay cliente registrado"
                 />
               </div>
               <div className="space-y-1.5">
@@ -346,23 +544,6 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
           Conversación descartada
         </div>
       )}
-
-      {/* Metadata */}
-      <Separator className="bg-border/40" />
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-        {item.contactEmail && (
-          <div>
-            <dt className="text-muted-foreground">Email</dt>
-            <dd className="font-medium">{item.contactEmail}</dd>
-          </div>
-        )}
-        {item.assigneeName && (
-          <div>
-            <dt className="text-muted-foreground">Asignado en Intercom</dt>
-            <dd className="font-medium">{item.assigneeName}</dd>
-          </div>
-        )}
-      </dl>
     </div>
   );
 }

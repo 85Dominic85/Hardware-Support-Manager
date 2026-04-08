@@ -57,13 +57,15 @@ function extractData(payload: any): {
     contact?.email_address ??
     null;
 
-  // Build subject: prefer ticket_type name, add problem summary if available
-  const attrs = item.ticket_attributes ?? {};
-  const problemSummary = attrs["﻿Resumen del problema del cliente:"] ?? attrs["Resumen del problema del cliente:"] ?? null;
+  // Build subject: prefer conversation custom_attributes, then ticket_attributes, then fallbacks
+  const ticketAttrs = item.ticket_attributes ?? {};
+  const convAttrs = item.custom_attributes ?? {};
+  const problemSummary = ticketAttrs["﻿Resumen del problema del cliente:"] ?? ticketAttrs["Resumen del problema del cliente:"] ?? null;
+  const incidentSummary = convAttrs["Resumen de la incidencia"] ?? null;
   const ticketTypeName = item.ticket_type?.name ?? null;
-  const subject = problemSummary
-    ? `${ticketTypeName ?? "Ticket"}: ${problemSummary}`
-    : item.source?.subject ?? item.title ?? ticketTypeName ?? null;
+  const subject = incidentSummary
+    ?? (problemSummary ? `${ticketTypeName ?? "Ticket"}: ${problemSummary}` : null)
+    ?? item.source?.subject ?? item.title ?? ticketTypeName ?? null;
 
   // Assignee: find the admin who created the ticket (not bot)
   const adminPart = item.ticket_parts?.ticket_parts?.find?.(
@@ -174,9 +176,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // Enrich: fetch full contact data from Intercom API (name, email, phone, company)
+  // Enrich: fetch full contact data from Intercom API + extract company/custom_attributes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const itemData = (payload as any)?.data?.item;
+
+  // Extract company and custom_attributes directly from the payload (always available)
+  const companyData = itemData?.company ?? null;
+  const convCustomAttrs = itemData?.custom_attributes ?? {};
+  const enrichedCompany = {
+    companyId: companyData?.company_id ?? null,
+    restaurantName: companyData?.custom_attributes?.restaurant_name ?? null,
+    serialNumber: companyData?.custom_attributes?.serial_number ?? null,
+    accountManager: companyData?.custom_attributes?.account_manager ?? null,
+    companyIntercomName: companyData?.name ?? null,
+  };
+  const extractedAttributes = {
+    categoria: convCustomAttrs["Categoría"] ?? null,
+    categoria2: convCustomAttrs["Categoría - 2"] ?? null,
+    categoria3: convCustomAttrs["Categoría - 3"] ?? null,
+    tipo: convCustomAttrs["Tipo"] ?? null,
+    urgencia: convCustomAttrs["Urgencia"] ?? null,
+    resumenIncidencia: convCustomAttrs["Resumen de la incidencia"] ?? null,
+    atendidoEnLlamada: convCustomAttrs["Atendido en llamada"] ?? null,
+    aiIssueSummary: convCustomAttrs["AI Issue summary"] ?? null,
+  };
+
   if (process.env.INTERCOM_ACCESS_TOKEN) {
     try {
       // Find the contact reference in the ticket payload
@@ -186,7 +210,7 @@ export async function POST(request: NextRequest) {
         itemData?.contacts?.[0];
 
       let enrichedContact: { name: string | null; email: string | null; phone: string | null; companyName: string | null } = {
-        name: contactName, email: contactEmail, phone: null, companyName: null,
+        name: contactName, email: contactEmail, phone: null, companyName: enrichedCompany.companyIntercomName,
       };
 
       if (contactRef?.id && contactRef?.type === "contact") {
@@ -196,7 +220,7 @@ export async function POST(request: NextRequest) {
           name: contact.name ?? enrichedContact.name,
           email: contact.email ?? enrichedContact.email,
           phone: contact.phone ?? null,
-          companyName: contact.company?.name ?? null,
+          companyName: contact.company?.name ?? enrichedContact.companyName,
         };
       }
 
@@ -212,8 +236,8 @@ export async function POST(request: NextRequest) {
         } catch { /* conversation fetch is best-effort */ }
       }
 
-      // Update DB with enriched data + store enrichedContact in rawPayload
-      const enrichedPayload = { ...(payload as Record<string, unknown>), enrichedContact };
+      // Update DB with enriched data + store enrichedContact + enrichedCompany + extractedAttributes in rawPayload
+      const enrichedPayload = { ...(payload as Record<string, unknown>), enrichedContact, enrichedCompany, extractedAttributes };
       await db
         .update(intercomInbox)
         .set({
@@ -224,10 +248,22 @@ export async function POST(request: NextRequest) {
         })
         .where(eq(intercomInbox.intercomConversationId, conversationId));
 
-      console.log(`[Intercom Webhook] Enriched ${conversationId}: ${enrichedContact.name} <${enrichedContact.email}> phone:${enrichedContact.phone} company:${enrichedContact.companyName}`);
+      console.log(`[Intercom Webhook] Enriched ${conversationId}: ${enrichedContact.name} <${enrichedContact.email}> phone:${enrichedContact.phone} company:${enrichedCompany.restaurantName ?? enrichedContact.companyName} restaurantId:${enrichedCompany.companyId}`);
     } catch (err) {
       console.log(`[Intercom Webhook] Enrichment failed: ${err}`);
     }
+  } else {
+    // Even without API token, save company/attribute data from the payload
+    try {
+      const enrichedPayload = { ...(payload as Record<string, unknown>), enrichedCompany, extractedAttributes };
+      await db
+        .update(intercomInbox)
+        .set({
+          rawPayload: enrichedPayload,
+          updatedAt: new Date(),
+        })
+        .where(eq(intercomInbox.intercomConversationId, conversationId));
+    } catch { /* best-effort */ }
   }
 
   return NextResponse.json({ ok: true });

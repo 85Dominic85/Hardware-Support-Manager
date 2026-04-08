@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { intercomInbox, incidents, eventLogs } from "@/lib/db/schema";
+import { intercomInbox, incidents, eventLogs, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/get-session";
@@ -72,6 +72,18 @@ export async function convertToIncident(
       };
     }
 
+    // Resolve clientId → clientName from DB if provided
+    const resolvedClientId: string | null = rest.clientId || null;
+    let resolvedClientName: string | null = rest.clientName || item.contactName || null;
+    if (resolvedClientId) {
+      const [client] = await db
+        .select({ name: clients.name })
+        .from(clients)
+        .where(eq(clients.id, resolvedClientId))
+        .limit(1);
+      if (client) resolvedClientName = client.name;
+    }
+
     // Create incident + update inbox in transaction
     const result = await db.transaction(async (tx) => {
       const incidentNumber = await generateSequentialId("INC");
@@ -85,7 +97,8 @@ export async function convertToIncident(
           category,
           priority,
           status: "nuevo",
-          clientName: rest.clientName || item.contactName || null,
+          clientId: resolvedClientId,
+          clientName: resolvedClientName,
           deviceType: rest.deviceType || null,
           deviceBrand: rest.deviceBrand || null,
           deviceModel: rest.deviceModel || null,

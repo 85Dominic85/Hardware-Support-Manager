@@ -235,3 +235,15 @@ export async function fetchClientLocationsForSelect(
   await getRequiredSession();
   return getClientLocations(clientId);
 }
+
+export async function fetchClientByExternalId(
+  externalId: string
+): Promise<{ id: string; name: string } | null> {
+  await getRequiredSession();
+  const [client] = await db
+    .select({ id: clients.id, name: clients.name })
+    .from(clients)
+    .where(and(eq(clients.externalId, externalId), isNull(clients.deletedAt)))
+    .limit(1);
+  return client ?? null;
+}
