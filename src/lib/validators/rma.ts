@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { DEVICE_TYPES } from "@/lib/constants/device-types";
 
 export const createRmaSchema = z.object({
   providerId: z.string().uuid("Proveedor inválido"),
@@ -9,7 +8,8 @@ export const createRmaSchema = z.object({
   clientName: z.string().max(500).optional().or(z.literal("")),
   clientExternalId: z.string().max(255).optional().or(z.literal("")),
   clientIntercomUrl: z.string().max(1000).optional().or(z.literal("")),
-  deviceType: z.enum(DEVICE_TYPES).optional().or(z.literal("")),
+  articleId: z.string().uuid("Artículo inválido").optional().or(z.literal("")),
+  deviceType: z.string().max(100).optional().or(z.literal("")),
   deviceBrand: z.string().max(255).optional().or(z.literal("")),
   deviceModel: z.string().max(255).optional().or(z.literal("")),
   deviceSerialNumber: z.string().max(255).optional().or(z.literal("")),
@@ -32,7 +32,8 @@ export const updateRmaSchema = z.object({
   clientName: z.string().max(500).optional().or(z.literal("")),
   clientExternalId: z.string().max(255).optional().or(z.literal("")),
   clientIntercomUrl: z.string().max(1000).optional().or(z.literal("")),
-  deviceType: z.enum(DEVICE_TYPES).optional().or(z.literal("")),
+  articleId: z.string().uuid("Artículo inválido").optional().or(z.literal("")),
+  deviceType: z.string().max(100).optional().or(z.literal("")),
   deviceBrand: z.string().max(255).optional().or(z.literal("")),
   deviceModel: z.string().max(255).optional().or(z.literal("")),
   deviceSerialNumber: z.string().max(255).optional().or(z.literal("")),
@@ -55,7 +56,8 @@ export const rmaFormSchema = z.object({
   clientName: z.string().max(500).optional().or(z.literal("")),
   clientExternalId: z.string().max(255).optional().or(z.literal("")),
   clientIntercomUrl: z.string().max(1000).optional().or(z.literal("")),
-  deviceType: z.enum(DEVICE_TYPES).optional().or(z.literal("")),
+  articleId: z.string().uuid("Artículo inválido").optional().or(z.literal("")),
+  deviceType: z.string().max(100).optional().or(z.literal("")),
   deviceBrand: z.string().max(255).optional().or(z.literal("")),
   deviceModel: z.string().max(255).optional().or(z.literal("")),
   deviceSerialNumber: z.string().max(255).optional().or(z.literal("")),

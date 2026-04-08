@@ -1,8 +1,9 @@
-import { uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import { uuid, varchar, text, timestamp, bigint } from "drizzle-orm/pg-core";
 import { hsmSchema } from "./hsm-schema";
 import { users } from "./users";
 import { clients } from "./clients";
 import { clientLocations } from "./client-locations";
+import { articles } from "./articles";
 
 export const incidentStatusEnum = hsmSchema.enum("incident_status", [
   "nuevo", "en_triaje", "en_gestion", "esperando_cliente",
@@ -46,4 +47,6 @@ export const incidents = hsmSchema.table("incidents", {
   stateChangedAt: timestamp("state_changed_at", { withTimezone: true }).defaultNow().notNull(),
   slaPausedMs: varchar("sla_paused_ms", { length: 50 }).default("0").notNull(),
   resolutionType: varchar("resolution_type", { length: 50 }),
+  articleId: uuid("article_id").references(() => articles.id, { onDelete: "set null" }),
+  deviceValueCents: bigint("device_value_cents", { mode: "number" }),
 });

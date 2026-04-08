@@ -7,6 +7,7 @@ import { eventLogs } from "./event-logs";
 import { attachments } from "./attachments";
 import { clients } from "./clients";
 import { clientLocations } from "./client-locations";
+import { articles } from "./articles";
 
 export const usersRelations = relations(users, ({ many }) => ({
   assignedIncidents: many(incidents),
@@ -33,6 +34,11 @@ export const clientLocationsRelations = relations(clientLocations, ({ one, many 
   rmas: many(rmas),
 }));
 
+export const articlesRelations = relations(articles, ({ many }) => ({
+  incidents: many(incidents),
+  rmas: many(rmas),
+}));
+
 export const incidentsRelations = relations(incidents, ({ one, many }) => ({
   assignedUser: one(users, {
     fields: [incidents.assignedUserId],
@@ -45,6 +51,10 @@ export const incidentsRelations = relations(incidents, ({ one, many }) => ({
   clientLocation: one(clientLocations, {
     fields: [incidents.clientLocationId],
     references: [clientLocations.id],
+  }),
+  article: one(articles, {
+    fields: [incidents.articleId],
+    references: [articles.id],
   }),
   rmas: many(rmas),
 }));
@@ -65,6 +75,10 @@ export const rmasRelations = relations(rmas, ({ one }) => ({
   clientLocation: one(clientLocations, {
     fields: [rmas.clientLocationId],
     references: [clientLocations.id],
+  }),
+  article: one(articles, {
+    fields: [rmas.articleId],
+    references: [articles.id],
   }),
 }));
 

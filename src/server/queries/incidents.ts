@@ -78,6 +78,8 @@ export async function getIncidents(
         stateChangedAt: incidents.stateChangedAt,
         slaPausedMs: incidents.slaPausedMs,
         resolutionType: incidents.resolutionType,
+        articleId: incidents.articleId,
+        deviceValueCents: incidents.deviceValueCents,
         assignedUserName: users.name,
         clientCompanyName: clients.name,
       })
@@ -137,6 +139,8 @@ export async function getIncidentById(id: string): Promise<IncidentRow | null> {
       stateChangedAt: incidents.stateChangedAt,
       slaPausedMs: incidents.slaPausedMs,
       resolutionType: incidents.resolutionType,
+      articleId: incidents.articleId,
+      deviceValueCents: incidents.deviceValueCents,
       assignedUserName: users.name,
       clientCompanyName: clients.name,
     })

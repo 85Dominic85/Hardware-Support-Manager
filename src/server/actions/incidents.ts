@@ -54,6 +54,7 @@ export async function createIncident(
         category: parsed.data.category,
         priority: parsed.data.priority,
         assignedUserId: parsed.data.assignedUserId || null,
+        articleId: parsed.data.articleId || null,
         deviceType: parsed.data.deviceType || null,
         deviceBrand: parsed.data.deviceBrand || null,
         deviceModel: parsed.data.deviceModel || null,

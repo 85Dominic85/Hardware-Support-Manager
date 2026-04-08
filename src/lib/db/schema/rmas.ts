@@ -1,9 +1,10 @@
-import { uuid, varchar, text, timestamp } from "drizzle-orm/pg-core";
+import { uuid, varchar, text, timestamp, bigint } from "drizzle-orm/pg-core";
 import { hsmSchema } from "./hsm-schema";
 import { incidents } from "./incidents";
 import { providers } from "./providers";
 import { clients } from "./clients";
 import { clientLocations } from "./client-locations";
+import { articles } from "./articles";
 
 export const rmaStatusEnum = hsmSchema.enum("rma_status", [
   "borrador", "solicitado", "aprobado", "enviado_proveedor",
@@ -38,4 +39,9 @@ export const rmas = hsmSchema.table("rmas", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
   stateChangedAt: timestamp("state_changed_at", { withTimezone: true }).defaultNow().notNull(),
+  articleId: uuid("article_id").references(() => articles.id, { onDelete: "set null" }),
+  deviceValueCents: bigint("device_value_cents", { mode: "number" }),
+  repairCostCents: bigint("repair_cost_cents", { mode: "number" }),
+  shippingCostCents: bigint("shipping_cost_cents", { mode: "number" }),
+  replacementCostCents: bigint("replacement_cost_cents", { mode: "number" }),
 });

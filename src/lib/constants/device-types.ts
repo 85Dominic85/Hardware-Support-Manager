@@ -1,11 +1,12 @@
 export const DEVICE_TYPES = [
-  "cajon_portamonedas",
-  "tpv",
-  "impresora_lan",
-  "impresora_wifi",
-  "opal",
-  "flint",
-  "cajon_inteligente",
+  "TPV",
+  "Printer USB/LAN",
+  "Printer WiFi",
+  "Cajón",
+  "Router",
+  "KDS",
+  "Tablet",
+  "Pincho WiFi USB",
   "otro",
   "desconocido",
 ] as const;
@@ -13,13 +14,14 @@ export const DEVICE_TYPES = [
 export type DeviceType = (typeof DEVICE_TYPES)[number];
 
 export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  cajon_portamonedas: "Cajón portamonedas",
-  tpv: "TPV",
-  impresora_lan: "Impresora LAN",
-  impresora_wifi: "Impresora WiFi",
-  opal: "Opal",
-  flint: "Flint",
-  cajon_inteligente: "Cajón inteligente",
-  otro: "Otro",
-  desconocido: "Desconocido",
+  "TPV": "TPV",
+  "Printer USB/LAN": "Impresora USB/LAN",
+  "Printer WiFi": "Impresora WiFi",
+  "Cajón": "Cajón",
+  "Router": "Router",
+  "KDS": "KDS (Pantalla cocina)",
+  "Tablet": "Tablet",
+  "Pincho WiFi USB": "Pincho WiFi USB",
+  "otro": "Otro",
+  "desconocido": "Desconocido",
 };

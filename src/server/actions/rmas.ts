@@ -53,6 +53,7 @@ export async function createRma(
         clientName,
         clientExternalId: parsed.data.clientExternalId || null,
         clientIntercomUrl: parsed.data.clientIntercomUrl || null,
+        articleId: parsed.data.articleId || null,
         deviceType: parsed.data.deviceType || null,
         deviceBrand: parsed.data.deviceBrand || null,
         deviceModel: parsed.data.deviceModel || null,
