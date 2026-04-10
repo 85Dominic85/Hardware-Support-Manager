@@ -24,11 +24,20 @@ export default async function IncidentsPage({
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
+  // Extract filter params from URL for SSR — ensures initial render respects active filters
+  const filters: Record<string, string | string[] | undefined> = {};
+  if (params.status) filters.status = Array.isArray(params.status) ? params.status : [params.status];
+  if (params.priority) filters.priority = Array.isArray(params.priority) ? params.priority : [params.priority];
+  if (params.category) filters.category = Array.isArray(params.category) ? params.category : [params.category];
+  if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
+  if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
+
   const initialData = await getIncidents({
     page,
     pageSize,
     sortBy,
     sortOrder,
+    ...(Object.keys(filters).length > 0 ? { filters } : {}),
   });
 
   return (

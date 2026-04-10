@@ -24,7 +24,9 @@ function buildParsers(filters: FilterConfig[]): Record<string, any> {
 export function useFilterParams(filters: FilterConfig[]) {
   const parsers = useMemo(() => buildParsers(filters), [filters]);
 
-  const [params, setParams] = useQueryStates(parsers, { shallow: false });
+  // shallow: true — only update URL without triggering a full server-side
+  // page reload. React Query handles refetching with the new filter values.
+  const [params, setParams] = useQueryStates(parsers, { shallow: true });
 
   const setFilter = useCallback(
     (key: string, value: string | string[] | null) => {

@@ -24,11 +24,18 @@ export default async function RmasPage({
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
+  // Extract filter params from URL for SSR — ensures initial render respects active filters
+  const filters: Record<string, string | string[] | undefined> = {};
+  if (params.status) filters.status = Array.isArray(params.status) ? params.status : [params.status];
+  if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
+  if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
+
   const initialData = await getRmas({
     page,
     pageSize,
     sortBy,
     sortOrder,
+    ...(Object.keys(filters).length > 0 ? { filters } : {}),
   });
 
   return (

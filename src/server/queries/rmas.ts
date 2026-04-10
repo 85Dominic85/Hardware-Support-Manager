@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { rmas, incidents, providers, clients } from "@/lib/db/schema";
-import { eq, or, and, asc, desc, count, sql, gte, lte, type AnyColumn } from "drizzle-orm";
+import { eq, or, and, asc, desc, count, sql, gte, lte, inArray, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type RmaRow = typeof rmas.$inferSelect & {
@@ -29,7 +29,7 @@ export async function getRmas(
   const filterConditions = [];
   if (searchCondition) filterConditions.push(searchCondition);
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-    filterConditions.push(sql`${rmas.status} = ANY(ARRAY[${sql.join(filters.status.map((v) => sql`${v}`), sql`, `)}])`);
+    filterConditions.push(inArray(rmas.status, filters.status as [string, ...string[]]));
   }
   if (filters?.providerId && typeof filters.providerId === "string") {
     filterConditions.push(eq(rmas.providerId, filters.providerId));

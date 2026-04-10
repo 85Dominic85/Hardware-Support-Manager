@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { incidents, users, clients, rmas } from "@/lib/db/schema";
-import { eq, or, and, asc, desc, count, sql, gte, lte, type AnyColumn } from "drizzle-orm";
+import { eq, or, and, asc, desc, count, sql, gte, lte, inArray, type AnyColumn } from "drizzle-orm";
 import type { PaginationParams, PaginatedResult } from "@/types";
 
 export type IncidentRow = typeof incidents.$inferSelect & {
@@ -28,13 +28,13 @@ export async function getIncidents(
   const filterConditions = [];
   if (searchCondition) filterConditions.push(searchCondition);
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-    filterConditions.push(sql`${incidents.status} = ANY(ARRAY[${sql.join(filters.status.map((v) => sql`${v}`), sql`, `)}])`);
+    filterConditions.push(inArray(incidents.status, filters.status as [string, ...string[]]));
   }
   if (filters?.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
-    filterConditions.push(sql`${incidents.priority} = ANY(ARRAY[${sql.join(filters.priority.map((v) => sql`${v}`), sql`, `)}])`);
+    filterConditions.push(inArray(incidents.priority, filters.priority as [string, ...string[]]));
   }
   if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
-    filterConditions.push(sql`${incidents.category} = ANY(ARRAY[${sql.join(filters.category.map((v) => sql`${v}`), sql`, `)}])`);
+    filterConditions.push(inArray(incidents.category, filters.category as [string, ...string[]]));
   }
   if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
     filterConditions.push(gte(incidents.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));
