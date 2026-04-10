@@ -67,9 +67,14 @@ export function useFilterParams(filters: FilterConfig[]) {
     return result;
   }, [params, parsers]);
 
+  // Stable string key for use as useEffect dependency — prevents infinite
+  // loops caused by filterValues being a new object reference each render
+  const filterKey = useMemo(() => JSON.stringify(filterValues), [filterValues]);
+
   return {
     params,
     filterValues,
+    filterKey,
     setFilter,
     clearFilters,
     activeFilterCount,
