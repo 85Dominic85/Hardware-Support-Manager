@@ -24,20 +24,13 @@ export function IncidentList({ initialData, defaultPageSize }: IncidentListProps
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, setFilter: rawSetFilter, clearFilters: rawClearFilters, activeFilterCount } =
+  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(INCIDENT_FILTERS);
 
-  // Reset page to 1 when search or filters change
-  useEffect(() => { setPage(1); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const setFilter = (key: string, value: string | string[] | null) => {
-    rawSetFilter(key, value);
-    setPage(1);
-  };
-  const clearFilters = () => {
-    rawClearFilters();
-    setPage(1);
-  };
+  // Reset page to 1 when search or filters change (via useEffect to avoid
+  // nuqs race condition — two separate useQueryStates instances can't write
+  // to the URL in the same synchronous tick without the second overwriting the first)
+  useEffect(() => { setPage(1); }, [search, filterValues]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["incidents", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],

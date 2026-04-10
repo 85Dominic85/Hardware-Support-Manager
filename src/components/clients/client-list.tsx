@@ -26,19 +26,10 @@ export function ClientList({ initialData, defaultPageSize }: ClientListProps) {
   const { page, pageSize, sortBy, sortOrder, setSorting, setPage, setPageSize } =
     useTableSearchParams("createdAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, setFilter: rawSetFilter, clearFilters: rawClearFilters, activeFilterCount } =
+  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(CLIENT_FILTERS);
 
-  useEffect(() => { setPage(1); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const setFilter = (key: string, value: string | string[] | null) => {
-    rawSetFilter(key, value);
-    setPage(1);
-  };
-  const clearFilters = () => {
-    rawClearFilters();
-    setPage(1);
-  };
+  useEffect(() => { setPage(1); }, [search, filterValues]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 

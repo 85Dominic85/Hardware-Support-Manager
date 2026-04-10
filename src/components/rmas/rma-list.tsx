@@ -24,19 +24,10 @@ export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, setFilter: rawSetFilter, clearFilters: rawClearFilters, activeFilterCount } =
+  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(RMA_FILTERS);
 
-  useEffect(() => { setPage(1); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const setFilter = (key: string, value: string | string[] | null) => {
-    rawSetFilter(key, value);
-    setPage(1);
-  };
-  const clearFilters = () => {
-    rawClearFilters();
-    setPage(1);
-  };
+  useEffect(() => { setPage(1); }, [search, filterValues]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["rmas", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],
