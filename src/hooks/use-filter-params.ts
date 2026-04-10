@@ -28,15 +28,15 @@ export function useFilterParams(filters: FilterConfig[]) {
 
   const setFilter = useCallback(
     (key: string, value: string | string[] | null) => {
-      setParams({ [key]: value === null ? "" : value });
+      setParams({ [key]: value ?? null });
     },
     [setParams]
   );
 
   const clearFilters = useCallback(() => {
-    const reset: Record<string, string | string[]> = {};
+    const reset: Record<string, string | string[] | null> = {};
     for (const key of Object.keys(parsers)) {
-      reset[key] = "";
+      reset[key] = null;
     }
     setParams(reset);
   }, [parsers, setParams]);
@@ -46,7 +46,7 @@ export function useFilterParams(filters: FilterConfig[]) {
     for (const f of filters) {
       if (f.type === "multi-select") {
         const val = params[f.key];
-        if (Array.isArray(val) && val.length > 0) count++;
+        if (Array.isArray(val) && val.length > 0 && !val.every(v => v === "")) count++;
       } else if (f.type === "date-range") {
         if (params[`${f.key}From`] || params[`${f.key}To`]) count++;
       } else {
@@ -61,7 +61,7 @@ export function useFilterParams(filters: FilterConfig[]) {
     for (const key of Object.keys(parsers)) {
       const val = params[key];
       if (val === null || val === undefined || val === "") continue;
-      if (Array.isArray(val) && val.length === 0) continue;
+      if (Array.isArray(val) && (val.length === 0 || val.every(v => v === ""))) continue;
       result[key] = val as string | string[];
     }
     return result;
