@@ -256,42 +256,110 @@ npm run test:coverage # Coverage report
 
 ## Claude Code Tooling
 
-### Agents (`.claude/agents/`)
+> **DIRECTIVA OBLIGATORIA**: Antes de abordar cualquier tarea, consultar las herramientas disponibles (agentes, skills, comandos, MCP servers) y usar la más adecuada. No reinventar funcionalidad que ya existe en el tooling del proyecto. La selección de herramienta debe seguir la guía de selección al final de esta sección.
 
-| Agent | Propósito |
+### Agents (16) — `.claude/agents/`
+
+| Agent | Propósito | Cuándo usar |
+|-------|-----------|-------------|
+| database-architect | Diseño de BD, schemas, migraciones | Cambios en schema Drizzle, optimización queries |
+| frontend-developer | Desarrollo React/TypeScript frontend | Componentes nuevos, páginas, layouts |
+| ui-ux-designer | Crítica UI/UX basada en investigación | Revisión de diseño, accesibilidad, usabilidad |
+| backend-architect | Arquitectura servidor, APIs | Server actions, webhooks, integración servicios |
+| fullstack-developer | Desarrollo cross-stack completo | Features que tocan BD + API + UI a la vez |
+| code-reviewer | Revisión de código y calidad | Pre-merge, auditoría de seguridad, calidad |
+| typescript-pro | Patrones TypeScript avanzados | Generics complejos, type safety, inferencia |
+| test-engineer | Estrategia y ejecución de tests | Tests nuevos, cobertura, estrategia testing |
+| debugger | Investigación y resolución de bugs | Errores en producción, stack traces, race conditions |
+| context-manager | Coordinación de contexto del proyecto | Tareas multi-agente, sesiones largas |
+| prompt-engineer | Optimización de prompts LLM | Si se integra IA en la app |
+| error-detective | Análisis patrones de error, cascadas | Errores recurrentes, correlación entre servicios |
+| deployment-engineer | Despliegue y CI/CD | Pipeline Vercel, rollbacks, automatización |
+| mcp-expert | Configuración de servidores MCP | Nuevos MCP servers, debug de conexiones |
+| documentation-expert | Estándares de documentación | Actualizar docs, CLAUDE.md, proyecto_log |
+| ai-engineer | Ingeniería AI/ML | Solo si se añade componente IA al proyecto |
+
+### Skills (13) — `.claude/skills/`
+
+| Skill | Propósito | Cuándo usar |
+|-------|-----------|-------------|
+| **senior-frontend** | Desarrollo frontend moderno (React, Next.js, TS, Tailwind) | Arquitectura de componentes, patterns React |
+| **senior-fullstack** | Desarrollo fullstack completo | Features end-to-end que cruzan capas |
+| **react-best-practices** | 40+ reglas performance React/Next.js | Optimización rendering, bundles, data fetching |
+| **supabase-postgres-best-practices** | Optimización Postgres y Supabase | Queries complejas, índices, full-text search |
+| **emil-design-eng** | Filosofía Emil Kowalski: UI polish, animaciones | Microinteracciones, transiciones, detalles visuales |
+| **frontend-design** | Interfaces production-grade con alto diseño | Landing pages, componentes con diseño distintivo |
+| **ui-ux-pro-max** | 50 estilos, 21 paletas, 50 font pairings | Decisiones de diseño, paletas, tipografía |
+| **code-reviewer** | Revisión automática con checklist y scripts | Code review estructurado con antipatrones |
+| **mcp-builder** | Guía para crear servidores MCP | Integrar nuevos servicios externos vía MCP |
+| **git-commit-helper** | Mensajes de commit descriptivos | Análisis de diffs para generar mensajes |
+| **canvas-design** | Arte visual en .png/.pdf | Posters, diseños estáticos (poco uso en HSM) |
+| **theme-factory** | Toolkit de temas (10 presets) | Slides, docs, landing pages (poco uso en HSM) |
+| **file-organizer** | Organizar archivos y carpetas | Reestructuración de directorios |
+
+### Skills Built-in (del sistema)
+
+| Skill | Propósito |
 |-------|-----------|
-| database-architect | Diseño de BD, schemas, migraciones |
-| frontend-developer | Desarrollo React/TypeScript frontend |
-| ui-ux-designer | Crítica UI/UX basada en investigación |
-| backend-architect | Arquitectura servidor |
-| fullstack-developer | Desarrollo cross-stack |
-| code-reviewer | Revisión de código y calidad |
-| typescript-pro | Patrones TypeScript avanzados |
-| test-engineer | Estrategia y ejecución de tests |
-| debugger | Investigación y resolución de bugs |
-| context-manager | Coordinación de contexto del proyecto |
-| prompt-engineer | Optimización de prompts |
-| error-detective | Análisis y resolución de errores |
-| deployment-engineer | Despliegue y CI/CD |
-| mcp-expert | Configuración de servidores MCP |
-| documentation-expert | Estándares de documentación |
-| ai-engineer | Ingeniería AI/ML |
+| `anthropic-skills:pdf` | Leer, crear, combinar, dividir PDFs |
+| `anthropic-skills:xlsx` | Leer, crear, editar hojas de cálculo |
+| `anthropic-skills:pptx` | Crear y manipular presentaciones PowerPoint |
+| `anthropic-skills:docx` | Crear y manipular documentos Word |
+| `anthropic-skills:skill-creator` | Crear nuevas skills, medir rendimiento |
+| `simplify` | Revisar código para calidad y eficiencia |
+| `claude-api` | Construir apps con API Claude / Anthropic SDK |
 
-### Commands (`.claude/commands/`)
+### Commands (8) — `.claude/commands/`
 
-`/commit` · `/ultra-think` · `/code-review` · `/refactor-code` · `/todo` · `/architecture-review` · `/update-docs` · `/explain-code`
+| Comando | Propósito | Cuándo usar |
+|---------|-----------|-------------|
+| `/commit` | Git commit inteligente con linting previo | Siempre para commits (preferir sobre git manual) |
+| `/code-review` | Revisión de calidad de código | Antes de merge o push importante |
+| `/refactor-code` | Mejora y refactorización | Limpiar código existente |
+| `/ultra-think` | Análisis profundo multi-dimensional | Decisiones arquitecturales complejas |
+| `/todo` | Gestión de tareas del proyecto | Planificación y seguimiento |
+| `/architecture-review` | Evaluación de arquitectura | Revisar decisiones de diseño del sistema |
+| `/update-docs` | Sincronización documentación | Tras cambios significativos |
+| `/explain-code` | Análisis y explicación de código | Entender código existente |
 
-### MCP Servers (`.mcp.json`)
+### MCP Servers — `.mcp.json`
 
-| Server | Propósito |
-|--------|-----------|
-| supabase | Gestión proyecto Supabase (HTTP) |
-| neon | Base de datos Neon |
-| postgresql | Conexión PostgreSQL directa |
-| web-fetch | Obtención de contenido web |
-| github | Integración API GitHub |
-| markitdown | Conversión de documentos |
-| figma | Modo desarrollo Figma |
+| Server | Tipo | Propósito |
+|--------|------|-----------|
+| supabase | HTTP | Gestión proyecto Supabase (BD principal) |
+| postgresql | Command | Conexión PostgreSQL directa |
+| web-fetch | Command | Obtención de contenido web |
+| github | Command | Integración API GitHub |
+| markitdown | Command | Conversión de documentos a markdown |
+| figma | Command | Modo desarrollo Figma |
+
+### Guía de Selección de Herramientas
+
+| Tipo de tarea | Herramienta principal | Complemento |
+|---------------|----------------------|-------------|
+| **Nuevo componente UI** | agente `frontend-developer` | skill `senior-frontend` + `emil-design-eng` |
+| **Feature fullstack** | agente `fullstack-developer` | skill `senior-fullstack` |
+| **Cambio en BD/schema** | agente `database-architect` | skill `supabase-postgres-best-practices` |
+| **Optimizar performance** | skill `react-best-practices` | agente `frontend-developer` |
+| **Code review** | comando `/code-review` | skill `code-reviewer` para checklist |
+| **Bug fixing** | agente `debugger` | agente `error-detective` si es recurrente |
+| **Commit** | comando `/commit` | skill `git-commit-helper` para analizar diffs |
+| **Decisión arquitectural** | comando `/ultra-think` | comando `/architecture-review` |
+| **Diseño UI/UX** | skill `ui-ux-pro-max` | agente `ui-ux-designer` para crítica |
+| **Animaciones/polish** | skill `emil-design-eng` | skill `frontend-design` |
+| **Testing** | agente `test-engineer` | — |
+| **Documentación** | comando `/update-docs` | agente `documentation-expert` |
+| **Deploy** | agente `deployment-engineer` | — |
+| **Nuevo MCP server** | skill `mcp-builder` | agente `mcp-expert` |
+
+### Sinergias y Prioridades entre Herramientas
+
+Cuando hay solapamiento entre herramientas:
+- **Performance React**: `react-best-practices` (40+ reglas específicas) tiene prioridad sobre `senior-frontend` (guía general)
+- **Code review**: `/code-review` (rápido) → skill `code-reviewer` (checklist) → agente `code-reviewer` (profundo)
+- **Commits**: `/commit` (workflow principal) → `git-commit-helper` (solo analizar diffs)
+- **UI/UX**: `ui-ux-pro-max` (catálogo de estilos) + agente `ui-ux-designer` (crítica investigativa) — usar juntos
+- **Postgres**: `supabase-postgres-best-practices` (reglas de referencia) + agente `database-architect` (aplica con contexto)
 
 ## Deployment
 
