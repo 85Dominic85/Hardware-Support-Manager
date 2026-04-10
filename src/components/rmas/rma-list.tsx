@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { useFilterParams } from "@/hooks/use-filter-params";
@@ -23,8 +24,19 @@ export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
+  const { params: filterParams, filterValues, setFilter: rawSetFilter, clearFilters: rawClearFilters, activeFilterCount } =
     useFilterParams(RMA_FILTERS);
+
+  useEffect(() => { setPage(1); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setFilter = (key: string, value: string | string[] | null) => {
+    rawSetFilter(key, value);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    rawClearFilters();
+    setPage(1);
+  };
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["rmas", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],

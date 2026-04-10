@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchClients, deleteClient } from "@/server/actions/clients";
@@ -26,8 +26,19 @@ export function ClientList({ initialData, defaultPageSize }: ClientListProps) {
   const { page, pageSize, sortBy, sortOrder, setSorting, setPage, setPageSize } =
     useTableSearchParams("createdAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
+  const { params: filterParams, filterValues, setFilter: rawSetFilter, clearFilters: rawClearFilters, activeFilterCount } =
     useFilterParams(CLIENT_FILTERS);
+
+  useEffect(() => { setPage(1); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setFilter = (key: string, value: string | string[] | null) => {
+    rawSetFilter(key, value);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    rawClearFilters();
+    setPage(1);
+  };
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { useFilterParams } from "@/hooks/use-filter-params";
@@ -23,8 +24,20 @@ export function IncidentList({ initialData, defaultPageSize }: IncidentListProps
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, setFilter, clearFilters, activeFilterCount } =
+  const { params: filterParams, filterValues, setFilter: rawSetFilter, clearFilters: rawClearFilters, activeFilterCount } =
     useFilterParams(INCIDENT_FILTERS);
+
+  // Reset page to 1 when search or filters change
+  useEffect(() => { setPage(1); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setFilter = (key: string, value: string | string[] | null) => {
+    rawSetFilter(key, value);
+    setPage(1);
+  };
+  const clearFilters = () => {
+    rawClearFilters();
+    setPage(1);
+  };
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["incidents", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],
