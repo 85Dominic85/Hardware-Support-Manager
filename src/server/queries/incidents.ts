@@ -28,13 +28,13 @@ export async function getIncidents(
   const filterConditions = [];
   if (searchCondition) filterConditions.push(searchCondition);
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-    filterConditions.push(sql`${incidents.status} = ANY(${filters.status})`);
+    filterConditions.push(sql`${incidents.status} = ANY(ARRAY[${sql.join(filters.status.map((v) => sql`${v}`), sql`, `)}])`);
   }
   if (filters?.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
-    filterConditions.push(sql`${incidents.priority} = ANY(${filters.priority})`);
+    filterConditions.push(sql`${incidents.priority} = ANY(ARRAY[${sql.join(filters.priority.map((v) => sql`${v}`), sql`, `)}])`);
   }
   if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
-    filterConditions.push(sql`${incidents.category} = ANY(${filters.category})`);
+    filterConditions.push(sql`${incidents.category} = ANY(ARRAY[${sql.join(filters.category.map((v) => sql`${v}`), sql`, `)}])`);
   }
   if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
     filterConditions.push(gte(incidents.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));

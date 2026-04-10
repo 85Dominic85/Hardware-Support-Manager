@@ -29,7 +29,7 @@ export async function getRmas(
   const filterConditions = [];
   if (searchCondition) filterConditions.push(searchCondition);
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-    filterConditions.push(sql`${rmas.status} = ANY(${filters.status})`);
+    filterConditions.push(sql`${rmas.status} = ANY(ARRAY[${sql.join(filters.status.map((v) => sql`${v}`), sql`, `)}])`);
   }
   if (filters?.providerId && typeof filters.providerId === "string") {
     filterConditions.push(eq(rmas.providerId, filters.providerId));
