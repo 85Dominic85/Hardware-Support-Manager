@@ -25,6 +25,30 @@ export function FilterBar({
 }: FilterBarProps) {
   const [isOpen, setIsOpen] = useState(activeFilterCount > 0);
 
+  // Build active filter chips for visual feedback
+  const activeChips: { key: string; filterKey: string; label: string }[] = [];
+  for (const filter of filters) {
+    if (filter.type === "multi-select" && filter.options) {
+      const values = (params[filter.key] as string[]) ?? [];
+      for (const v of values) {
+        const option = filter.options.find((o) => o.value === v);
+        if (option) {
+          activeChips.push({ key: `${filter.key}-${v}`, filterKey: filter.key, label: option.label });
+        }
+      }
+    }
+  }
+
+  const removeChip = (filterKey: string, chipLabel: string) => {
+    const filter = filters.find((f) => f.key === filterKey);
+    if (!filter?.options) return;
+    const option = filter.options.find((o) => o.label === chipLabel);
+    if (!option) return;
+    const current = (params[filterKey] as string[]) ?? [];
+    const next = current.filter((v) => v !== option.value);
+    onFilterChange(filterKey, next.length > 0 ? next : null);
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -58,65 +82,76 @@ export function FilterBar({
         )}
       </div>
 
-      <div
-        className="grid transition-[grid-template-rows] duration-[350ms]"
-        style={{
-          gridTemplateRows: isOpen ? "1fr" : "0fr",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <div className="overflow-hidden">
-          <div className="flex flex-wrap items-center gap-2 pb-1 pt-1">
-            {filters.map((filter, i) => {
-              if (filter.type === "multi-select" && filter.options) {
-                const value = (params[filter.key] as string[]) ?? [];
-                return (
-                  <div
-                    key={filter.key}
-                    className="opacity-0 animate-[fadeInUp_250ms_ease-out_forwards]"
-                    style={{ animationDelay: `${i * 40}ms` }}
-                  >
-                    <FilterMultiSelect
-                      label={filter.label}
-                      options={filter.options}
-                      value={value}
-                      onChange={(v) =>
-                        onFilterChange(filter.key, v.length > 0 ? v : null)
-                      }
-                    />
-                  </div>
-                );
-              }
+      {/* Filter controls — no overflow-hidden so popovers aren't clipped */}
+      {isOpen && (
+        <div
+          className="flex flex-wrap items-center gap-2 pb-1 pt-1"
+          style={{ animation: "fadeInUp 250ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+        >
+          {filters.map((filter, i) => {
+            if (filter.type === "multi-select" && filter.options) {
+              const value = (params[filter.key] as string[]) ?? [];
+              return (
+                <div
+                  key={filter.key}
+                  style={{ animation: `fadeInUp 250ms ease-out ${i * 40}ms both` }}
+                >
+                  <FilterMultiSelect
+                    label={filter.label}
+                    options={filter.options}
+                    value={value}
+                    onChange={(v) =>
+                      onFilterChange(filter.key, v.length > 0 ? v : null)
+                    }
+                  />
+                </div>
+              );
+            }
 
-              if (filter.type === "date-range") {
-                const from = (params[`${filter.key}From`] as string) ?? undefined;
-                const to = (params[`${filter.key}To`] as string) ?? undefined;
-                return (
-                  <div
-                    key={filter.key}
-                    className="opacity-0 animate-[fadeInUp_250ms_ease-out_forwards]"
-                    style={{ animationDelay: `${i * 40}ms` }}
-                  >
-                    <FilterDateRange
-                      label={filter.label}
-                      from={from}
-                      to={to}
-                      onFromChange={(v) =>
-                        onFilterChange(`${filter.key}From`, v)
-                      }
-                      onToChange={(v) =>
-                        onFilterChange(`${filter.key}To`, v)
-                      }
-                    />
-                  </div>
-                );
-              }
+            if (filter.type === "date-range") {
+              const from = (params[`${filter.key}From`] as string) ?? undefined;
+              const to = (params[`${filter.key}To`] as string) ?? undefined;
+              return (
+                <div
+                  key={filter.key}
+                  style={{ animation: `fadeInUp 250ms ease-out ${i * 40}ms both` }}
+                >
+                  <FilterDateRange
+                    label={filter.label}
+                    from={from}
+                    to={to}
+                    onFromChange={(v) =>
+                      onFilterChange(`${filter.key}From`, v)
+                    }
+                    onToChange={(v) =>
+                      onFilterChange(`${filter.key}To`, v)
+                    }
+                  />
+                </div>
+              );
+            }
 
-              return null;
-            })}
-          </div>
+            return null;
+          })}
         </div>
-      </div>
+      )}
+
+      {/* Active filter chips */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {activeChips.map((chip) => (
+            <Badge
+              key={chip.key}
+              variant="secondary"
+              className="gap-1 pl-2 pr-1 py-0.5 text-xs font-normal cursor-pointer hover:bg-destructive/10 hover:text-destructive transition-colors"
+              onClick={() => removeChip(chip.filterKey, chip.label)}
+            >
+              {chip.label}
+              <X className="size-3" />
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
