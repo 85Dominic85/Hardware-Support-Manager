@@ -28,13 +28,13 @@ export async function getIncidents(
   const filterConditions = [];
   if (searchCondition) filterConditions.push(searchCondition);
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-    filterConditions.push(inArray(incidents.status, filters.status as [string, ...string[]]));
+    filterConditions.push(inArray(incidents.status, filters.status as typeof incidents.status.enumValues));
   }
   if (filters?.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
-    filterConditions.push(inArray(incidents.priority, filters.priority as [string, ...string[]]));
+    filterConditions.push(inArray(incidents.priority, filters.priority as typeof incidents.priority.enumValues));
   }
   if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
-    filterConditions.push(inArray(incidents.category, filters.category as [string, ...string[]]));
+    filterConditions.push(inArray(incidents.category, filters.category as typeof incidents.category.enumValues));
   }
   if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
     filterConditions.push(gte(incidents.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));

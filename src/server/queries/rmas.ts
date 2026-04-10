@@ -29,7 +29,7 @@ export async function getRmas(
   const filterConditions = [];
   if (searchCondition) filterConditions.push(searchCondition);
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
-    filterConditions.push(inArray(rmas.status, filters.status as [string, ...string[]]));
+    filterConditions.push(inArray(rmas.status, filters.status as typeof rmas.status.enumValues));
   }
   if (filters?.providerId && typeof filters.providerId === "string") {
     filterConditions.push(eq(rmas.providerId, filters.providerId));
