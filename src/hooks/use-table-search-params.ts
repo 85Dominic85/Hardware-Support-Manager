@@ -3,7 +3,11 @@
 import { useCallback } from "react";
 import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 
-export function useTableSearchParams(defaultSortBy: string = "createdAt", defaultPageSize: number = 10) {
+/**
+ * URL state for table pagination and sorting.
+ * Uses shallow: true — no SSR navigation. TanStack Query handles all data fetching.
+ */
+export function useTableSearchParams(defaultSortBy = "createdAt", defaultPageSize = 10) {
   const [params, setParams] = useQueryStates(
     {
       page: parseAsInteger.withDefault(1),
@@ -12,11 +16,6 @@ export function useTableSearchParams(defaultSortBy: string = "createdAt", defaul
       sortOrder: parseAsString.withDefault("desc"),
     },
     { shallow: true }
-  );
-
-  const setSorting = useCallback(
-    (sortBy: string, sortOrder: "asc" | "desc") => setParams({ sortBy, sortOrder, page: 1 }),
-    [setParams]
   );
 
   const setPage = useCallback(
@@ -29,10 +28,10 @@ export function useTableSearchParams(defaultSortBy: string = "createdAt", defaul
     [setParams]
   );
 
-  return {
-    ...params,
-    setSorting,
-    setPage,
-    setPageSize,
-  };
+  const setSorting = useCallback(
+    (sortBy: string, sortOrder: "asc" | "desc") => setParams({ sortBy, sortOrder, page: 1 }),
+    [setParams]
+  );
+
+  return { ...params, setPage, setPageSize, setSorting };
 }

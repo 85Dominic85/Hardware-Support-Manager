@@ -22,12 +22,16 @@ interface IncidentPageContentProps {
 
 export function IncidentPageContent({ initialData, defaultPageSize, userOptions }: IncidentPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
-  const filters = useMemo(() => buildIncidentFilters(userOptions), [userOptions]);
-  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
-    useFilterParams(filters);
 
-  // Kanban fetches all items respecting current search & filters
+  // Search: pure in-memory debounce. Lives in this component, shared with table + kanban.
+  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
+
+  // Filters: URL state via nuqs (shallow: true, no SSR navigation)
+  const filterConfigs = useMemo(() => buildIncidentFilters(userOptions), [userOptions]);
+  const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
+    useFilterParams(filterConfigs);
+
+  // Kanban: fetches all items respecting current search & filters
   const { data: kanbanData } = useQuery({
     queryKey: ["incidents-canvas", { search, filters: filterValues }],
     queryFn: () =>
@@ -50,7 +54,7 @@ export function IncidentPageContent({ initialData, defaultPageSize, userOptions 
         placeholder="Buscar incidencia..."
       />
       <FilterBar
-        filters={filters}
+        filters={filterConfigs}
         params={filterParams}
         onFilterChange={setFilter}
         onClearFilters={clearFilters}

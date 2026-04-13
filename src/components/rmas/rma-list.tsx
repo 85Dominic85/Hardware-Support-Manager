@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { DataTable } from "@/components/shared/data-table";
@@ -32,28 +32,22 @@ export function RmaList({
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
 
-  // Reset page to 1 when search or filters actually change (not on mount).
-  // Uses refs to track previous values and a guard to avoid firing setPage(1)
-  // when page is already 1 — prevents infinite re-render loops with nuqs URL state.
+  // Auto-reset page to 1 when search or filters change.
+  // Done via ref comparison during render — no useEffect, no URL writes, no loops.
   const prevSearchRef = useRef(search);
   const prevFilterKeyRef = useRef(filterKey);
-
-  useEffect(() => {
-    const searchChanged = search !== prevSearchRef.current;
-    const filterChanged = filterKey !== prevFilterKeyRef.current;
+  let effectivePage = page;
+  if (search !== prevSearchRef.current || filterKey !== prevFilterKeyRef.current) {
+    effectivePage = 1;
     prevSearchRef.current = search;
     prevFilterKeyRef.current = filterKey;
-
-    if ((searchChanged || filterChanged) && page !== 1) {
-      setPage(1);
-    }
-  }, [search, filterKey, page, setPage]);
+  }
 
   const { data: queryData, isLoading } = useQuery({
-    queryKey: ["rmas", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],
+    queryKey: ["rmas", { page: effectivePage, pageSize, search, sortBy, sortOrder, filters: filterValues }],
     queryFn: () =>
       fetchRmas({
-        page,
+        page: effectivePage,
         pageSize,
         search: search || undefined,
         sortBy,
