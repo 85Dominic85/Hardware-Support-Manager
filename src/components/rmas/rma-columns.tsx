@@ -8,6 +8,14 @@ import { AgingBadge } from "@/components/shared/aging-badge";
 import { formatDate } from "@/lib/utils/date-format";
 import { RmaPreviewPopover } from "./rma-preview";
 
+/** Columns hidden on mobile (<768px) to avoid horizontal scroll */
+export const RMA_MOBILE_HIDDEN_COLUMNS: Record<string, boolean> = {
+  preview: false,
+  deviceBrand: false,
+  incidentNumber: false,
+  createdAt: false,
+};
+
 export const rmaColumns: ColumnDef<RmaRow, unknown>[] = [
   {
     accessorKey: "rmaNumber",

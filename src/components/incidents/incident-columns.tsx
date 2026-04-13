@@ -17,6 +17,14 @@ const PRIORITY_COLORS: Record<string, string> = {
   critica: "bg-red-500/15 text-red-700 hover:bg-red-500/15 dark:bg-red-500/25 dark:text-red-300",
 };
 
+/** Columns hidden on mobile (<768px) to avoid horizontal scroll */
+export const INCIDENT_MOBILE_HIDDEN_COLUMNS: Record<string, boolean> = {
+  preview: false,
+  clientName: false,
+  assignedUserName: false,
+  createdAt: false,
+};
+
 export const incidentColumns: ColumnDef<IncidentRow, unknown>[] = [
   {
     accessorKey: "incidentNumber",

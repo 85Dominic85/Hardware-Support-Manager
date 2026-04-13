@@ -8,7 +8,8 @@ import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchBar } from "@/components/shared/search-bar";
 import { FilterBar } from "@/components/shared/filter-bar";
-import { incidentColumns } from "./incident-columns";
+import { incidentColumns, INCIDENT_MOBILE_HIDDEN_COLUMNS } from "./incident-columns";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchIncidents } from "@/server/actions/incidents";
 import { INCIDENT_FILTERS } from "@/lib/constants/filter-options";
 import type { PaginatedResult } from "@/types";
@@ -21,6 +22,7 @@ interface IncidentListProps {
 }
 
 export function IncidentList({ initialData, defaultPageSize }: IncidentListProps) {
+  const isMobile = useIsMobile();
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
@@ -52,6 +54,7 @@ export function IncidentList({ initialData, defaultPageSize }: IncidentListProps
   return (
     <DataTable
       columns={incidentColumns}
+      columnVisibility={isMobile ? INCIDENT_MOBILE_HIDDEN_COLUMNS : undefined}
       data={data.data}
       totalCount={data.totalCount}
       page={data.page}

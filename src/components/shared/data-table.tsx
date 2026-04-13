@@ -42,6 +42,7 @@ interface DataTableProps<TData> {
   sortBy?: string;
   sortOrder?: string;
   onSort?: (sortBy: string, sortOrder: "asc" | "desc") => void;
+  columnVisibility?: Record<string, boolean>;
 }
 
 export function DataTable<TData>({
@@ -58,6 +59,7 @@ export function DataTable<TData>({
   sortBy,
   sortOrder,
   onSort,
+  columnVisibility,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -65,6 +67,9 @@ export function DataTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount: totalPages,
+    state: {
+      columnVisibility: columnVisibility ?? {},
+    },
   });
 
   const startItem = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -84,7 +89,7 @@ export function DataTable<TData>({
       {searchBar}
 
       <div className="rounded-lg border bg-card overflow-x-auto">
-        <Table className="min-w-[700px]">
+        <Table>
           <TableHeader className="bg-muted/30 dark:bg-muted/10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

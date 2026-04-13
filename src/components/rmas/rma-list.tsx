@@ -8,7 +8,8 @@ import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchBar } from "@/components/shared/search-bar";
 import { FilterBar } from "@/components/shared/filter-bar";
-import { rmaColumns } from "./rma-columns";
+import { rmaColumns, RMA_MOBILE_HIDDEN_COLUMNS } from "./rma-columns";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchRmas } from "@/server/actions/rmas";
 import { RMA_FILTERS } from "@/lib/constants/filter-options";
 import type { PaginatedResult } from "@/types";
@@ -21,6 +22,7 @@ interface RmaListProps {
 }
 
 export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
+  const isMobile = useIsMobile();
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
@@ -51,6 +53,7 @@ export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
   return (
     <DataTable
       columns={rmaColumns}
+      columnVisibility={isMobile ? RMA_MOBILE_HIDDEN_COLUMNS : undefined}
       data={data.data}
       totalCount={data.totalCount}
       page={data.page}
