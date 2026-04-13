@@ -37,18 +37,19 @@ import {
   ChevronUp,
   MessageSquareText,
   BarChart3,
+  Plus,
 } from "lucide-react";
 
 const navigation = [
   { name: "Panel", href: "/dashboard", icon: LayoutDashboard, exact: false },
   { name: "Analítica", href: "/analytics", icon: BarChart3, exact: false },
   { name: "Incidencias", href: "/incidents", icon: AlertTriangle, exact: false, excludePrefix: "/incidents/quick-capture" },
-  { name: "Captura Rápida", href: "/incidents/quick-capture", icon: MessageSquareText, exact: true },
-  { name: "Bandeja Intercom", href: "/intercom", icon: Inbox, exact: false },
   { name: "RMAs", href: "/rmas", icon: RotateCcw, exact: false },
-  { name: "Almacén", href: "/warehouse", icon: Package, exact: false },
+  { name: "Bandeja Intercom", href: "/intercom", icon: Inbox, exact: false },
+  { name: "Captura Rápida", href: "/incidents/quick-capture", icon: MessageSquareText, exact: true },
   { name: "Clientes", href: "/clients", icon: Store, exact: false },
   { name: "Proveedores", href: "/providers", icon: Building2, exact: false },
+  { name: "Almacén", href: "/warehouse", icon: Package, exact: false },
 ];
 
 const adminNavigation = [
@@ -104,6 +105,22 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        <div className="px-3 pt-3 pb-1 flex gap-2">
+          <Link
+            href="/incidents/new"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Incidencia
+          </Link>
+          <Link
+            href="/rmas/new"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            RMA
+          </Link>
+        </div>
         <SidebarGroup>
           <SidebarGroupLabel>Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
