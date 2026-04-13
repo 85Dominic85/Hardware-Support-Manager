@@ -21,8 +21,8 @@ export async function getClients(
   if (search) {
     conditions.push(
       or(
-        sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
-        sql`unaccent(${clients.email}) ILIKE unaccent(${`%${search}%`})`,
+        sql`extensions.unaccent(${clients.name}) ILIKE extensions.unaccent(${`%${search}%`})`,
+        sql`extensions.unaccent(${clients.email}) ILIKE extensions.unaccent(${`%${search}%`})`,
         sql`${clients.externalId} ILIKE ${`%${search}%`}`,
         sql`${clients.phone} ILIKE ${`%${search}%`}`
       )!
