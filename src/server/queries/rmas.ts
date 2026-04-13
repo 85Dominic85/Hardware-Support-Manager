@@ -22,7 +22,9 @@ export async function getRmas(
         sql`unaccent(${rmas.clientName}) ILIKE unaccent(${`%${search}%`})`,
         sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
         sql`unaccent(${rmas.deviceBrand}) ILIKE unaccent(${`%${search}%`})`,
-        sql`unaccent(${rmas.deviceModel}) ILIKE unaccent(${`%${search}%`})`
+        sql`unaccent(${rmas.deviceModel}) ILIKE unaccent(${`%${search}%`})`,
+        sql`${rmas.deviceSerialNumber} ILIKE ${`%${search}%`}`,
+        sql`${incidents.incidentNumber} ILIKE ${`%${search}%`}`
       )
     : undefined;
 

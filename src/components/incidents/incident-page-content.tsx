@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useFilterParams } from "@/hooks/use-filter-params";
+import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { ViewToggle } from "@/components/shared/view-toggle";
+import { SearchBar } from "@/components/shared/search-bar";
+import { FilterBar } from "@/components/shared/filter-bar";
 import { IncidentList } from "./incident-list";
 import { IncidentKanban } from "./incident-kanban";
 import { fetchIncidents } from "@/server/actions/incidents";
+import { INCIDENT_FILTERS } from "@/lib/constants/filter-options";
 import type { PaginatedResult, SortOrder } from "@/types";
 import type { IncidentRow } from "@/server/queries/incidents";
 
@@ -16,14 +21,41 @@ interface IncidentPageContentProps {
 
 export function IncidentPageContent({ initialData, defaultPageSize }: IncidentPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
+  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
+  const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
+    useFilterParams(INCIDENT_FILTERS);
 
-  // For kanban, fetch all (no pagination)
+  // Kanban fetches all items respecting current search & filters
   const { data: kanbanData } = useQuery({
-    queryKey: ["incidents-canvas"],
+    queryKey: ["incidents-canvas", { search, filters: filterValues }],
     queryFn: () =>
-      fetchIncidents({ page: 1, pageSize: 200, sortBy: "stateChangedAt", sortOrder: "asc" as SortOrder }),
+      fetchIncidents({
+        page: 1,
+        pageSize: 200,
+        search: search || undefined,
+        sortBy: "stateChangedAt",
+        sortOrder: "asc" as SortOrder,
+        filters: filterValues,
+      }),
     enabled: view === "canvas",
   });
+
+  const searchAndFilters = (
+    <div className="space-y-3">
+      <SearchBar
+        value={inputValue}
+        onChange={setInputValue}
+        placeholder="Buscar incidencia..."
+      />
+      <FilterBar
+        filters={INCIDENT_FILTERS}
+        params={filterParams}
+        onFilterChange={setFilter}
+        onClearFilters={clearFilters}
+        activeFilterCount={activeFilterCount}
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -31,9 +63,19 @@ export function IncidentPageContent({ initialData, defaultPageSize }: IncidentPa
         <ViewToggle view={view} onViewChange={setView} altLabel="Kanban" />
       </div>
       {view === "table" ? (
-        <IncidentList initialData={initialData} defaultPageSize={defaultPageSize} />
+        <IncidentList
+          initialData={initialData}
+          defaultPageSize={defaultPageSize}
+          search={search}
+          filterValues={filterValues}
+          filterKey={filterKey}
+          searchAndFilters={searchAndFilters}
+        />
       ) : (
-        <IncidentKanban data={kanbanData?.data ?? initialData.data} />
+        <div className="space-y-4">
+          {searchAndFilters}
+          <IncidentKanban data={kanbanData?.data ?? initialData.data} />
+        </div>
       )}
     </div>
   );

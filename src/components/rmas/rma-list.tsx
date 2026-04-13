@@ -3,15 +3,10 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
-import { useFilterParams } from "@/hooks/use-filter-params";
-import { useDebouncedSearch } from "@/hooks/use-debounced-search";
 import { DataTable } from "@/components/shared/data-table";
-import { SearchBar } from "@/components/shared/search-bar";
-import { FilterBar } from "@/components/shared/filter-bar";
 import { rmaColumns, RMA_MOBILE_HIDDEN_COLUMNS } from "./rma-columns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchRmas } from "@/server/actions/rmas";
-import { RMA_FILTERS } from "@/lib/constants/filter-options";
 import type { PaginatedResult } from "@/types";
 import type { RmaRow } from "@/server/queries/rmas";
 import type { SortOrder } from "@/types";
@@ -19,18 +14,25 @@ import type { SortOrder } from "@/types";
 interface RmaListProps {
   initialData: PaginatedResult<RmaRow>;
   defaultPageSize?: number;
+  search: string;
+  filterValues: Record<string, string | string[] | undefined>;
+  filterKey: string;
+  searchAndFilters: React.ReactNode;
 }
 
-export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
+export function RmaList({
+  initialData,
+  defaultPageSize,
+  search,
+  filterValues,
+  filterKey,
+  searchAndFilters,
+}: RmaListProps) {
   const isMobile = useIsMobile();
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
-  const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
-  const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
-    useFilterParams(RMA_FILTERS);
 
-  // Reset page to 1 when search or filters change. Uses filterKey (stable
-  // JSON string) instead of filterValues (object) to avoid infinite loops.
+  // Reset page to 1 when search or filters change
   useEffect(() => { setPage(1); }, [search, filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: queryData, isLoading } = useQuery({
@@ -65,22 +67,7 @@ export function RmaList({ initialData, defaultPageSize }: RmaListProps) {
       sortBy={sortBy}
       sortOrder={sortOrder}
       onSort={setSorting}
-      searchBar={
-        <div className="space-y-3">
-          <SearchBar
-            value={inputValue}
-            onChange={setInputValue}
-            placeholder="Buscar RMA..."
-          />
-          <FilterBar
-            filters={RMA_FILTERS}
-            params={filterParams}
-            onFilterChange={setFilter}
-            onClearFilters={clearFilters}
-            activeFilterCount={activeFilterCount}
-          />
-        </div>
-      }
+      searchBar={searchAndFilters}
     />
   );
 }

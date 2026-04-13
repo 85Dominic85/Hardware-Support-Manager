@@ -20,6 +20,7 @@ export async function getIncidents(
         sql`unaccent(${incidents.title}) ILIKE unaccent(${`%${search}%`})`,
         sql`unaccent(${incidents.clientName}) ILIKE unaccent(${`%${search}%`})`,
         sql`unaccent(${clients.name}) ILIKE unaccent(${`%${search}%`})`,
+        sql`${incidents.deviceSerialNumber} ILIKE ${`%${search}%`}`,
         sql`${incidents.intercomEscalationId} ILIKE ${`%${search}%`}`
       )
     : undefined;

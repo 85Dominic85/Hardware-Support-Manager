@@ -21,6 +21,7 @@ export default async function RmasPage({
   const defaultPageSize = await getDefaultPageSize();
   const page = Number(params.page) || 1;
   const pageSize = Number(params.pageSize) || defaultPageSize;
+  const search = typeof params.search === "string" && params.search ? params.search : undefined;
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
@@ -40,6 +41,7 @@ export default async function RmasPage({
   const initialData = await getRmas({
     page,
     pageSize,
+    search,
     sortBy,
     sortOrder,
     ...(Object.keys(filters).length > 0 ? { filters } : {}),
