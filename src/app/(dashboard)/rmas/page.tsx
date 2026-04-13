@@ -4,6 +4,7 @@ import { RotateCcw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getRmas } from "@/server/queries/rmas";
 import { getDefaultPageSize } from "@/server/queries/settings";
+import { getProviderFilterOptions } from "@/server/queries/filter-options";
 import { RmaPageContent } from "@/components/rmas/rma-page-content";
 import type { SortOrder } from "@/types";
 
@@ -35,8 +36,11 @@ export default async function RmasPage({
   };
   const filters: Record<string, string | string[] | undefined> = {};
   if (params.status) filters.status = toArray(params.status);
+  if (params.providerId) filters.providerId = toArray(params.providerId);
   if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
   if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
+
+  const providerOptions = await getProviderFilterOptions();
 
   const initialData = await getRmas({
     page,
@@ -68,7 +72,7 @@ export default async function RmasPage({
           </Link>
         </Button>
       </div>
-      <RmaPageContent initialData={initialData} defaultPageSize={defaultPageSize} />
+      <RmaPageContent initialData={initialData} defaultPageSize={defaultPageSize} providerOptions={providerOptions} />
     </div>
   );
 }

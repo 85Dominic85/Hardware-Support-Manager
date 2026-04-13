@@ -37,6 +37,9 @@ export async function getIncidents(
   if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
     filterConditions.push(inArray(incidents.category, filters.category as typeof incidents.category.enumValues));
   }
+  if (filters?.assignedUserId && Array.isArray(filters.assignedUserId) && filters.assignedUserId.length > 0) {
+    filterConditions.push(inArray(incidents.assignedUserId, filters.assignedUserId));
+  }
   if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
     filterConditions.push(gte(incidents.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));
   }

@@ -21,7 +21,8 @@ function labelsToOptions(labels: Record<string, string>): FilterOption[] {
   return Object.entries(labels).map(([value, label]) => ({ value, label }));
 }
 
-export const INCIDENT_FILTERS: FilterConfig[] = [
+/** Static incident filters (status, priority, category, date) */
+const INCIDENT_STATIC_FILTERS: FilterConfig[] = [
   {
     key: "status",
     label: "Estado",
@@ -40,26 +41,53 @@ export const INCIDENT_FILTERS: FilterConfig[] = [
     type: "multi-select",
     options: labelsToOptions(INCIDENT_CATEGORY_LABELS),
   },
-  {
-    key: "dateRange",
-    label: "Fecha",
-    type: "date-range",
-  },
 ];
 
-export const RMA_FILTERS: FilterConfig[] = [
+/** Build incident filters with optional dynamic options (assigned users) */
+export function buildIncidentFilters(userOptions?: FilterOption[]): FilterConfig[] {
+  const filters = [...INCIDENT_STATIC_FILTERS];
+  if (userOptions && userOptions.length > 0) {
+    filters.push({
+      key: "assignedUserId",
+      label: "Asignado",
+      type: "multi-select",
+      options: userOptions,
+    });
+  }
+  filters.push({ key: "dateRange", label: "Fecha", type: "date-range" });
+  return filters;
+}
+
+/** Backward-compatible constant (no dynamic options) */
+export const INCIDENT_FILTERS: FilterConfig[] = buildIncidentFilters();
+
+/** Static RMA filters */
+const RMA_STATIC_FILTERS: FilterConfig[] = [
   {
     key: "status",
     label: "Estado",
     type: "multi-select",
     options: labelsToOptions(RMA_STATUS_LABELS),
   },
-  {
-    key: "dateRange",
-    label: "Fecha",
-    type: "date-range",
-  },
 ];
+
+/** Build RMA filters with optional dynamic options (providers) */
+export function buildRmaFilters(providerOptions?: FilterOption[]): FilterConfig[] {
+  const filters = [...RMA_STATIC_FILTERS];
+  if (providerOptions && providerOptions.length > 0) {
+    filters.push({
+      key: "providerId",
+      label: "Proveedor",
+      type: "multi-select",
+      options: providerOptions,
+    });
+  }
+  filters.push({ key: "dateRange", label: "Fecha", type: "date-range" });
+  return filters;
+}
+
+/** Backward-compatible constant (no dynamic options) */
+export const RMA_FILTERS: FilterConfig[] = buildRmaFilters();
 
 export const CLIENT_FILTERS: FilterConfig[] = [
   {

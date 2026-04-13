@@ -4,6 +4,7 @@ import { AlertTriangle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getIncidents } from "@/server/queries/incidents";
 import { getDefaultPageSize } from "@/server/queries/settings";
+import { getUserFilterOptions } from "@/server/queries/filter-options";
 import { IncidentPageContent } from "@/components/incidents/incident-page-content";
 import type { SortOrder } from "@/types";
 
@@ -37,8 +38,11 @@ export default async function IncidentsPage({
   if (params.status) filters.status = toArray(params.status);
   if (params.priority) filters.priority = toArray(params.priority);
   if (params.category) filters.category = toArray(params.category);
+  if (params.assignedUserId) filters.assignedUserId = toArray(params.assignedUserId);
   if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
   if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
+
+  const userOptions = await getUserFilterOptions();
 
   const initialData = await getIncidents({
     page,
@@ -70,7 +74,7 @@ export default async function IncidentsPage({
           </Link>
         </Button>
       </div>
-      <IncidentPageContent initialData={initialData} defaultPageSize={defaultPageSize} />
+      <IncidentPageContent initialData={initialData} defaultPageSize={defaultPageSize} userOptions={userOptions} />
     </div>
   );
 }

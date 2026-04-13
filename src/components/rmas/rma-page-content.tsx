@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useFilterParams } from "@/hooks/use-filter-params";
 import { useDebouncedSearch } from "@/hooks/use-debounced-search";
@@ -10,20 +10,22 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import { RmaList } from "./rma-list";
 import { RmaKanban } from "./rma-kanban";
 import { fetchRmas } from "@/server/actions/rmas";
-import { RMA_FILTERS } from "@/lib/constants/filter-options";
+import { buildRmaFilters, type FilterOption } from "@/lib/constants/filter-options";
 import type { PaginatedResult, SortOrder } from "@/types";
 import type { RmaRow } from "@/server/queries/rmas";
 
 interface RmaPageContentProps {
   initialData: PaginatedResult<RmaRow>;
   defaultPageSize?: number;
+  providerOptions?: FilterOption[];
 }
 
-export function RmaPageContent({ initialData, defaultPageSize }: RmaPageContentProps) {
+export function RmaPageContent({ initialData, defaultPageSize, providerOptions }: RmaPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
+  const filters = useMemo(() => buildRmaFilters(providerOptions), [providerOptions]);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
   const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
-    useFilterParams(RMA_FILTERS);
+    useFilterParams(filters);
 
   // Kanban fetches all items respecting current search & filters
   const { data: kanbanData } = useQuery({
@@ -48,7 +50,7 @@ export function RmaPageContent({ initialData, defaultPageSize }: RmaPageContentP
         placeholder="Buscar RMA..."
       />
       <FilterBar
-        filters={RMA_FILTERS}
+        filters={filters}
         params={filterParams}
         onFilterChange={setFilter}
         onClearFilters={clearFilters}

@@ -33,8 +33,8 @@ export async function getRmas(
   if (filters?.status && Array.isArray(filters.status) && filters.status.length > 0) {
     filterConditions.push(inArray(rmas.status, filters.status as typeof rmas.status.enumValues));
   }
-  if (filters?.providerId && typeof filters.providerId === "string") {
-    filterConditions.push(eq(rmas.providerId, filters.providerId));
+  if (filters?.providerId && Array.isArray(filters.providerId) && filters.providerId.length > 0) {
+    filterConditions.push(inArray(rmas.providerId, filters.providerId));
   }
   if (filters?.dateRangeFrom && typeof filters.dateRangeFrom === "string") {
     filterConditions.push(gte(rmas.createdAt, new Date(filters.dateRangeFrom + "T00:00:00")));

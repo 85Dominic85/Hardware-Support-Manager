@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useFilterParams } from "@/hooks/use-filter-params";
 import { useDebouncedSearch } from "@/hooks/use-debounced-search";
@@ -10,20 +10,22 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import { IncidentList } from "./incident-list";
 import { IncidentKanban } from "./incident-kanban";
 import { fetchIncidents } from "@/server/actions/incidents";
-import { INCIDENT_FILTERS } from "@/lib/constants/filter-options";
+import { buildIncidentFilters, type FilterOption } from "@/lib/constants/filter-options";
 import type { PaginatedResult, SortOrder } from "@/types";
 import type { IncidentRow } from "@/server/queries/incidents";
 
 interface IncidentPageContentProps {
   initialData: PaginatedResult<IncidentRow>;
   defaultPageSize?: number;
+  userOptions?: FilterOption[];
 }
 
-export function IncidentPageContent({ initialData, defaultPageSize }: IncidentPageContentProps) {
+export function IncidentPageContent({ initialData, defaultPageSize, userOptions }: IncidentPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
+  const filters = useMemo(() => buildIncidentFilters(userOptions), [userOptions]);
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
   const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
-    useFilterParams(INCIDENT_FILTERS);
+    useFilterParams(filters);
 
   // Kanban fetches all items respecting current search & filters
   const { data: kanbanData } = useQuery({
@@ -48,7 +50,7 @@ export function IncidentPageContent({ initialData, defaultPageSize }: IncidentPa
         placeholder="Buscar incidencia..."
       />
       <FilterBar
-        filters={INCIDENT_FILTERS}
+        filters={filters}
         params={filterParams}
         onFilterChange={setFilter}
         onClearFilters={clearFilters}
