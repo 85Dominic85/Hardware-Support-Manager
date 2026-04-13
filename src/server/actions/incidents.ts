@@ -371,7 +371,8 @@ export async function fetchIncidentsForSelect(): Promise<
     .select({ id: incidents.id, incidentNumber: incidents.incidentNumber })
     .from(incidents)
     .where(notInArray(incidents.status, ["cerrado", "cancelado"]))
-    .orderBy(incidents.incidentNumber);
+    .orderBy(incidents.incidentNumber)
+    .limit(500);
 }
 
 export async function fetchIncidentById(id: string): Promise<IncidentRow | null> {

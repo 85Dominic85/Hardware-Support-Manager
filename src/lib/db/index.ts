@@ -6,7 +6,12 @@ let _db: PostgresJsDatabase<typeof schema> | null = null;
 
 export function getDb() {
   if (!_db) {
-    const client = postgres(process.env.DATABASE_URL!, { prepare: false });
+    const client = postgres(process.env.DATABASE_URL!, {
+      prepare: false,       // Required for Supabase Supavisor (transaction mode)
+      max: 1,               // Serverless: one connection per instance, let Supavisor pool
+      idle_timeout: 20,     // Release idle connections quickly
+      connect_timeout: 10,  // Fail fast on connection issues
+    });
     _db = drizzle(client, { schema });
   }
   return _db;

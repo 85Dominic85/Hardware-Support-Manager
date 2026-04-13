@@ -20,8 +20,12 @@ export const authConfig: NextAuthConfig = {
         nextUrl.pathname.startsWith("/incidents") ||
         nextUrl.pathname.startsWith("/rmas") ||
         nextUrl.pathname.startsWith("/providers") ||
+        nextUrl.pathname.startsWith("/clients") ||
         nextUrl.pathname.startsWith("/users") ||
-        nextUrl.pathname.startsWith("/settings");
+        nextUrl.pathname.startsWith("/settings") ||
+        nextUrl.pathname.startsWith("/intercom") ||
+        nextUrl.pathname.startsWith("/warehouse") ||
+        nextUrl.pathname.startsWith("/analytics");
 
       if (isOnDashboard) {
         if (isLoggedIn) return true;
