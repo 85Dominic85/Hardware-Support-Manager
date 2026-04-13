@@ -11,7 +11,7 @@ export function useTableSearchParams(defaultSortBy: string = "createdAt", defaul
       sortBy: parseAsString.withDefault(defaultSortBy),
       sortOrder: parseAsString.withDefault("desc"),
     },
-    { shallow: false }
+    { shallow: true }
   );
 
   const setSorting = useCallback(
