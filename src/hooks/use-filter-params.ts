@@ -22,7 +22,17 @@ function buildParsers(filters: FilterConfig[]): Record<string, any> {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 export function useFilterParams(filters: FilterConfig[]) {
-  const parsers = useMemo(() => buildParsers(filters), [filters]);
+  // Stabilize parsers by filter structure (keys+types) rather than array reference.
+  // Without this, a new `filters` array reference (e.g. from SSR props) would cause
+  // useQueryStates to re-subscribe on every render, leading to infinite loops.
+  const filtersKey = useMemo(
+    () => filters.map(f => `${f.key}:${f.type}`).join(","),
+    [filters]
+  );
+  const parsers = useMemo(
+    () => buildParsers(filters),
+    [filtersKey] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // shallow: true — only update URL without triggering a full server-side
   // page reload. React Query handles refetching with the new filter values.

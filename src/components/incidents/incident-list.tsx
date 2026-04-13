@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { DataTable } from "@/components/shared/data-table";
@@ -32,8 +32,23 @@ export function IncidentList({
   const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
     useTableSearchParams("stateChangedAt", defaultPageSize);
 
-  // Reset page to 1 when search or filters change
-  useEffect(() => { setPage(1); }, [search, filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Reset page to 1 when search or filters actually change (not on mount).
+  // Uses refs to track previous values and a guard to avoid firing setPage(1)
+  // when page is already 1 — this prevents infinite re-render loops when all
+  // state lives in URL via nuqs.
+  const prevSearchRef = useRef(search);
+  const prevFilterKeyRef = useRef(filterKey);
+
+  useEffect(() => {
+    const searchChanged = search !== prevSearchRef.current;
+    const filterChanged = filterKey !== prevFilterKeyRef.current;
+    prevSearchRef.current = search;
+    prevFilterKeyRef.current = filterKey;
+
+    if ((searchChanged || filterChanged) && page !== 1) {
+      setPage(1);
+    }
+  }, [search, filterKey, page, setPage]);
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["incidents", { page, pageSize, search, sortBy, sortOrder, filters: filterValues }],
