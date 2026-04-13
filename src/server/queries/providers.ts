@@ -15,8 +15,8 @@ export async function getProviders(
 
   const searchCondition = search
     ? or(
-        sql`extensions.unaccent(${providers.name}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${providers.email}) ILIKE extensions.unaccent(${`%${search}%`})`
+        sql`${providers.name} ILIKE ${`%${search}%`}`,
+        sql`${providers.email} ILIKE ${`%${search}%`}`
       )
     : undefined;
 

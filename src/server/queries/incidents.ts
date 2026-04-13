@@ -17,9 +17,9 @@ export async function getIncidents(
   const searchCondition = search
     ? or(
         sql`${incidents.incidentNumber} ILIKE ${`%${search}%`}`,
-        sql`extensions.unaccent(${incidents.title}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${incidents.clientName}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${clients.name}) ILIKE extensions.unaccent(${`%${search}%`})`,
+        sql`${incidents.title} ILIKE ${`%${search}%`}`,
+        sql`${incidents.clientName} ILIKE ${`%${search}%`}`,
+        sql`${clients.name} ILIKE ${`%${search}%`}`,
         sql`${incidents.deviceSerialNumber} ILIKE ${`%${search}%`}`,
         sql`${incidents.intercomEscalationId} ILIKE ${`%${search}%`}`
       )

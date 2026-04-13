@@ -18,11 +18,11 @@ export async function getRmas(
   const searchCondition = search
     ? or(
         sql`${rmas.rmaNumber} ILIKE ${`%${search}%`}`,
-        sql`extensions.unaccent(${providers.name}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${rmas.clientName}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${clients.name}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${rmas.deviceBrand}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${rmas.deviceModel}) ILIKE extensions.unaccent(${`%${search}%`})`,
+        sql`${providers.name} ILIKE ${`%${search}%`}`,
+        sql`${rmas.clientName} ILIKE ${`%${search}%`}`,
+        sql`${clients.name} ILIKE ${`%${search}%`}`,
+        sql`${rmas.deviceBrand} ILIKE ${`%${search}%`}`,
+        sql`${rmas.deviceModel} ILIKE ${`%${search}%`}`,
         sql`${rmas.deviceSerialNumber} ILIKE ${`%${search}%`}`,
         sql`${incidents.incidentNumber} ILIKE ${`%${search}%`}`
       )

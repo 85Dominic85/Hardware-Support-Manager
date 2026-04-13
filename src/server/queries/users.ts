@@ -15,8 +15,8 @@ export async function getUsers(
 
   const searchCondition = search
     ? or(
-        sql`extensions.unaccent(${users.name}) ILIKE extensions.unaccent(${`%${search}%`})`,
-        sql`extensions.unaccent(${users.email}) ILIKE extensions.unaccent(${`%${search}%`})`
+        sql`${users.name} ILIKE ${`%${search}%`}`,
+        sql`${users.email} ILIKE ${`%${search}%`}`
       )
     : undefined;
 
