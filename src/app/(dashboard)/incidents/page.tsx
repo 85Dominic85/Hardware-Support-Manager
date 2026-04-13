@@ -24,11 +24,18 @@ export default async function IncidentsPage({
   const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
 
-  // Extract filter params from URL for SSR — ensures initial render respects active filters
+  // Extract filter params from URL for SSR — ensures initial render respects active filters.
+  // nuqs parseAsArrayOf serializes arrays as comma-separated single params (e.g. ?status=nuevo,en_triaje),
+  // so we must split on comma when the value is a plain string.
+  const toArray = (v: string | string[] | undefined): string[] | undefined => {
+    if (!v) return undefined;
+    if (Array.isArray(v)) return v;
+    return v.includes(",") ? v.split(",") : [v];
+  };
   const filters: Record<string, string | string[] | undefined> = {};
-  if (params.status) filters.status = Array.isArray(params.status) ? params.status : [params.status];
-  if (params.priority) filters.priority = Array.isArray(params.priority) ? params.priority : [params.priority];
-  if (params.category) filters.category = Array.isArray(params.category) ? params.category : [params.category];
+  if (params.status) filters.status = toArray(params.status);
+  if (params.priority) filters.priority = toArray(params.priority);
+  if (params.category) filters.category = toArray(params.category);
   if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
   if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
 
