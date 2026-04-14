@@ -36,7 +36,6 @@ export const RMA_TEMPLATE_VARIABLES = [
   { key: "providerRmaNumber", label: "Nº RMA proveedor" },
   { key: "trackingNumberOutgoing", label: "Tracking envío" },
   { key: "trackingNumberReturn", label: "Tracking devolución" },
-  { key: "clientLocal", label: "Local" },
   { key: "address", label: "Dirección" },
   { key: "postalCode", label: "Código postal" },
   { key: "city", label: "Ciudad" },

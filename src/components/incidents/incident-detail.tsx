@@ -14,6 +14,8 @@ import { AttachmentSection } from "@/components/shared/attachment-section";
 import { SlaIndicator } from "@/components/shared/sla-indicator";
 import { StateTransitionButtons } from "@/components/incidents/state-transition-buttons";
 import { IncidentForm } from "@/components/incidents/incident-form";
+import { InlineRmaSheet } from "@/components/incidents/inline-rma-sheet";
+import { ConversationThread } from "@/components/intercom/conversation-thread";
 import {
   updateIncident,
   fetchUsersForSelect,
@@ -51,6 +53,7 @@ interface IncidentDetailProps {
 export function IncidentDetail({ incident }: IncidentDetailProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [rmaSheetOpen, setRmaSheetOpen] = useState(false);
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery({
     queryKey: ["users", "select"],
@@ -200,6 +203,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
           incidentId={incident.id}
           currentStatus={incident.status as IncidentStatus}
           onTransitionComplete={handleTransitionComplete}
+          onDerivarRma={() => setRmaSheetOpen(true)}
         />
         <SlaIndicator
           createdAt={incident.createdAt}
@@ -368,6 +372,13 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
                     <dd className="mt-1 text-sm">{incident.intercomEscalationId || "-"}</dd>
                   </div>
                 </dl>
+
+                {/* Conversación Intercom inline */}
+                {incident.intercomEscalationId && (
+                  <div className="mt-4">
+                    <ConversationThread conversationId={incident.intercomEscalationId} />
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -446,6 +457,13 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
         <AttachmentSection entityType="incident" entityId={incident.id} />
         <EventLogTimeline entityType="incident" entityId={incident.id} />
       </div>
+
+      {/* Inline RMA creation sheet */}
+      <InlineRmaSheet
+        open={rmaSheetOpen}
+        onOpenChange={setRmaSheetOpen}
+        incident={incident}
+      />
     </div>
   );
 }

@@ -30,7 +30,6 @@ export const rmas = hsmSchema.table("rmas", {
   trackingNumberOutgoing: varchar("tracking_number_outgoing", { length: 255 }),
   trackingNumberReturn: varchar("tracking_number_return", { length: 255 }),
   providerRmaNumber: varchar("provider_rma_number", { length: 255 }),
-  clientLocal: varchar("client_local", { length: 255 }),
   address: text("address"),
   postalCode: varchar("postal_code", { length: 20 }),
   city: varchar("city", { length: 255 }),

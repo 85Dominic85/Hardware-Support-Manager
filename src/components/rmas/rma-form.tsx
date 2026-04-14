@@ -67,6 +67,7 @@ export function RmaForm({
 
   const form = useForm<RmaFormInput>({
     resolver: zodResolver(rmaFormSchema),
+    mode: "onTouched",
     defaultValues: {
       providerId: defaultValues?.providerId ?? "",
       incidentId: defaultValues?.incidentId ?? "",
@@ -80,7 +81,6 @@ export function RmaForm({
       deviceBrand: defaultValues?.deviceBrand ?? "",
       deviceModel: defaultValues?.deviceModel ?? "",
       deviceSerialNumber: defaultValues?.deviceSerialNumber ?? "",
-      clientLocal: defaultValues?.clientLocal ?? "",
       address: defaultValues?.address ?? "",
       postalCode: defaultValues?.postalCode ?? "",
       city: defaultValues?.city ?? "",
@@ -165,6 +165,25 @@ export function RmaForm({
     // Intercom
     setIfEmpty("clientIntercomUrl", incidentData.intercomUrl);
 
+    // Client name from joined client record or free-text
+    setIfEmpty("clientName", incidentData.clientCompanyName ?? incidentData.clientName);
+
+    // Article ID
+    setIfEmpty("articleId", incidentData.articleId);
+
+    // Pre-fill notes with incident title + description
+    const noteParts: string[] = [];
+    if (incidentData.title) noteParts.push(incidentData.title);
+    if (incidentData.description) {
+      const desc = incidentData.description.length > 500
+        ? incidentData.description.slice(0, 500) + "..."
+        : incidentData.description;
+      noteParts.push(desc);
+    }
+    if (noteParts.length > 0) {
+      setIfEmpty("notes", noteParts.join("\n\n"));
+    }
+
     if (didFill) {
       toast.success("Datos importados de la incidencia");
     }
@@ -176,7 +195,6 @@ export function RmaForm({
     if (!locationId) return;
     const location = locationsData.find((l: ClientLocationRow) => l.id === locationId);
     if (location) {
-      form.setValue("clientLocal", location.name ?? "");
       form.setValue("address", location.address ?? "");
       form.setValue("postalCode", location.postalCode ?? "");
       form.setValue("city", location.city ?? "");
@@ -399,20 +417,6 @@ export function RmaForm({
         <div>
           <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide mb-4"><span className="h-4 w-1 rounded-full bg-primary" />Ubicacion del cliente</h3>
           <div className="grid gap-6 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="clientLocal"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Local / Establecimiento</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nombre del local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="phone"

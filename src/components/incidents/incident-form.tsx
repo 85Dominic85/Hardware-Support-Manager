@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { IncidentTemplatePicker } from "@/components/incidents/incident-template-picker";
+import type { IncidentTemplate } from "@/lib/constants/incident-templates";
 import { Button } from "@/components/ui/button";
 import { CreateClientDialog } from "@/components/shared/create-client-dialog";
 import { Input } from "@/components/ui/input";
@@ -64,6 +67,7 @@ export function IncidentForm({
 }: IncidentFormProps) {
   const form = useForm<CreateIncidentInput>({
     resolver: zodResolver(createIncidentSchema),
+    mode: "onTouched",
     defaultValues: {
       clientId: defaultValues?.clientId ?? "",
       clientLocationId: defaultValues?.clientLocationId ?? "",
@@ -90,6 +94,26 @@ export function IncidentForm({
 
   const queryClient = useQueryClient();
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  const applyTemplate = (template: IncidentTemplate) => {
+    const setIfEmpty = (field: keyof CreateIncidentInput, value: string) => {
+      if (!form.getValues(field)) {
+        form.setValue(field, value as never, { shouldDirty: true });
+      }
+    };
+    setIfEmpty("category", template.category);
+    setIfEmpty("priority", template.priority);
+    setIfEmpty("deviceType", template.deviceType);
+    setIfEmpty("title", template.title);
+    setIfEmpty("description", template.description);
+    setSelectedTemplateId(template.id);
+    toast.success(`Plantilla aplicada: ${template.name}`);
+  };
+
+  const clearTemplate = () => {
+    setSelectedTemplateId(null);
+  };
 
   const selectedClientId = form.watch("clientId");
 
@@ -178,6 +202,18 @@ export function IncidentForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Plantilla rápida (solo en creación) */}
+        {mode === "create" && (
+          <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-4">
+            <p className="text-xs text-muted-foreground mb-2">Plantilla rápida</p>
+            <IncidentTemplatePicker
+              onSelect={applyTemplate}
+              onClear={clearTemplate}
+              selectedId={selectedTemplateId}
+            />
+          </div>
+        )}
+
         {/* Cliente y Referencia Intercom */}
         <div className="space-y-4">
           <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />

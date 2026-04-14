@@ -101,6 +101,16 @@ export async function addNote(
   });
 }
 
+/** Cerrar un ticket/folio (no la conversación) */
+export async function closeTicket(ticketId: string): Promise<void> {
+  await intercomFetch(`/tickets/${ticketId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      state: "resolved",
+    }),
+  });
+}
+
 /** Etiquetar una conversación */
 export async function tagConversation(
   conversationId: string,

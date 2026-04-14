@@ -15,6 +15,7 @@ import { generateSequentialId } from "@/lib/utils/id-generator";
 import { getIncidents, getIncidentById, getLinkedRmas } from "@/server/queries/incidents";
 import type { ActionResult, PaginationParams, PaginatedResult } from "@/types";
 import type { IncidentRow, LinkedRma } from "@/server/queries/incidents";
+import { syncIncidentTransition } from "@/lib/intercom/sync";
 import type { IncidentStatus } from "@/lib/constants/incidents";
 import type { UserRole } from "@/lib/constants/roles";
 
@@ -254,12 +255,35 @@ export async function transitionIncident(
       details: Object.keys(eventDetails).length > 0 ? eventDetails : undefined,
     });
 
-    return { success: true as const };
+    return { success: true as const, fromStatus };
   });
 
   if (!result.success) {
     return { success: false, error: result.error };
   }
+
+  // Fire-and-forget: sync note to Intercom
+  db.select({
+    intercomUrl: incidents.intercomUrl,
+    intercomEscalationId: incidents.intercomEscalationId,
+    incidentNumber: incidents.incidentNumber,
+  })
+    .from(incidents)
+    .where(eq(incidents.id, incidentId))
+    .limit(1)
+    .then(([inc]) => {
+      if (inc?.intercomUrl || inc?.intercomEscalationId) {
+        syncIncidentTransition({
+          intercomUrl: inc.intercomUrl,
+          intercomEscalationId: inc.intercomEscalationId,
+          incidentNumber: inc.incidentNumber,
+          fromStatus: result.fromStatus,
+          toStatus,
+          comment,
+        });
+      }
+    })
+    .catch(() => {}); // silent
 
   revalidatePath("/incidents");
   revalidatePath(`/incidents/${incidentId}`);
@@ -383,4 +407,68 @@ export async function fetchIncidentById(id: string): Promise<IncidentRow | null>
 export async function fetchLinkedRmas(incidentId: string): Promise<LinkedRma[]> {
   await getRequiredSession();
   return getLinkedRmas(incidentId);
+}
+
+export async function quickTransitionToGestion(
+  incidentId: string,
+  comment?: string
+): Promise<ActionResult<{ id: string }>> {
+  const session = await getRequiredSession();
+
+  const result = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ status: incidents.status })
+      .from(incidents)
+      .where(eq(incidents.id, incidentId))
+      .for("update")
+      .limit(1);
+
+    if (!current) {
+      return { success: false as const, error: "Incidencia no encontrada" };
+    }
+
+    if (current.status !== "nuevo") {
+      return { success: false as const, error: "Solo se puede usar desde estado 'nuevo'" };
+    }
+
+    // Update directly to en_gestion
+    await tx
+      .update(incidents)
+      .set({ status: "en_gestion", stateChangedAt: new Date() })
+      .where(eq(incidents.id, incidentId));
+
+    // Create 2 event log entries for audit trail
+    const details = comment ? { comment } : undefined;
+
+    await tx.insert(eventLogs).values([
+      {
+        entityType: "incident" as const,
+        entityId: incidentId,
+        action: "transition" as const,
+        fromState: "nuevo",
+        toState: "en_triaje",
+        userId: session.user.id,
+        details: { ...details, quickTransition: true },
+      },
+      {
+        entityType: "incident" as const,
+        entityId: incidentId,
+        action: "transition" as const,
+        fromState: "en_triaje",
+        toState: "en_gestion",
+        userId: session.user.id,
+        details: { ...details, quickTransition: true },
+      },
+    ]);
+
+    return { success: true as const };
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  revalidatePath("/incidents");
+  revalidatePath(`/incidents/${incidentId}`);
+  return { success: true, data: { id: incidentId } };
 }

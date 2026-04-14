@@ -35,7 +35,6 @@ import {
   Settings,
   LogOut,
   ChevronUp,
-  MessageSquareText,
   BarChart3,
   Plus,
 } from "lucide-react";
@@ -43,10 +42,9 @@ import {
 const navigation = [
   { name: "Panel", href: "/dashboard", icon: LayoutDashboard, exact: false },
   { name: "Analítica", href: "/analytics", icon: BarChart3, exact: false },
-  { name: "Incidencias", href: "/incidents", icon: AlertTriangle, exact: false, excludePrefix: "/incidents/quick-capture" },
+  { name: "Incidencias", href: "/incidents", icon: AlertTriangle, exact: false },
   { name: "RMAs", href: "/rmas", icon: RotateCcw, exact: false },
   { name: "Bandeja Intercom", href: "/intercom", icon: Inbox, exact: false },
-  { name: "Captura Rápida", href: "/incidents/quick-capture", icon: MessageSquareText, exact: true },
   { name: "Clientes", href: "/clients", icon: Store, exact: false },
   { name: "Proveedores", href: "/providers", icon: Building2, exact: false },
   { name: "Almacén", href: "/warehouse", icon: Package, exact: false },

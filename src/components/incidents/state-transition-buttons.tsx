@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransitionDialog } from "@/components/shared/transition-dialog";
 import { ForceTransitionButton } from "@/components/shared/force-transition-button";
-import { transitionIncident, forceTransitionIncident } from "@/server/actions/incidents";
+import { transitionIncident, forceTransitionIncident, quickTransitionToGestion } from "@/server/actions/incidents";
 import { getAvailableTransitions } from "@/lib/state-machines/incident";
 import { INCIDENT_STATUS_LABELS, type IncidentStatus } from "@/lib/constants/incidents";
 import type { UserRole } from "@/lib/constants/roles";
@@ -19,12 +19,14 @@ interface StateTransitionButtonsProps {
   incidentId: string;
   currentStatus: IncidentStatus;
   onTransitionComplete: () => void;
+  onDerivarRma?: () => void;
 }
 
 export function StateTransitionButtons({
   incidentId,
   currentStatus,
   onTransitionComplete,
+  onDerivarRma,
 }: StateTransitionButtonsProps) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -56,7 +58,11 @@ export function StateTransitionButtons({
         onTransitionComplete();
 
         if (selectedTransition?.resolutionType === "derivado_rma") {
-          router.push(`/rmas/new?incidentId=${incidentId}`);
+          if (onDerivarRma) {
+            onDerivarRma();
+          } else {
+            router.push(`/rmas/new?incidentId=${incidentId}`);
+          }
         }
       } else {
         toast.error(result.error);
@@ -69,14 +75,48 @@ export function StateTransitionButtons({
     },
   });
 
+  const [quickDialogOpen, setQuickDialogOpen] = useState(false);
+
+  const quickMutation = useMutation({
+    mutationFn: (comment?: string) =>
+      quickTransitionToGestion(incidentId, comment),
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success("Gestión iniciada");
+        queryClient.invalidateQueries({
+          queryKey: ["event-logs", "incident", incidentId],
+        });
+        onTransitionComplete();
+      } else {
+        toast.error(result.error);
+      }
+      setQuickDialogOpen(false);
+    },
+    onError: () => {
+      toast.error("Error al iniciar gestión");
+      setQuickDialogOpen(false);
+    },
+  });
+
   const isAdmin = userRole === "admin";
   const incidentStatuses = Object.entries(INCIDENT_STATUS_LABELS).map(([value, label]) => ({ value, label }));
+  const showQuickStart = currentStatus === "nuevo";
 
   if (transitions.length === 0 && !isAdmin) return null;
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
+        {showQuickStart && (
+          <Button
+            size="sm"
+            className="bg-primary"
+            onClick={() => setQuickDialogOpen(true)}
+          >
+            <Zap className="mr-2 h-4 w-4" />
+            Iniciar Gestión
+          </Button>
+        )}
         {transitions.map((t) => {
           const isRma = t.resolutionType === "derivado_rma";
           const isCancelado = t.to === "cancelado";
@@ -118,6 +158,14 @@ export function StateTransitionButtons({
         onCancel={() => setSelectedTransition(null)}
         transitionLabel={selectedTransition?.label ?? ""}
         isPending={mutation.isPending}
+      />
+
+      <TransitionDialog
+        open={quickDialogOpen}
+        onConfirm={(comment) => quickMutation.mutate(comment)}
+        onCancel={() => setQuickDialogOpen(false)}
+        transitionLabel="Iniciar Gestión (nuevo → en gestión)"
+        isPending={quickMutation.isPending}
       />
     </>
   );

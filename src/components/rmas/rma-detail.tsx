@@ -99,7 +99,6 @@ export function RmaDetail({ rma }: RmaDetailProps) {
                 deviceBrand: rma.deviceBrand ?? "",
                 deviceModel: rma.deviceModel ?? "",
                 deviceSerialNumber: rma.deviceSerialNumber ?? "",
-                clientLocal: rma.clientLocal ?? "",
                 address: rma.address ?? "",
                 postalCode: rma.postalCode ?? "",
                 city: rma.city ?? "",
@@ -162,7 +161,6 @@ export function RmaDetail({ rma }: RmaDetailProps) {
               deviceSerialNumber: rma.deviceSerialNumber ?? "",
               trackingNumberOutgoing: rma.trackingNumberOutgoing ?? "",
               trackingNumberReturn: rma.trackingNumberReturn ?? "",
-              clientLocal: rma.clientLocal ?? "",
               address: rma.address ?? "",
               postalCode: rma.postalCode ?? "",
               city: rma.city ?? "",
@@ -338,19 +336,13 @@ export function RmaDetail({ rma }: RmaDetailProps) {
             </CardContent>
           </Card>
 
-          {(rma.clientLocal || rma.address || rma.postalCode || rma.city || rma.phone) && (
+          {(rma.address || rma.postalCode || rma.city || rma.phone) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Ubicación del cliente</CardTitle>
               </CardHeader>
               <CardContent>
                 <dl className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">
-                      Local
-                    </dt>
-                    <dd className="mt-1 text-sm">{rma.clientLocal || "-"}</dd>
-                  </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">
                       Teléfono

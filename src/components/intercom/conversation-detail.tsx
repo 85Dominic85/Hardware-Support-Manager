@@ -19,10 +19,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SearchableSelect } from "@/components/shared/searchable-select";
 import { InboxStatusBadge } from "./inbox-status-badge";
+import { ConversationThread } from "./conversation-thread";
 import { convertToIncident, dismissInboxItem } from "@/server/actions/intercom-inbox";
-import { fetchClientsForSelect, fetchClientByExternalId } from "@/server/actions/clients";
+import { fetchClientsForSelect, fetchClientByExternalId, fetchClientLocationsForSelect } from "@/server/actions/clients";
+import type { ClientLocationRow } from "@/server/queries/clients";
 import { INCIDENT_CATEGORY_LABELS, type IncidentCategory } from "@/lib/constants/incidents";
 import { formatRelativeTime } from "@/lib/utils/date-format";
+import { detectDevice, extractSerialNumber } from "@/lib/intercom/device-detector";
 import type { IntercomInboxRow } from "@/server/queries/intercom-inbox";
 import type { IntercomInboxStatus } from "@/lib/constants/intercom";
 
@@ -67,10 +70,16 @@ function extractTicketData(payload: unknown) {
   const accountManager = enrichedCompany.accountManager ?? item?.company?.custom_attributes?.account_manager ?? null;
   const companyIntercomName = enrichedCompany.companyIntercomName ?? item?.company?.name ?? null;
 
-  // Build description from all available text
-  const descParts = [];
-  if (problemSummary) descParts.push(`Problema: ${problemSummary}`);
-  if (troubleshootingSteps) descParts.push(`Troubleshooting: ${troubleshootingSteps}`);
+  // Build description with clear sections
+  const descParts: string[] = [];
+  if (problemSummary) descParts.push(`PROBLEMA REPORTADO:\n${problemSummary}`);
+  if (troubleshootingSteps) descParts.push(`TROUBLESHOOTING REALIZADO:\n${troubleshootingSteps}`);
+  const extraParts: string[] = [];
+  if (categoria2) extraParts.push(`Categoría IC: ${categoria2}`);
+  if (urgencia) extraParts.push(`Urgencia IC: ${urgencia}`);
+  if (atendidoEnLlamada) extraParts.push(`Atendido en llamada: ${atendidoEnLlamada}`);
+  if (aiIssueSummary) extraParts.push(`Resumen AI: ${aiIssueSummary}`);
+  if (extraParts.length > 0) descParts.push(`DATOS ADICIONALES:\n${extraParts.map(p => `- ${p}`).join("\n")}`);
   const description = descParts.join("\n\n");
 
   // Snippet fallback for conversations (non-tickets)
@@ -167,6 +176,29 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
   const [contactPhone, setContactPhone] = useState(ticketData.contactPhone ?? "");
   const [previewOpen, setPreviewOpen] = useState(true);
 
+  // Device detection from ticket text and Intercom company data
+  const allText = [ticketData.description, ticketData.problemSummary, item.subject].filter(Boolean).join(" ");
+  const detected = detectDevice(allText);
+  const [deviceType, setDeviceType] = useState(detected.deviceType ?? "");
+  const [deviceBrand, setDeviceBrand] = useState(detected.deviceBrand ?? "");
+  const [deviceModel, setDeviceModel] = useState(detected.deviceModel ?? "");
+  const [deviceSerialNumber, setDeviceSerialNumber] = useState(
+    ticketData.serialNumber ?? extractSerialNumber(allText) ?? ""
+  );
+
+  // Location and address state
+  const [clientLocationId, setClientLocationId] = useState("");
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [pickupCity, setPickupCity] = useState("");
+  const [pickupPostalCode, setPickupPostalCode] = useState("");
+
+  // Fetch locations when client is selected
+  const { data: locationsData = [] } = useQuery({
+    queryKey: ["client-locations", clientId],
+    queryFn: () => fetchClientLocationsForSelect(clientId),
+    enabled: !!clientId,
+  });
+
   // Set clientId when auto-match resolves
   useEffect(() => {
     if (matchedClient?.id && !clientId) {
@@ -174,6 +206,22 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
       setClientName(matchedClient.name);
     }
   }, [matchedClient, clientId]);
+
+  // Auto-select location when locations load (single or default)
+  useEffect(() => {
+    if (locationsData.length === 0 || clientLocationId) return;
+    const defaultLoc = locationsData.find((l: ClientLocationRow) => l.isDefault);
+    const autoLoc = defaultLoc ?? (locationsData.length === 1 ? locationsData[0] : null);
+    if (autoLoc) {
+      setClientLocationId(autoLoc.id);
+      if (!contactName && autoLoc.contactName) setContactName(autoLoc.contactName);
+      if (!contactPhone && autoLoc.contactPhone) setContactPhone(autoLoc.contactPhone);
+      if (!pickupAddress && autoLoc.address) setPickupAddress(autoLoc.address);
+      if (!pickupCity && autoLoc.city) setPickupCity(autoLoc.city);
+      if (!pickupPostalCode && autoLoc.postalCode) setPickupPostalCode(autoLoc.postalCode);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationsData]);
 
   const convertMutation = useMutation({
     mutationFn: () =>
@@ -187,6 +235,14 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
         clientName,
         contactName,
         contactPhone,
+        deviceType: deviceType || undefined,
+        deviceBrand: deviceBrand || undefined,
+        deviceModel: deviceModel || undefined,
+        deviceSerialNumber: deviceSerialNumber || undefined,
+        clientLocationId: clientLocationId || undefined,
+        pickupAddress: pickupAddress || undefined,
+        pickupCity: pickupCity || undefined,
+        pickupPostalCode: pickupPostalCode || undefined,
       }),
     onSuccess: (result) => {
       if (result.success) {
@@ -408,6 +464,9 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
           </div>
         )}
       </div>
+
+      {/* Conversación completa (lazy loaded) */}
+      <ConversationThread conversationId={item.intercomConversationId} />
 
       {/* Create incident form (only for pending items) */}
       {isPending && (

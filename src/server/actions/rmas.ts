@@ -58,7 +58,6 @@ export async function createRma(
         deviceBrand: parsed.data.deviceBrand || null,
         deviceModel: parsed.data.deviceModel || null,
         deviceSerialNumber: parsed.data.deviceSerialNumber || null,
-        clientLocal: parsed.data.clientLocal || null,
         address: parsed.data.address || null,
         postalCode: parsed.data.postalCode || null,
         city: parsed.data.city || null,
@@ -120,8 +119,6 @@ export async function updateRma(
     values.deviceModel = parsed.data.deviceModel || null;
   if (parsed.data.deviceSerialNumber !== undefined)
     values.deviceSerialNumber = parsed.data.deviceSerialNumber || null;
-  if (parsed.data.clientLocal !== undefined)
-    values.clientLocal = parsed.data.clientLocal || null;
   if (parsed.data.address !== undefined)
     values.address = parsed.data.address || null;
   if (parsed.data.postalCode !== undefined)

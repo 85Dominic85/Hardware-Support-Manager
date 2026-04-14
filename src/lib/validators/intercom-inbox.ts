@@ -14,8 +14,13 @@ export const convertToIncidentSchema = z.object({
   deviceType: z.string().optional().or(z.literal("")),
   deviceBrand: z.string().optional().or(z.literal("")),
   deviceModel: z.string().optional().or(z.literal("")),
+  deviceSerialNumber: z.string().max(255).optional().or(z.literal("")),
   contactName: z.string().optional().or(z.literal("")),
   contactPhone: z.string().optional().or(z.literal("")),
+  clientLocationId: z.string().uuid("Local inválido").optional().or(z.literal("")),
+  pickupAddress: z.string().optional().or(z.literal("")),
+  pickupCity: z.string().max(255).optional().or(z.literal("")),
+  pickupPostalCode: z.string().max(20).optional().or(z.literal("")),
 });
 
 export type ConvertToIncidentInput = z.infer<typeof convertToIncidentSchema>;

@@ -5,6 +5,8 @@ import { intercomInbox, incidents, eventLogs, clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession } from "@/lib/auth/get-session";
+import { getConversation } from "@/lib/intercom/client";
+import type { IntercomConversationPart } from "@/lib/intercom/types";
 import {
   convertToIncidentSchema,
   dismissInboxItemSchema,
@@ -102,8 +104,13 @@ export async function convertToIncident(
           deviceType: rest.deviceType || null,
           deviceBrand: rest.deviceBrand || null,
           deviceModel: rest.deviceModel || null,
+          deviceSerialNumber: rest.deviceSerialNumber || null,
           contactName: rest.contactName || item.contactName || null,
           contactPhone: rest.contactPhone || null,
+          clientLocationId: rest.clientLocationId || null,
+          pickupAddress: rest.pickupAddress || null,
+          pickupCity: rest.pickupCity || null,
+          pickupPostalCode: rest.pickupPostalCode || null,
           intercomUrl: `https://app.intercom.com/a/inbox/conversation/${item.intercomConversationId}`,
           intercomEscalationId: item.intercomConversationId,
         })
@@ -192,5 +199,58 @@ export async function restoreInboxItem(
     return { success: true, data: undefined };
   } catch {
     return { success: false, error: "Error al restaurar elemento" };
+  }
+}
+
+export interface ConversationMessage {
+  id: string;
+  partType: string;
+  body: string;
+  authorName: string;
+  authorType: string;
+  createdAt: number;
+}
+
+export async function fetchIntercomConversation(
+  conversationId: string
+): Promise<ActionResult<{ messages: ConversationMessage[] }>> {
+  await getRequiredSession();
+
+  try {
+    const conversation = await getConversation(conversationId);
+
+    const messages: ConversationMessage[] = [];
+
+    // Add the initial message (source)
+    if (conversation.source?.body) {
+      messages.push({
+        id: conversation.source.id,
+        partType: "comment",
+        body: conversation.source.body,
+        authorName: conversation.source.author?.name ?? "Cliente",
+        authorType: conversation.source.author?.type ?? "user",
+        createdAt: conversation.created_at,
+      });
+    }
+
+    // Add conversation parts (replies, notes)
+    const parts = conversation.conversation_parts?.conversation_parts ?? [];
+    for (const part of parts) {
+      if (!part.body) continue;
+      messages.push({
+        id: part.id,
+        partType: part.part_type,
+        body: part.body,
+        authorName: part.author?.name ?? "Desconocido",
+        authorType: part.author?.type ?? "unknown",
+        createdAt: part.created_at,
+      });
+    }
+
+    return { success: true, data: { messages } };
+  } catch (err) {
+    console.error("Error fetching Intercom conversation:", err);
+    const message = err instanceof Error ? err.message : "Error desconocido";
+    return { success: false, error: `Error al cargar conversación: ${message}` };
   }
 }
