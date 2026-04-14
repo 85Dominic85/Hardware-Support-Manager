@@ -814,17 +814,160 @@ src/server/queries/alerts.ts               # intercom pending count
 
 ---
 
+### Sesión 2026-04-14 — QoL: Intercom sync + auto-fill + workflow optimization
+
+**1 commit** (`6c7a48c`) | **25 archivos** (8 nuevos, 17 modificados) | +1105/-57 líneas
+
+---
+
+#### Fase 1: Fix técnico RMA
+
+**Auto-fill RMA expandido:**
+- Al seleccionar incidencia vinculada, ahora también se auto-rellenan: `clientName` (desde join clients), `articleId`, `notes` (título + descripción truncada a 500 chars)
+
+**Campo `clientLocal` eliminado de RMA:**
+- Eliminado de: schema Drizzle, 3 validators Zod, form, detail, server actions (insert + update), 2 queries, message-templates
+- Migración: `sql/007-remove-client-local-from-rmas.sql`
+
+**Validación inline:**
+- `mode: "onTouched"` en useForm de `incident-form.tsx` y `rma-form.tsx` — errores aparecen al salir de cada campo, no solo al submit
+
+---
+
+#### Bloque A: Intercom sync bidireccional
+
+**A1. MCP oficial Intercom:**
+- `.mcp.json` creado con servidor oficial Intercom (Bearer token auth)
+
+**A2. Sync transiciones → Intercom:**
+- `src/lib/intercom/sync.ts` — NUEVO: `syncIncidentTransition()` y `syncRmaTransition()`
+- Fire-and-forget: tras transicionar incidencia, si tiene `intercomUrl` → nota interna en Intercom
+- Formato: `📋 [HSM] Incidencia INC-XXXX actualizada: estado_A → estado_B`
+- Integrado en `transitionIncident` (server action)
+
+**A3. Cerrar ticket/folio al resolver:**
+- `closeTicket(ticketId)` nuevo método en `client.ts` — `PUT /tickets/{id}` con state `resolved`
+- Se dispara al transicionar a `resuelto` o `cerrado`
+- Si falla (ej: es conversación, no ticket) → warning silencioso, no bloquea
+
+**A4. Conversación completa en Bandeja:**
+- `fetchIntercomConversation(conversationId)` — nueva server action que llama a `getConversation()` API
+- `ConversationThread` componente — timeline de mensajes con bubbles (cliente/admin/nota interna)
+- Strip HTML, formateo timestamps, lazy load (solo al expandir)
+- Integrado en `conversation-detail.tsx` como sección expandible
+
+**A5. Conversación en detalle de incidencia:**
+- `ConversationThread` reutilizado en `incident-detail.tsx`
+- Se muestra dentro de la Card "Referencia Intercom" si hay `intercomEscalationId`
+
+---
+
+#### Bloque B: Maximizar auto-fill
+
+**B1. Auto-fill location desde cliente matcheado:**
+- Cuando `fetchClientByExternalId` matchea un cliente en la Bandeja → carga locations
+- Si 1 location o location default (`isDefault: true`) → auto-selecciona
+- Auto-rellena: contactName, contactPhone, pickupAddress, pickupCity, pickupPostalCode
+- Si múltiples locations → se muestra dropdown
+- Schema `convertToIncidentSchema` ampliado con `clientLocationId`, `pickupAddress`, `pickupCity`, `pickupPostalCode`
+
+**B2. Extraer serial/dispositivo de Intercom:**
+- `src/lib/intercom/device-detector.ts` — NUEVO: `detectDevice()` y `extractSerialNumber()`
+- Patrones regex para: Sunmi, Jassway, GEON, Epson, Star, Bixolon, AQPROX + modelos
+- Keywords → deviceType mapping (TPV, impresora, cajón, router, KDS, tablet)
+- Serial number: extrae de `enrichedCompany.serialNumber` o regex en texto (`S/N:`, `Serial:`, etc.)
+- `deviceSerialNumber` añadido a `convertToIncidentSchema` y action
+
+**B3. Mejor formateo de descripción:**
+- Descripción formateada con secciones: PROBLEMA REPORTADO, TROUBLESHOOTING REALIZADO, DATOS ADICIONALES
+- Datos adicionales incluyen: Categoría IC, Urgencia IC, Atendido en llamada, Resumen AI
+
+---
+
+#### Bloque C: Reducir clicks y navegación
+
+**C1. Atajo "Iniciar Gestión":**
+- `quickTransitionToGestion(incidentId, comment?)` — nueva server action
+- Salta nuevo → en_gestion en un solo paso
+- Crea 2 event_log entries (nuevo→en_triaje + en_triaje→en_gestion) para audit trail completo
+- Botón Zap destacado en `state-transition-buttons.tsx` cuando estado es `nuevo`
+- Dialog con comentario opcional
+
+**C2. Plantillas de incidencias:**
+- `src/lib/constants/incident-templates.ts` — 5 plantillas predefinidas (constantes, sin BD)
+- Plantillas: TPV no enciende, TPV fallo software, Impresora no imprime, Impresora error corte, Problema red/WiFi
+- `IncidentTemplatePicker` dropdown al inicio del form (solo en modo create)
+- Pre-rellena: category, priority, deviceType, title, description (solo campos vacíos)
+- Toast "Plantilla aplicada: [nombre]"
+
+**C3. RMA inline desde incidencia:**
+- `InlineRmaSheet` — Sheet lateral con RmaForm pre-rellenado desde incidencia
+- "Derivar a RMA" abre Sheet en vez de navegar a `/rmas/new`
+- Carga providers e incidents via TanStack Query
+- Solo queda seleccionar proveedor — todo lo demás auto-rellenado
+- `onDerivarRma` callback añadido a StateTransitionButtons (fallback a navegación si no proporcionado)
+
+**C4. Unificar rutas de creación:**
+- `/incidents/new` ahora tiene 2 tabs: "Desde Bandeja" (Intercom) y "Manual"
+- Tab Intercom: lista items pendientes → seleccionar → ConversationDetail con form inline
+- Tab Manual: IncidentForm estándar con template picker
+- "Captura Rápida" eliminada del sidebar (ruta `/incidents/quick-capture` sigue existiendo pero sin acceso directo)
+
+---
+
+#### Archivos principales
+```
+# Nuevos (8)
+.mcp.json                                           # MCP oficial Intercom
+sql/007-remove-client-local-from-rmas.sql           # Migración DROP client_local
+src/lib/constants/incident-templates.ts             # 5 plantillas incidencias
+src/lib/intercom/device-detector.ts                 # Regex detección dispositivos
+src/lib/intercom/sync.ts                            # Sync HSM → Intercom (notas + cierre ticket)
+src/components/incidents/incident-template-picker.tsx # Dropdown plantillas
+src/components/incidents/inline-rma-sheet.tsx        # Sheet RMA inline
+src/components/incidents/intercom-import-tab.tsx     # Tab Bandeja en /incidents/new
+src/components/intercom/conversation-thread.tsx      # Timeline mensajes Intercom
+
+# Modificados (17)
+src/components/incidents/create-incident-page.tsx   # Tabs Bandeja/Manual
+src/components/incidents/incident-detail.tsx        # ConversationThread + InlineRmaSheet
+src/components/incidents/incident-form.tsx          # Template picker + onTouched validation
+src/components/incidents/state-transition-buttons.tsx # Quick transition + onDerivarRma callback
+src/components/intercom/conversation-detail.tsx     # Location auto-fill + device detection + thread
+src/components/layout/app-sidebar.tsx               # Quitar Captura Rápida
+src/components/rmas/rma-detail.tsx                  # Quitar clientLocal
+src/components/rmas/rma-form.tsx                    # Expandir auto-fill + quitar clientLocal + onTouched
+src/lib/constants/message-templates.ts              # Quitar variable clientLocal
+src/lib/db/schema/rmas.ts                           # Quitar columna clientLocal
+src/lib/intercom/client.ts                          # closeTicket()
+src/lib/validators/intercom-inbox.ts                # +deviceSerialNumber, clientLocationId, pickup fields
+src/lib/validators/rma.ts                           # Quitar clientLocal de 3 schemas
+src/server/actions/incidents.ts                     # quickTransitionToGestion + Intercom sync
+src/server/actions/intercom-inbox.ts                # +fetchIntercomConversation + nuevos campos insert
+src/server/actions/rmas.ts                          # Quitar clientLocal
+src/server/queries/rmas.ts                          # Quitar clientLocal de selects
+```
+
+---
+
+#### Env vars nuevas (Vercel)
+- `INTERCOM_ADMIN_ID=8601230` — ID de admin Intercom para notas de sync
+
+#### Migraciones pendientes
+- `sql/007-remove-client-local-from-rmas.sql` — ejecutar en Supabase SQL Editor
+
+---
+
 ## Próximas Fases
 
 ### Intercom — Pendiente
-- Sync estado HSM → Intercom (nota interna al transicionar incidencia)
-- Ver conversación Intercom dentro de incident-detail
 - Auto-crear/vincular cliente HSM desde contacto Intercom (si empresa existe en BD)
 
 ### Futuro
 - KPIs de proveedor: qué proveedores fallan más, tiempos medios de aprobación/reparación
 - Export CSV
 - Notificaciones email
+- Sugerencia de proveedor por marca al crear RMA (lookup tabla articles)
 
 ## Migraciones SQL Pendientes / Ejecutadas
 
@@ -835,6 +978,7 @@ src/server/queries/alerts.ts               # intercom pending count
 | `sql/003-message-templates.sql` | Ejecutado | Tabla message_templates + seed |
 | `sql/004-update-state-machines.sql` | Ejecutado | ALTER TYPE enums + UPDATE datos |
 | (manual en Supabase) | Ejecutado | Tabla `intercom_inbox` + enum `intercom_inbox_status` + índice |
+| `sql/007-remove-client-local-from-rmas.sql` | **Pendiente** | DROP column client_local de rmas |
 
 > **Nota**: Las migraciones se ejecutan manualmente en el SQL Editor de Supabase porque el usuario `hsm_app` no tiene permisos DDL. Los ALTER TYPE deben ejecutarse separados de los UPDATE (Supabase no soporta BEGIN/COMMIT explícitos).
 
