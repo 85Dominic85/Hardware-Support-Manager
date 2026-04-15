@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
-import { incidents, rmas, providers, eventLogs } from "@/lib/db/schema";
-import { eq, count, isNull, sql, desc, gte, lte, not, inArray, and } from "drizzle-orm";
+import { incidents, eventLogs } from "@/lib/db/schema";
+import { eq, count, sql, desc, gte, lte, not, inArray, and } from "drizzle-orm";
 import { users } from "@/lib/db/schema";
 import { getSlaThresholds } from "./settings";
+import type { SlaThresholds } from "@/lib/constants/sla";
 
 export interface DateRangeParams {
   dateFrom?: string;
@@ -64,143 +65,138 @@ function incidentDateConds(range?: DateRangeParams) {
   return conds;
 }
 
-function rmaDateConds(range?: DateRangeParams) {
-  const conds = [];
-  if (range?.dateFrom) conds.push(gte(rmas.createdAt, new Date(range.dateFrom + "T00:00:00")));
-  if (range?.dateTo) conds.push(lte(rmas.createdAt, new Date(range.dateTo + "T23:59:59")));
-  return conds;
-}
 
 export async function getDashboardStats(range?: DateRangeParams): Promise<DashboardStats> {
   try {
-    const [openIncidentsResult, activeRmasResult, totalProvidersResult] =
-      await Promise.all([
-        db
-          .select({ count: count() })
-          .from(incidents)
-          .where(and(
-            not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-            ...incidentDateConds(range)
-          )),
-        db
-          .select({ count: count() })
-          .from(rmas)
-          .where(and(
-            not(inArray(rmas.status, [...CLOSED_RMA_STATUSES])),
-            ...rmaDateConds(range)
-          )),
-        db
-          .select({ count: count() })
-          .from(providers)
-          .where(isNull(providers.deletedAt)),
-      ]);
+    const incDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
+    const incDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
+    const rmaDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
+    const rmaDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
+
+    const result = await db.execute(sql`
+      SELECT
+        (SELECT count(*) FROM hsm.incidents
+         WHERE status NOT IN ('resuelto','cerrado','cancelado')
+         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+        ) AS open_incidents,
+        (SELECT count(*) FROM hsm.rmas
+         WHERE status NOT IN ('recibido_oficina','cerrado','cancelado')
+         ${sql.raw(rmaDateFrom)} ${sql.raw(rmaDateTo)}
+        ) AS active_rmas,
+        (SELECT count(*) FROM hsm.providers
+         WHERE deleted_at IS NULL
+        ) AS total_providers
+    `);
+
+    const row = result[0] as Record<string, string> | undefined;
+    if (!row) return { openIncidents: 0, activeRmas: 0, totalProviders: 0 };
 
     return {
-      openIncidents: openIncidentsResult[0].count,
-      activeRmas: activeRmasResult[0].count,
-      totalProviders: totalProvidersResult[0].count,
+      openIncidents: Number(row.open_incidents) || 0,
+      activeRmas: Number(row.active_rmas) || 0,
+      totalProviders: Number(row.total_providers) || 0,
     };
   } catch {
     return { openIncidents: 0, activeRmas: 0, totalProviders: 0 };
   }
 }
 
-export async function getSlaMetrics(range?: DateRangeParams): Promise<SlaMetrics> {
+export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaThresholds): Promise<SlaMetrics> {
+  const defaults: SlaMetrics = {
+    avgResolutionHours: null,
+    slaCompliancePercent: 100,
+    overdueCount: 0,
+    reopenRate: 0,
+    avgRmaTurnaroundDays: null,
+    incidentsByPriority: [],
+  };
+
   try {
-    const sla = await getSlaThresholds();
-    const dateConds = incidentDateConds(range);
+    const sla = preloadedSla ?? await getSlaThresholds();
 
-    // Average resolution time (resolved incidents only) — subtracting paused time
-    const avgResResult = await db
-      .select({
-        avgHours: sql<number>`avg((extract(epoch from (${incidents.resolvedAt} - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0)`,
-      })
-      .from(incidents)
-      .where(
-        and(
-          eq(incidents.status, "resuelto"),
-          sql`${incidents.resolvedAt} is not null`,
-          ...dateConds
-        )
-      );
+    // Build date condition fragments for raw SQL
+    const incDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
+    const incDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
+    const logDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
+    const logDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
+    const rmaDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
+    const rmaDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
 
-    // SLA compliance: % of resolved incidents within their priority threshold (subtracting paused time)
-    const complianceResult = await db
-      .select({
-        total: count(),
-        compliant: sql<number>`count(*) filter (where
-          (${incidents.priority} = 'critica' and (extract(epoch from (${incidents.resolvedAt} - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 <= ${sla.resolution.critica}) or
-          (${incidents.priority} = 'alta' and (extract(epoch from (${incidents.resolvedAt} - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 <= ${sla.resolution.alta}) or
-          (${incidents.priority} = 'media' and (extract(epoch from (${incidents.resolvedAt} - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 <= ${sla.resolution.media}) or
-          (${incidents.priority} = 'baja' and (extract(epoch from (${incidents.resolvedAt} - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 <= ${sla.resolution.baja})
-        )`,
-      })
-      .from(incidents)
-      .where(
-        and(
-          inArray(incidents.status, ["resuelto", "cerrado"]),
-          sql`${incidents.resolvedAt} is not null`,
-          ...dateConds
-        )
-      );
+    // Single query with 7 scalar subqueries (replaces 8 sequential queries)
+    const result = await db.execute(sql`
+      SELECT
+        (SELECT avg((extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0)
+         FROM hsm.incidents
+         WHERE status = 'resuelto' AND resolved_at IS NOT NULL
+         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+        ) AS avg_hours,
 
-    const total = complianceResult[0].total;
-    const compliant = complianceResult[0].compliant;
-    const compliancePercent = total > 0 ? Math.round((compliant / total) * 100) : 100;
+        (SELECT count(*)
+         FROM hsm.incidents
+         WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
+         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+        ) AS comp_total,
 
-    // Overdue: open incidents exceeding resolution SLA for their priority (subtracting paused time)
-    const overdueResult = await db
-      .select({ count: count() })
-      .from(incidents)
-      .where(
-        and(
-          not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES, "resuelto"])),
-          sql`(
-            (${incidents.priority} = 'critica' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.critica}) or
-            (${incidents.priority} = 'alta' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.alta}) or
-            (${incidents.priority} = 'media' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.media}) or
-            (${incidents.priority} = 'baja' and (extract(epoch from (now() - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0 > ${sla.resolution.baja})
-          )`,
-          ...dateConds
-        )
-      );
+        (SELECT count(*)
+         FROM hsm.incidents
+         WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
+         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         AND (
+           (priority = 'critica' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.critica}) OR
+           (priority = 'alta' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.alta}) OR
+           (priority = 'media' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.media}) OR
+           (priority = 'baja' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.baja})
+         )
+        ) AS comp_compliant,
 
-    // Reopen rate
-    const reopenResult = await db
-      .select({ count: count() })
-      .from(eventLogs)
-      .where(
-        and(
-          eq(eventLogs.entityType, "incident"),
-          eq(eventLogs.action, "transition"),
-          eq(eventLogs.fromState, "resuelto"),
-          ...(range?.dateFrom ? [gte(eventLogs.createdAt, new Date(range.dateFrom + "T00:00:00"))] : []),
-          ...(range?.dateTo ? [lte(eventLogs.createdAt, new Date(range.dateTo + "T23:59:59"))] : [])
-        )
-      );
-    const totalResolved = await db
-      .select({ count: count() })
-      .from(incidents)
-      .where(and(
-        inArray(incidents.status, ["resuelto", "cerrado"]),
-        ...dateConds
-      ));
-    const reopenRate = totalResolved[0].count > 0
-      ? Math.round((reopenResult[0].count / totalResolved[0].count) * 100 * 10) / 10
+        (SELECT count(*)
+         FROM hsm.incidents
+         WHERE status NOT IN ('resuelto','cerrado','cancelado')
+         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         AND (
+           (priority = 'critica' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.critica}) OR
+           (priority = 'alta' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.alta}) OR
+           (priority = 'media' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.media}) OR
+           (priority = 'baja' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.baja})
+         )
+        ) AS overdue_count,
+
+        (SELECT count(*)
+         FROM hsm.event_logs
+         WHERE entity_type = 'incident' AND action = 'transition' AND from_state = 'resuelto'
+         ${sql.raw(logDateFrom)} ${sql.raw(logDateTo)}
+        ) AS reopen_count,
+
+        (SELECT count(*)
+         FROM hsm.incidents
+         WHERE status IN ('resuelto','cerrado')
+         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+        ) AS total_resolved,
+
+        (SELECT avg(extract(epoch from (updated_at - created_at)) / 86400)
+         FROM hsm.rmas
+         WHERE status IN ('recibido_oficina','cerrado')
+         ${sql.raw(rmaDateFrom)} ${sql.raw(rmaDateTo)}
+        ) AS rma_avg_days
+    `);
+
+    const row = result[0] as Record<string, string | null> | undefined;
+    if (!row) return defaults;
+
+    const avgHours = row.avg_hours ? parseFloat(row.avg_hours) : null;
+    const compTotal = Number(row.comp_total) || 0;
+    const compCompliant = Number(row.comp_compliant) || 0;
+    const compliancePercent = compTotal > 0 ? Math.round((compCompliant / compTotal) * 100) : 100;
+    const overdueCount = Number(row.overdue_count) || 0;
+    const reopenCount = Number(row.reopen_count) || 0;
+    const totalResolved = Number(row.total_resolved) || 0;
+    const reopenRate = totalResolved > 0
+      ? Math.round((reopenCount / totalResolved) * 100 * 10) / 10
       : 0;
+    const rmaDays = row.rma_avg_days ? parseFloat(row.rma_avg_days) : null;
 
-    // RMA turnaround avg
-    const rmaTurnResult = await db
-      .select({
-        avgDays: sql<number>`avg(extract(epoch from (${rmas.updatedAt} - ${rmas.createdAt})) / 86400)`,
-      })
-      .from(rmas)
-      .where(and(
-        inArray(rmas.status, ["recibido_oficina", "cerrado"]),
-        ...rmaDateConds(range)
-      ));
-
-    // By priority
+    // By priority (separate query — returns multiple rows)
+    const dateConds = incidentDateConds(range);
     const byPriority = await db
       .select({
         priority: incidents.priority,
@@ -214,22 +210,15 @@ export async function getSlaMetrics(range?: DateRangeParams): Promise<SlaMetrics
       .groupBy(incidents.priority);
 
     return {
-      avgResolutionHours: avgResResult[0].avgHours ? Math.round(avgResResult[0].avgHours * 10) / 10 : null,
+      avgResolutionHours: avgHours ? Math.round(avgHours * 10) / 10 : null,
       slaCompliancePercent: compliancePercent,
-      overdueCount: overdueResult[0].count,
+      overdueCount,
       reopenRate,
-      avgRmaTurnaroundDays: rmaTurnResult[0].avgDays ? Math.round(rmaTurnResult[0].avgDays * 10) / 10 : null,
+      avgRmaTurnaroundDays: rmaDays ? Math.round(rmaDays * 10) / 10 : null,
       incidentsByPriority: byPriority,
     };
   } catch {
-    return {
-      avgResolutionHours: null,
-      slaCompliancePercent: 100,
-      overdueCount: 0,
-      reopenRate: 0,
-      avgRmaTurnaroundDays: null,
-      incidentsByPriority: [],
-    };
+    return defaults;
   }
 }
 

@@ -11,6 +11,9 @@ export function getDb() {
       max: 1,               // Serverless: one connection per instance, let Supavisor pool
       idle_timeout: 20,     // Release idle connections quickly
       connect_timeout: 10,  // Fail fast on connection issues
+      connection: {
+        statement_timeout: 15000,  // 15s max per statement — prevents queries from hanging
+      },
     });
     _db = drizzle(client, { schema });
   }

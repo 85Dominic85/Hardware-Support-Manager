@@ -3,6 +3,8 @@ import { incidents, rmas, providers, clients } from "@/lib/db/schema";
 import { sql, not, inArray, and, eq } from "drizzle-orm";
 import { getAlertThresholds } from "./settings";
 import { getSlaThresholds } from "./settings";
+import type { AlertThresholds } from "@/lib/constants/alerts";
+import type { SlaThresholds } from "@/lib/constants/sla";
 
 export interface AlertItem {
   id: string;
@@ -37,11 +39,14 @@ export interface AlertBadgeCounts {
 const CLOSED_INCIDENT_STATUSES = ["cerrado", "cancelado", "resuelto"] as const;
 const WAREHOUSE_STATUSES = ["borrador", "aprobado", "recibido_oficina"] as const;
 
-export async function getAlertItems(): Promise<AlertSummary> {
+export async function getAlertItems(
+  preloadedThresholds?: AlertThresholds,
+  preloadedSla?: SlaThresholds,
+): Promise<AlertSummary> {
   try {
     const [thresholds, sla] = await Promise.all([
-      getAlertThresholds(),
-      getSlaThresholds(),
+      preloadedThresholds ?? getAlertThresholds(),
+      preloadedSla ?? getSlaThresholds(),
     ]);
 
     const [staleIncidents, stuckRmas, warehouseRmas, slaWarnings] =

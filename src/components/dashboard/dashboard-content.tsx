@@ -83,52 +83,65 @@ export function DashboardContent({
 
   const hasCustomRange = dateFrom || dateTo || preset !== "30d";
 
+  // initialDataUpdatedAt prevents TanStack Query from immediately re-fetching
+  // SSR data. Without it, initialData is treated as stale and triggers 8 server
+  // action calls on page load — doubling DB pressure.
+  const ssrTimestamp = hasCustomRange ? undefined : Date.now();
+
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats", dateRange],
     queryFn: () => fetchDashboardStats(dateRange),
     initialData: hasCustomRange ? undefined : initialStats,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: sla } = useQuery({
     queryKey: ["dashboard-sla", dateRange],
     queryFn: () => fetchSlaMetrics(dateRange),
     initialData: hasCustomRange ? undefined : initialSla,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: trend } = useQuery({
     queryKey: ["dashboard-trend", dateRange],
     queryFn: () => fetchIncidentTrend(dateRange),
     initialData: hasCustomRange ? undefined : initialTrend,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: distribution } = useQuery({
     queryKey: ["dashboard-distribution", dateRange],
     queryFn: () => fetchIncidentStatusDistribution(dateRange),
     initialData: hasCustomRange ? undefined : initialDistribution,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: aging } = useQuery({
     queryKey: ["dashboard-aging", dateRange],
     queryFn: () => fetchAgingDistribution(dateRange),
     initialData: hasCustomRange ? undefined : initialAging,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: technicians } = useQuery({
     queryKey: ["dashboard-technicians", dateRange],
     queryFn: () => fetchTechnicianPerformance(dateRange),
     initialData: hasCustomRange ? undefined : initialTechnicians,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: activity } = useQuery({
     queryKey: ["dashboard-activity", dateRange],
     queryFn: () => fetchRecentActivity(dateRange),
     initialData: hasCustomRange ? undefined : initialActivity,
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const { data: alerts } = useQuery({
     queryKey: ["dashboard-alerts"],
     queryFn: () => fetchAlertItems(),
     initialData: initialAlerts,
+    initialDataUpdatedAt: Date.now(),
   });
 
   const s = stats ?? initialStats;
