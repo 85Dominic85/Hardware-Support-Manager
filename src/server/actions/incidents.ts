@@ -262,28 +262,31 @@ export async function transitionIncident(
     return { success: false, error: result.error };
   }
 
-  // Fire-and-forget: sync note to Intercom
-  db.select({
-    intercomUrl: incidents.intercomUrl,
-    intercomEscalationId: incidents.intercomEscalationId,
-    incidentNumber: incidents.incidentNumber,
-  })
-    .from(incidents)
-    .where(eq(incidents.id, incidentId))
-    .limit(1)
-    .then(([inc]) => {
-      if (inc?.intercomUrl || inc?.intercomEscalationId) {
-        syncIncidentTransition({
-          intercomUrl: inc.intercomUrl,
-          intercomEscalationId: inc.intercomEscalationId,
-          incidentNumber: inc.incidentNumber,
-          fromStatus: result.fromStatus,
-          toStatus,
-          comment,
-        });
-      }
+  // Sync note to Intercom — await the DB query to release the connection,
+  // only the external HTTP call to Intercom is fire-and-forget.
+  try {
+    const [inc] = await db.select({
+      intercomUrl: incidents.intercomUrl,
+      intercomEscalationId: incidents.intercomEscalationId,
+      incidentNumber: incidents.incidentNumber,
     })
-    .catch(() => {}); // silent
+      .from(incidents)
+      .where(eq(incidents.id, incidentId))
+      .limit(1);
+
+    if (inc?.intercomUrl || inc?.intercomEscalationId) {
+      syncIncidentTransition({
+        intercomUrl: inc.intercomUrl,
+        intercomEscalationId: inc.intercomEscalationId,
+        incidentNumber: inc.incidentNumber,
+        fromStatus: result.fromStatus,
+        toStatus,
+        comment,
+      });
+    }
+  } catch {
+    // Intercom sync failure should not break the transition
+  }
 
   revalidatePath("/incidents");
   revalidatePath(`/incidents/${incidentId}`);

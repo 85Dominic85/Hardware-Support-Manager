@@ -67,20 +67,17 @@ function incidentDateConds(range?: DateRangeParams) {
 
 export async function getDashboardStats(range?: DateRangeParams): Promise<DashboardStats> {
   try {
-    const incDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
-    const incDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
-    const rmaDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
-    const rmaDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
-
     const result = await db.execute(sql`
       SELECT
         (SELECT count(*) FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
-         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         ${range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``}
+         ${range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``}
         ) AS open_incidents,
         (SELECT count(*) FROM hsm.rmas
          WHERE status NOT IN ('recibido_oficina','cerrado','cancelado')
-         ${sql.raw(rmaDateFrom)} ${sql.raw(rmaDateTo)}
+         ${range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``}
+         ${range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``}
         ) AS active_rmas,
         (SELECT count(*) FROM hsm.providers
          WHERE deleted_at IS NULL
@@ -113,13 +110,13 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
   try {
     const sla = preloadedSla ?? await getSlaThresholds();
 
-    // Build date condition fragments for raw SQL
-    const incDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
-    const incDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
-    const logDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
-    const logDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
-    const rmaDateFrom = range?.dateFrom ? `AND created_at >= '${range.dateFrom}T00:00:00'` : "";
-    const rmaDateTo = range?.dateTo ? `AND created_at <= '${range.dateTo}T23:59:59'` : "";
+    // Parameterized date fragments — no sql.raw() to prevent SQL injection
+    const incFrom = range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``;
+    const incTo = range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``;
+    const logFrom = range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``;
+    const logTo = range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``;
+    const rmaFrom = range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``;
+    const rmaTo = range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``;
 
     // Single query with 7 scalar subqueries (replaces 8 sequential queries)
     const result = await db.execute(sql`
@@ -127,19 +124,19 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
         (SELECT avg((extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0)
          FROM hsm.incidents
          WHERE status = 'resuelto' AND resolved_at IS NOT NULL
-         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         ${incFrom} ${incTo}
         ) AS avg_hours,
 
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
-         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         ${incFrom} ${incTo}
         ) AS comp_total,
 
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
-         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         ${incFrom} ${incTo}
          AND (
            (priority = 'critica' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.critica}) OR
            (priority = 'alta' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.alta}) OR
@@ -151,7 +148,7 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
-         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         ${incFrom} ${incTo}
          AND (
            (priority = 'critica' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.critica}) OR
            (priority = 'alta' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.alta}) OR
@@ -163,19 +160,19 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
         (SELECT count(*)
          FROM hsm.event_logs
          WHERE entity_type = 'incident' AND action = 'transition' AND from_state = 'resuelto'
-         ${sql.raw(logDateFrom)} ${sql.raw(logDateTo)}
+         ${logFrom} ${logTo}
         ) AS reopen_count,
 
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado')
-         ${sql.raw(incDateFrom)} ${sql.raw(incDateTo)}
+         ${incFrom} ${incTo}
         ) AS total_resolved,
 
         (SELECT avg(extract(epoch from (updated_at - created_at)) / 86400)
          FROM hsm.rmas
          WHERE status IN ('recibido_oficina','cerrado')
-         ${sql.raw(rmaDateFrom)} ${sql.raw(rmaDateTo)}
+         ${rmaFrom} ${rmaTo}
         ) AS rma_avg_days
     `);
 
