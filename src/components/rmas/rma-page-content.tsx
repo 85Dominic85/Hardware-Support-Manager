@@ -32,7 +32,7 @@ export function RmaPageContent({ initialData, defaultPageSize, providerOptions }
     useFilterParams(filterConfigs);
 
   // Kanban: fetches all items respecting current search & filters
-  const { data: kanbanData } = useQuery({
+  const { data: kanbanData, isError: kanbanError } = useQuery({
     queryKey: ["rmas-kanban", { search, filters: filterValues }],
     queryFn: () =>
       fetchRmas({
@@ -80,7 +80,14 @@ export function RmaPageContent({ initialData, defaultPageSize, providerOptions }
       ) : (
         <div className="space-y-4">
           {searchAndFilters}
-          <RmaKanban data={kanbanData?.data ?? initialData.data} />
+          {kanbanError ? (
+            <div className="rounded-lg border p-8 text-center text-muted-foreground">
+              <p className="font-medium text-foreground">Error al cargar el kanban</p>
+              <p className="text-sm">Comprueba tu conexión e inténtalo de nuevo.</p>
+            </div>
+          ) : (
+            <RmaKanban data={kanbanData?.data ?? initialData.data} />
+          )}
         </div>
       )}
     </div>

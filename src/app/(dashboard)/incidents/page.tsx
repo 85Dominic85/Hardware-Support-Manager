@@ -19,7 +19,7 @@ export default async function IncidentsPage({
 }) {
   const params = await searchParams;
 
-  const defaultPageSize = await getDefaultPageSize();
+  const defaultPageSize = await getDefaultPageSize().catch(() => 20);
   const page = Number(params.page) || 1;
   const pageSize = Number(params.pageSize) || defaultPageSize;
   const search = typeof params.search === "string" && params.search ? params.search : undefined;
@@ -42,16 +42,17 @@ export default async function IncidentsPage({
   if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
   if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
 
-  const userOptions = await getUserFilterOptions();
-
-  const initialData = await getIncidents({
-    page,
-    pageSize,
-    search,
-    sortBy,
-    sortOrder,
-    ...(Object.keys(filters).length > 0 ? { filters } : {}),
-  });
+  const [userOptions, initialData] = await Promise.all([
+    getUserFilterOptions().catch(() => []),
+    getIncidents({
+      page,
+      pageSize,
+      search,
+      sortBy,
+      sortOrder,
+      ...(Object.keys(filters).length > 0 ? { filters } : {}),
+    }).catch(() => ({ data: [], totalCount: 0, page, pageSize, totalPages: 0 })),
+  ]);
 
   return (
     <div className="space-y-6">

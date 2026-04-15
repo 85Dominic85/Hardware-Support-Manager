@@ -25,6 +25,7 @@ import {
   ChevronsRight,
   ArrowUpDown,
   Inbox,
+  AlertOctagon,
 } from "lucide-react";
 import { PageSizeSelector } from "@/components/shared/page-size-selector";
 
@@ -36,6 +37,9 @@ interface DataTableProps<TData> {
   pageSize: number;
   totalPages: number;
   isLoading?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   onPageChange: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   searchBar?: React.ReactNode;
@@ -53,6 +57,9 @@ export function DataTable<TData>({
   pageSize,
   totalPages,
   isLoading,
+  isError,
+  errorMessage,
+  onRetry,
   onPageChange,
   onPageSizeChange,
   searchBar,
@@ -135,6 +142,23 @@ export function DataTable<TData>({
                   ))}
                 </TableRow>
               ))
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-32 text-center">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <AlertOctagon className="h-8 w-8 text-red-500" />
+                    <p className="font-medium text-foreground">
+                      {errorMessage || "Error al cargar los datos"}
+                    </p>
+                    <p className="text-sm">Comprueba tu conexión e inténtalo de nuevo.</p>
+                    {onRetry && (
+                      <Button variant="outline" size="sm" onClick={onRetry} className="mt-1">
+                        Reintentar
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row, index) => (
                 <TableRow

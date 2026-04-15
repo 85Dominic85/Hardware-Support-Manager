@@ -43,7 +43,7 @@ export function IncidentList({
     prevFilterKeyRef.current = filterKey;
   }
 
-  const { data: queryData, isLoading } = useQuery({
+  const { data: queryData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["incidents", { page: effectivePage, pageSize, search, sortBy, sortOrder, filters: filterValues }],
     queryFn: () =>
       fetchIncidents({
@@ -69,6 +69,9 @@ export function IncidentList({
       pageSize={data.pageSize}
       totalPages={data.totalPages}
       isLoading={isLoading && !queryData}
+      isError={isError}
+      errorMessage={error?.message}
+      onRetry={() => refetch()}
       onPageChange={setPage}
       onPageSizeChange={setPageSize}
       sortBy={sortBy}

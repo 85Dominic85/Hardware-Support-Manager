@@ -43,7 +43,7 @@ export function RmaList({
     prevFilterKeyRef.current = filterKey;
   }
 
-  const { data: queryData, isLoading } = useQuery({
+  const { data: queryData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["rmas", { page: effectivePage, pageSize, search, sortBy, sortOrder, filters: filterValues }],
     queryFn: () =>
       fetchRmas({
@@ -69,6 +69,9 @@ export function RmaList({
       pageSize={data.pageSize}
       totalPages={data.totalPages}
       isLoading={isLoading && !queryData}
+      isError={isError}
+      errorMessage={error?.message}
+      onRetry={() => refetch()}
       onPageChange={setPage}
       onPageSizeChange={setPageSize}
       sortBy={sortBy}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -27,6 +28,7 @@ const IncidentsChart = dynamic(() => import("./incidents-chart").then(m => m.Inc
 const StatusDistribution = dynamic(() => import("./status-distribution").then(m => m.StatusDistribution), { ssr: false, loading: ChartSkeleton });
 const AgingChart = dynamic(() => import("./aging-chart").then(m => m.AgingChart), { ssr: false, loading: ChartSkeleton });
 const TechnicianChart = dynamic(() => import("./technician-chart").then(m => m.TechnicianChart), { ssr: false, loading: ChartSkeleton });
+import { Button } from "@/components/ui/button";
 import { StaggerList } from "@/components/shared/stagger-list";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import {
@@ -86,16 +88,18 @@ export function DashboardContent({
   // initialDataUpdatedAt prevents TanStack Query from immediately re-fetching
   // SSR data. Without it, initialData is treated as stale and triggers 8 server
   // action calls on page load — doubling DB pressure.
-  const ssrTimestamp = hasCustomRange ? undefined : Date.now();
+  // Memoized with useState to remain stable across re-renders.
+  const [mountTimestamp] = useState(() => Date.now());
+  const ssrTimestamp = hasCustomRange ? undefined : mountTimestamp;
 
-  const { data: stats } = useQuery({
+  const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ["dashboard-stats", dateRange],
     queryFn: () => fetchDashboardStats(dateRange),
     initialData: hasCustomRange ? undefined : initialStats,
     initialDataUpdatedAt: ssrTimestamp,
   });
 
-  const { data: sla } = useQuery({
+  const { data: sla, isError: slaError, refetch: refetchSla } = useQuery({
     queryKey: ["dashboard-sla", dateRange],
     queryFn: () => fetchSlaMetrics(dateRange),
     initialData: hasCustomRange ? undefined : initialSla,
@@ -141,12 +145,14 @@ export function DashboardContent({
     queryKey: ["dashboard-alerts"],
     queryFn: () => fetchAlertItems(),
     initialData: initialAlerts,
-    initialDataUpdatedAt: Date.now(),
+    initialDataUpdatedAt: ssrTimestamp,
   });
 
   const s = stats ?? initialStats;
   const sl = sla ?? initialSla;
   const al = alerts ?? initialAlerts;
+
+  const hasCriticalError = statsError && slaError;
 
   return (
     <div className="space-y-6">
@@ -163,6 +169,29 @@ export function DashboardContent({
           <ExportButton dateRange={dateRange} />
         </div>
       </div>
+
+      {hasCriticalError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+          <div className="flex items-center gap-3">
+            <AlertOctagon className="h-5 w-5 shrink-0 text-red-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                Error al cargar los datos del panel
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400">
+                Comprueba tu conexión e inténtalo de nuevo.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { refetchStats(); refetchSla(); }}
+            >
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Row 1: KPI Cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
