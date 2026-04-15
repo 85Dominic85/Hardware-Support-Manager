@@ -3,6 +3,8 @@ import { incidents, eventLogs, users } from "@/lib/db/schema";
 import { eq, count, sql, desc, gte, lte, not, inArray, and } from "drizzle-orm";
 import { getSlaThresholds } from "./settings";
 import type { SlaThresholds } from "@/lib/constants/sla";
+import { CLOSED_INCIDENT_STATUSES } from "@/lib/constants/statuses";
+import { incidentDateConds, rawDateFragments } from "@/lib/utils/date-conditions";
 import {
   slaElapsedHours,
   slaResolvedHours,
@@ -62,43 +64,6 @@ export interface TechnicianPerformance {
 export interface AgingBucket {
   bucket: string;
   count: number;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const CLOSED_INCIDENT_STATUSES = ["resuelto", "cerrado", "cancelado"] as const;
-
-function incidentDateConds(range?: DateRangeParams) {
-  const conds = [];
-  if (range?.dateFrom)
-    conds.push(gte(incidents.createdAt, new Date(range.dateFrom + "T00:00:00")));
-  if (range?.dateTo)
-    conds.push(lte(incidents.createdAt, new Date(range.dateTo + "T23:59:59")));
-  return conds;
-}
-
-/** Date fragments for raw SQL inside db.execute() */
-function rawDateFragments(range?: DateRangeParams) {
-  return {
-    incFrom: range?.dateFrom
-      ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}`
-      : sql``,
-    incTo: range?.dateTo
-      ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}`
-      : sql``,
-    rmaFrom: range?.dateFrom
-      ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}`
-      : sql``,
-    rmaTo: range?.dateTo
-      ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}`
-      : sql``,
-    logFrom: range?.dateFrom
-      ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}`
-      : sql``,
-    logTo: range?.dateTo
-      ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}`
-      : sql``,
-  };
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { incidents, rmas, providers, clients } from "@/lib/db/schema";
-import { sql, not, inArray, and, eq, gte, lte } from "drizzle-orm";
+import { sql, not, inArray, and, eq } from "drizzle-orm";
+import { incidentDateConds, rmaDateConds } from "@/lib/utils/date-conditions";
 import { getAlertThresholds, getSlaThresholds } from "./settings";
 import type { AlertThresholds } from "@/lib/constants/alerts";
 import type { SlaThresholds } from "@/lib/constants/sla";
@@ -11,6 +12,7 @@ import {
   buildSlaPriorityConditionRaw,
 } from "@/lib/utils/sla-sql";
 import type { DateRangeParams } from "@/hooks/use-dashboard-params";
+import { CLOSED_INCIDENT_STATUSES, WAREHOUSE_RMA_STATUSES } from "@/lib/constants/statuses";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,29 +44,6 @@ export interface AlertBadgeCounts {
   warehouse: number;
   intercom: number;
   total: number;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const CLOSED_INCIDENT_STATUSES = ["cerrado", "cancelado", "resuelto"] as const;
-const WAREHOUSE_STATUSES = ["borrador", "aprobado", "recibido_oficina"] as const;
-
-function incidentDateConds(range?: DateRangeParams) {
-  const conds = [];
-  if (range?.dateFrom)
-    conds.push(gte(incidents.createdAt, new Date(range.dateFrom + "T00:00:00")));
-  if (range?.dateTo)
-    conds.push(lte(incidents.createdAt, new Date(range.dateTo + "T23:59:59")));
-  return conds;
-}
-
-function rmaDateConds(range?: DateRangeParams) {
-  const conds = [];
-  if (range?.dateFrom)
-    conds.push(gte(rmas.createdAt, new Date(range.dateFrom + "T00:00:00")));
-  if (range?.dateTo)
-    conds.push(lte(rmas.createdAt, new Date(range.dateTo + "T23:59:59")));
-  return conds;
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -158,7 +137,7 @@ export async function getAlertItems(
           .leftJoin(clients, eq(rmas.clientId, clients.id))
           .where(
             and(
-              inArray(rmas.status, [...WAREHOUSE_STATUSES]),
+              inArray(rmas.status, [...WAREHOUSE_RMA_STATUSES]),
               sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaWarehouseDays}`,
               ...rmaDateCondsArr,
             ),

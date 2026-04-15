@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { incidents, rmas, providers } from "@/lib/db/schema";
-import { count, sql, desc, eq, and, gte, lte, isNull, not } from "drizzle-orm";
+import { count, sql, desc, eq, and, isNull, not } from "drizzle-orm";
 import type { DateRangeParams } from "./dashboard";
+import { dateConds } from "@/lib/utils/date-conditions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -63,10 +64,7 @@ export interface CostSummary {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function dateConditions(table: typeof incidents | typeof rmas, range?: DateRangeParams) {
-  const conditions = [];
-  if (range?.dateFrom) conditions.push(gte(table.createdAt, new Date(range.dateFrom + "T00:00:00")));
-  if (range?.dateTo) conditions.push(lte(table.createdAt, new Date(range.dateTo + "T23:59:59")));
-  return conditions;
+  return dateConds(table.createdAt, range);
 }
 
 // ─── Device Analytics ────────────────────────────────────────────────────────

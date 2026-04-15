@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { messageTemplates } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 
 export type MessageTemplateRow = typeof messageTemplates.$inferSelect;
 
@@ -14,23 +14,15 @@ export async function getMessageTemplates(): Promise<MessageTemplateRow[]> {
 export async function getActiveTemplates(
   category?: "cliente" | "proveedor"
 ): Promise<MessageTemplateRow[]> {
-  const query = db
+  const conditions = category
+    ? and(eq(messageTemplates.isActive, true), eq(messageTemplates.category, category))
+    : eq(messageTemplates.isActive, true);
+
+  return db
     .select()
     .from(messageTemplates)
-    .where(eq(messageTemplates.isActive, true))
+    .where(conditions)
     .orderBy(asc(messageTemplates.sortOrder), asc(messageTemplates.name));
-
-  if (category) {
-    return db
-      .select()
-      .from(messageTemplates)
-      .where(
-        eq(messageTemplates.isActive, true)
-      )
-      .orderBy(asc(messageTemplates.sortOrder), asc(messageTemplates.name));
-  }
-
-  return query;
 }
 
 export async function getMessageTemplateById(

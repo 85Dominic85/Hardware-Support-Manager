@@ -18,6 +18,7 @@ import type { IncidentRow, LinkedRma } from "@/server/queries/incidents";
 import { syncIncidentTransition } from "@/lib/intercom/sync";
 import type { IncidentStatus } from "@/lib/constants/incidents";
 import type { UserRole } from "@/lib/constants/roles";
+import { PAUSED_INCIDENT_STATES } from "@/lib/constants/statuses";
 
 export async function createIncident(
   input: unknown
@@ -190,8 +191,6 @@ export async function transitionIncident(
 
   const { incidentId, toStatus, comment, resolutionType } = parsed.data;
 
-  // States where SLA clock is paused (waiting on external parties)
-  const PAUSED_STATES: IncidentStatus[] = ["esperando_cliente", "esperando_proveedor"];
 
   const result = await db.transaction(async (tx) => {
     const [current] = await tx
@@ -222,7 +221,7 @@ export async function transitionIncident(
 
     // SLA pause accumulation: when leaving a paused state, add the time spent paused.
     // Validate numeric value to prevent CAST(sla_paused_ms AS bigint) failures in queries.
-    if (PAUSED_STATES.includes(fromStatus)) {
+    if ((PAUSED_INCIDENT_STATES as readonly string[]).includes(fromStatus)) {
       const pausedSince = new Date(current.stateChangedAt).getTime();
       const pausedDuration = Math.max(0, Date.now() - pausedSince);
       const existingPaused = Number(current.slaPausedMs) || 0;
@@ -308,7 +307,6 @@ export async function forceTransitionIncident(
 
   const { incidentId, toStatus, comment } = parsed.data;
 
-  const PAUSED_STATES: IncidentStatus[] = ["esperando_cliente", "esperando_proveedor"];
 
   try {
     await db.transaction(async (tx) => {
@@ -331,11 +329,11 @@ export async function forceTransitionIncident(
         stateChangedAt: new Date(),
       };
 
-      if (PAUSED_STATES.includes(fromStatus)) {
+      if ((PAUSED_INCIDENT_STATES as readonly string[]).includes(fromStatus)) {
         const pausedSince = new Date(current.stateChangedAt).getTime();
-        const pausedDuration = Date.now() - pausedSince;
-        const existingPaused = parseInt(current.slaPausedMs || "0", 10);
-        updateValues.slaPausedMs = String(existingPaused + pausedDuration);
+        const pausedDuration = Math.max(0, Date.now() - pausedSince);
+        const existingPaused = Math.max(0, Number(current.slaPausedMs ?? 0));
+        updateValues.slaPausedMs = String(Math.floor(existingPaused + pausedDuration));
       }
 
       if (toStatus === "resuelto") {

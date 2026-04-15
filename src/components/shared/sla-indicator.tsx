@@ -2,6 +2,7 @@
 
 import { Clock, AlertTriangle, CheckCircle, PauseCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PAUSED_INCIDENT_STATES } from "@/lib/constants/statuses";
 
 interface SlaIndicatorProps {
   createdAt: Date | string;
@@ -12,8 +13,6 @@ interface SlaIndicatorProps {
   currentStatus?: string;
 }
 
-/** States where SLA clock is paused */
-const PAUSED_STATES = ["esperando_cliente", "esperando_proveedor"];
 
 export function SlaIndicator({
   createdAt,
@@ -32,7 +31,7 @@ export function SlaIndicator({
   if (isNaN(pausedMs)) pausedMs = 0;
 
   // If currently in a paused state, add live pause time
-  if (!resolvedAt && currentStatus && PAUSED_STATES.includes(currentStatus)) {
+  if (!resolvedAt && currentStatus && (PAUSED_INCIDENT_STATES as readonly string[]).includes(currentStatus)) {
     pausedMs += now.getTime() - stateChanged.getTime();
   }
 
@@ -48,7 +47,7 @@ export function SlaIndicator({
   const isOverdue = effectiveElapsedMs > slaMs;
   const isWarning = progressPercent >= 75 && !isOverdue;
   const isResolved = !!resolvedAt;
-  const isPaused = !resolvedAt && currentStatus && PAUSED_STATES.includes(currentStatus);
+  const isPaused = !resolvedAt && currentStatus && (PAUSED_INCIDENT_STATES as readonly string[]).includes(currentStatus);
 
   const barColor = isResolved
     ? "bg-green-500"
