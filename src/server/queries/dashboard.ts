@@ -1,9 +1,18 @@
 import { db } from "@/lib/db";
-import { incidents, eventLogs } from "@/lib/db/schema";
+import { incidents, eventLogs, users } from "@/lib/db/schema";
 import { eq, count, sql, desc, gte, lte, not, inArray, and } from "drizzle-orm";
-import { users } from "@/lib/db/schema";
 import { getSlaThresholds } from "./settings";
 import type { SlaThresholds } from "@/lib/constants/sla";
+import {
+  slaElapsedHours,
+  slaResolvedHours,
+  slaElapsedHoursRaw,
+  slaResolvedHoursRaw,
+  buildSlaPriorityCondition,
+  buildSlaPriorityConditionRaw,
+} from "@/lib/utils/sla-sql";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface DateRangeParams {
   dateFrom?: string;
@@ -55,29 +64,61 @@ export interface AgingBucket {
   count: number;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 const CLOSED_INCIDENT_STATUSES = ["resuelto", "cerrado", "cancelado"] as const;
 
 function incidentDateConds(range?: DateRangeParams) {
   const conds = [];
-  if (range?.dateFrom) conds.push(gte(incidents.createdAt, new Date(range.dateFrom + "T00:00:00")));
-  if (range?.dateTo) conds.push(lte(incidents.createdAt, new Date(range.dateTo + "T23:59:59")));
+  if (range?.dateFrom)
+    conds.push(gte(incidents.createdAt, new Date(range.dateFrom + "T00:00:00")));
+  if (range?.dateTo)
+    conds.push(lte(incidents.createdAt, new Date(range.dateTo + "T23:59:59")));
   return conds;
 }
 
+/** Date fragments for raw SQL inside db.execute() */
+function rawDateFragments(range?: DateRangeParams) {
+  return {
+    incFrom: range?.dateFrom
+      ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}`
+      : sql``,
+    incTo: range?.dateTo
+      ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}`
+      : sql``,
+    rmaFrom: range?.dateFrom
+      ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}`
+      : sql``,
+    rmaTo: range?.dateTo
+      ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}`
+      : sql``,
+    logFrom: range?.dateFrom
+      ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}`
+      : sql``,
+    logTo: range?.dateTo
+      ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}`
+      : sql``,
+  };
+}
 
-export async function getDashboardStats(range?: DateRangeParams): Promise<DashboardStats> {
+// ─── Queries ─────────────────────────────────────────────────────────────────
+
+export async function getDashboardStats(
+  range?: DateRangeParams,
+): Promise<DashboardStats> {
+  const defaults: DashboardStats = { openIncidents: 0, activeRmas: 0, totalProviders: 0 };
   try {
+    const { incFrom, incTo, rmaFrom, rmaTo } = rawDateFragments(range);
+
     const result = await db.execute(sql`
       SELECT
         (SELECT count(*) FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
-         ${range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``}
-         ${range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``}
+         ${incFrom} ${incTo}
         ) AS open_incidents,
         (SELECT count(*) FROM hsm.rmas
          WHERE status NOT IN ('recibido_oficina','cerrado','cancelado')
-         ${range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``}
-         ${range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``}
+         ${rmaFrom} ${rmaTo}
         ) AS active_rmas,
         (SELECT count(*) FROM hsm.providers
          WHERE deleted_at IS NULL
@@ -85,7 +126,7 @@ export async function getDashboardStats(range?: DateRangeParams): Promise<Dashbo
     `);
 
     const row = result[0] as Record<string, string> | undefined;
-    if (!row) return { openIncidents: 0, activeRmas: 0, totalProviders: 0 };
+    if (!row) return defaults;
 
     return {
       openIncidents: Number(row.open_incidents) || 0,
@@ -93,11 +134,14 @@ export async function getDashboardStats(range?: DateRangeParams): Promise<Dashbo
       totalProviders: Number(row.total_providers) || 0,
     };
   } catch {
-    return { openIncidents: 0, activeRmas: 0, totalProviders: 0 };
+    return defaults;
   }
 }
 
-export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaThresholds): Promise<SlaMetrics> {
+export async function getSlaMetrics(
+  range?: DateRangeParams,
+  preloadedSla?: SlaThresholds,
+): Promise<SlaMetrics> {
   const defaults: SlaMetrics = {
     avgResolutionHours: null,
     slaCompliancePercent: 100,
@@ -108,20 +152,19 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
   };
 
   try {
-    const sla = preloadedSla ?? await getSlaThresholds();
+    const sla = preloadedSla ?? (await getSlaThresholds());
+    const { incFrom, incTo, logFrom, logTo, rmaFrom, rmaTo } = rawDateFragments(range);
 
-    // Parameterized date fragments — no sql.raw() to prevent SQL injection
-    const incFrom = range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``;
-    const incTo = range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``;
-    const logFrom = range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``;
-    const logTo = range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``;
-    const rmaFrom = range?.dateFrom ? sql`AND created_at >= ${range.dateFrom + "T00:00:00"}` : sql``;
-    const rmaTo = range?.dateTo ? sql`AND created_at <= ${range.dateTo + "T23:59:59"}` : sql``;
+    // Shared SLA expressions from the helper — single source of truth
+    const resolvedHoursExpr = slaResolvedHoursRaw();
+    const elapsedHoursExpr = slaElapsedHoursRaw();
+    const complianceCondition = buildSlaPriorityConditionRaw(sla, resolvedHoursExpr, "within");
+    const overdueCondition = buildSlaPriorityConditionRaw(sla, elapsedHoursExpr, "exceeded");
 
-    // Single query with 7 scalar subqueries (replaces 8 sequential queries)
+    // Single query with 7 scalar subqueries
     const result = await db.execute(sql`
       SELECT
-        (SELECT avg((extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0)
+        (SELECT avg(${resolvedHoursExpr})
          FROM hsm.incidents
          WHERE status = 'resuelto' AND resolved_at IS NOT NULL
          ${incFrom} ${incTo}
@@ -137,24 +180,14 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
          ${incFrom} ${incTo}
-         AND (
-           (priority = 'critica' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.critica}) OR
-           (priority = 'alta' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.alta}) OR
-           (priority = 'media' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.media}) OR
-           (priority = 'baja' AND (extract(epoch from (resolved_at - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 <= ${sla.resolution.baja})
-         )
+         AND ${complianceCondition}
         ) AS comp_compliant,
 
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
          ${incFrom} ${incTo}
-         AND (
-           (priority = 'critica' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.critica}) OR
-           (priority = 'alta' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.alta}) OR
-           (priority = 'media' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.media}) OR
-           (priority = 'baja' AND (extract(epoch from (now() - created_at)) * 1000 - CAST(sla_paused_ms AS bigint)) / 3600000.0 > ${sla.resolution.baja})
-         )
+         AND ${overdueCondition}
         ) AS overdue_count,
 
         (SELECT count(*)
@@ -182,7 +215,9 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
     const avgHours = row.avg_hours ? parseFloat(row.avg_hours) : null;
     const compTotal = Number(row.comp_total) || 0;
     const compCompliant = Number(row.comp_compliant) || 0;
-    const compliancePercent = compTotal > 0 ? Math.round((compCompliant / compTotal) * 100) : 100;
+    const compliancePercent = compTotal > 0
+      ? Math.round((compCompliant / compTotal) * 100)
+      : 100;
     const overdueCount = Number(row.overdue_count) || 0;
     const reopenCount = Number(row.reopen_count) || 0;
     const totalResolved = Number(row.total_resolved) || 0;
@@ -199,10 +234,9 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
         count: count(),
       })
       .from(incidents)
-      .where(and(
-        not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-        ...dateConds
-      ))
+      .where(
+        and(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])), ...dateConds),
+      )
       .groupBy(incidents.priority);
 
     return {
@@ -218,31 +252,29 @@ export async function getSlaMetrics(range?: DateRangeParams, preloadedSla?: SlaT
   }
 }
 
-export async function getAgingDistribution(range?: DateRangeParams): Promise<AgingBucket[]> {
+export async function getAgingDistribution(
+  range?: DateRangeParams,
+): Promise<AgingBucket[]> {
   try {
     const dateConds = incidentDateConds(range);
 
+    const bucketExpr = sql`CASE
+      WHEN extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 1 THEN '< 1 día'
+      WHEN extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 3 THEN '1-3 días'
+      WHEN extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 7 THEN '3-7 días'
+      ELSE '7+ días'
+    END`;
+
     const result = await db
       .select({
-        bucket: sql<string>`case
-          when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 1 then '< 1 día'
-          when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 3 then '1-3 días'
-          when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 7 then '3-7 días'
-          else '7+ días'
-        end`,
+        bucket: sql<string>`${bucketExpr}`,
         count: count(),
       })
       .from(incidents)
-      .where(and(
-        not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-        ...dateConds
-      ))
-      .groupBy(sql`case
-        when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 1 then '< 1 día'
-        when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 3 then '1-3 días'
-        when extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 7 then '3-7 días'
-        else '7+ días'
-      end`);
+      .where(
+        and(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])), ...dateConds),
+      )
+      .groupBy(bucketExpr);
 
     const order = ["< 1 día", "1-3 días", "3-7 días", "7+ días"];
     return order.map((b) => ({
@@ -254,24 +286,31 @@ export async function getAgingDistribution(range?: DateRangeParams): Promise<Agi
   }
 }
 
-export async function getTechnicianPerformance(range?: DateRangeParams): Promise<TechnicianPerformance[]> {
+export async function getTechnicianPerformance(
+  range?: DateRangeParams,
+): Promise<TechnicianPerformance[]> {
   try {
     const dateConds = incidentDateConds(range);
+    const resolvedHours = slaResolvedHours(
+      incidents.createdAt,
+      incidents.resolvedAt,
+      incidents.slaPausedMs,
+    );
 
     const result = await db
       .select({
         name: users.name,
         resolved: count(),
-        avgHours: sql<number>`avg((extract(epoch from (${incidents.resolvedAt} - ${incidents.createdAt})) * 1000 - CAST(${incidents.slaPausedMs} AS bigint)) / 3600000.0)`,
+        avgHours: sql<number>`avg(${resolvedHours})`,
       })
       .from(incidents)
       .innerJoin(users, eq(incidents.assignedUserId, users.id))
       .where(
         and(
           inArray(incidents.status, ["resuelto", "cerrado"]),
-          sql`${incidents.resolvedAt} is not null`,
-          ...dateConds
-        )
+          sql`${incidents.resolvedAt} IS NOT NULL`,
+          ...dateConds,
+        ),
       )
       .groupBy(users.name)
       .orderBy(desc(count()))
@@ -287,12 +326,21 @@ export async function getTechnicianPerformance(range?: DateRangeParams): Promise
   }
 }
 
-export async function getRecentActivity(limit: number = 10, range?: DateRangeParams): Promise<RecentActivity[]> {
+export async function getRecentActivity(
+  limit: number = 10,
+  range?: DateRangeParams,
+): Promise<RecentActivity[]> {
   try {
-    const dateConds = range ? [
-      ...(range.dateFrom ? [gte(eventLogs.createdAt, new Date(range.dateFrom + "T00:00:00"))] : []),
-      ...(range.dateTo ? [lte(eventLogs.createdAt, new Date(range.dateTo + "T23:59:59"))] : []),
-    ] : [];
+    const dateConds = range
+      ? [
+          ...(range.dateFrom
+            ? [gte(eventLogs.createdAt, new Date(range.dateFrom + "T00:00:00"))]
+            : []),
+          ...(range.dateTo
+            ? [lte(eventLogs.createdAt, new Date(range.dateTo + "T23:59:59"))]
+            : []),
+        ]
+      : [];
 
     const whereCondition = dateConds.length > 0 ? and(...dateConds) : undefined;
 
@@ -317,7 +365,9 @@ export async function getRecentActivity(limit: number = 10, range?: DateRangePar
   }
 }
 
-export async function getIncidentStatusDistribution(range?: DateRangeParams): Promise<StatusDistribution[]> {
+export async function getIncidentStatusDistribution(
+  range?: DateRangeParams,
+): Promise<StatusDistribution[]> {
   try {
     const dateConds = incidentDateConds(range);
 
@@ -327,10 +377,9 @@ export async function getIncidentStatusDistribution(range?: DateRangeParams): Pr
         count: count(),
       })
       .from(incidents)
-      .where(and(
-        not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-        ...dateConds
-      ))
+      .where(
+        and(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])), ...dateConds),
+      )
       .groupBy(incidents.status);
 
     return results;
@@ -339,14 +388,20 @@ export async function getIncidentStatusDistribution(range?: DateRangeParams): Pr
   }
 }
 
-export async function getIncidentTrend(range?: DateRangeParams): Promise<TrendPoint[]> {
+export async function getIncidentTrend(
+  range?: DateRangeParams,
+): Promise<TrendPoint[]> {
   try {
     const days = 30;
     const defaultFrom = new Date();
     defaultFrom.setDate(defaultFrom.getDate() - days);
 
-    const fromDate = range?.dateFrom ? new Date(range.dateFrom + "T00:00:00") : defaultFrom;
-    const toDate = range?.dateTo ? new Date(range.dateTo + "T23:59:59") : undefined;
+    const fromDate = range?.dateFrom
+      ? new Date(range.dateFrom + "T00:00:00")
+      : defaultFrom;
+    const toDate = range?.dateTo
+      ? new Date(range.dateTo + "T23:59:59")
+      : undefined;
 
     const conditions = [gte(incidents.createdAt, fromDate)];
     if (toDate) conditions.push(lte(incidents.createdAt, toDate));

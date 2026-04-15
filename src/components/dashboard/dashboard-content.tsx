@@ -142,9 +142,9 @@ export function DashboardContent({
   });
 
   const { data: alerts } = useQuery({
-    queryKey: ["dashboard-alerts"],
-    queryFn: () => fetchAlertItems(),
-    initialData: initialAlerts,
+    queryKey: ["dashboard-alerts", dateRange],
+    queryFn: () => fetchAlertItems(dateRange),
+    initialData: hasCustomRange ? undefined : initialAlerts,
     initialDataUpdatedAt: ssrTimestamp,
   });
 

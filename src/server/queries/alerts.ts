@@ -1,10 +1,18 @@
 import { db } from "@/lib/db";
 import { incidents, rmas, providers, clients } from "@/lib/db/schema";
-import { sql, not, inArray, and, eq } from "drizzle-orm";
-import { getAlertThresholds } from "./settings";
-import { getSlaThresholds } from "./settings";
+import { sql, not, inArray, and, eq, gte, lte } from "drizzle-orm";
+import { getAlertThresholds, getSlaThresholds } from "./settings";
 import type { AlertThresholds } from "@/lib/constants/alerts";
 import type { SlaThresholds } from "@/lib/constants/sla";
+import {
+  slaElapsedHours,
+  slaElapsedHoursRaw,
+  buildSlaPriorityCondition,
+  buildSlaPriorityConditionRaw,
+} from "@/lib/utils/sla-sql";
+import type { DateRangeParams } from "@/hooks/use-dashboard-params";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AlertItem {
   id: string;
@@ -36,18 +44,60 @@ export interface AlertBadgeCounts {
   total: number;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 const CLOSED_INCIDENT_STATUSES = ["cerrado", "cancelado", "resuelto"] as const;
 const WAREHOUSE_STATUSES = ["borrador", "aprobado", "recibido_oficina"] as const;
+
+function incidentDateConds(range?: DateRangeParams) {
+  const conds = [];
+  if (range?.dateFrom)
+    conds.push(gte(incidents.createdAt, new Date(range.dateFrom + "T00:00:00")));
+  if (range?.dateTo)
+    conds.push(lte(incidents.createdAt, new Date(range.dateTo + "T23:59:59")));
+  return conds;
+}
+
+function rmaDateConds(range?: DateRangeParams) {
+  const conds = [];
+  if (range?.dateFrom)
+    conds.push(gte(rmas.createdAt, new Date(range.dateFrom + "T00:00:00")));
+  if (range?.dateTo)
+    conds.push(lte(rmas.createdAt, new Date(range.dateTo + "T23:59:59")));
+  return conds;
+}
+
+// ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function getAlertItems(
   preloadedThresholds?: AlertThresholds,
   preloadedSla?: SlaThresholds,
+  range?: DateRangeParams,
 ): Promise<AlertSummary> {
+  const emptyResult: AlertSummary = {
+    totalCount: 0,
+    items: [],
+    counts: { staleIncidents: 0, stuckRmas: 0, warehouseRmas: 0, slaWarnings: 0 },
+  };
+
   try {
     const [thresholds, sla] = await Promise.all([
       preloadedThresholds ?? getAlertThresholds(),
       preloadedSla ?? getSlaThresholds(),
     ]);
+
+    const incDateConds = incidentDateConds(range);
+    const rmaDateCondsArr = rmaDateConds(range);
+
+    // SLA expression using the shared helper — accounts for sla_paused_ms
+    const elapsedHours = slaElapsedHours(incidents.createdAt, incidents.slaPausedMs);
+    const slaWarningCondition = buildSlaPriorityCondition(
+      incidents.priority,
+      elapsedHours,
+      sla,
+      "warning",
+      thresholds.slaWarningPercent,
+    );
 
     const [staleIncidents, stuckRmas, warehouseRmas, slaWarnings] =
       await Promise.all([
@@ -65,8 +115,9 @@ export async function getAlertItems(
           .where(
             and(
               not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-              sql`extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 > ${thresholds.incidentStaleDays}`
-            )
+              sql`extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 > ${thresholds.incidentStaleDays}`,
+              ...incDateConds,
+            ),
           )
           .orderBy(incidents.stateChangedAt),
 
@@ -86,8 +137,9 @@ export async function getAlertItems(
           .where(
             and(
               eq(rmas.status, "en_proveedor"),
-              sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaStuckProviderDays}`
-            )
+              sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaStuckProviderDays}`,
+              ...rmaDateCondsArr,
+            ),
           )
           .orderBy(rmas.stateChangedAt),
 
@@ -107,12 +159,13 @@ export async function getAlertItems(
           .where(
             and(
               inArray(rmas.status, [...WAREHOUSE_STATUSES]),
-              sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaWarehouseDays}`
-            )
+              sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaWarehouseDays}`,
+              ...rmaDateCondsArr,
+            ),
           )
           .orderBy(rmas.stateChangedAt),
 
-        // 4. SLA warning: approaching deadline (> warningPct% but not yet exceeded)
+        // 4. SLA warning: approaching deadline — NOW uses sla_paused_ms via shared helper
         db
           .select({
             id: incidents.id,
@@ -126,13 +179,9 @@ export async function getAlertItems(
           .where(
             and(
               not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-              sql`(
-                (${incidents.priority} = 'critica' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.critica * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.critica}) or
-                (${incidents.priority} = 'alta' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.alta * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.alta}) or
-                (${incidents.priority} = 'media' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.media * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.media}) or
-                (${incidents.priority} = 'baja' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.baja * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.baja})
-              )`
-            )
+              slaWarningCondition,
+              ...incDateConds,
+            ),
           )
           .orderBy(incidents.createdAt),
       ]);
@@ -146,7 +195,7 @@ export async function getAlertItems(
         status: i.status,
         priority: i.priority,
         daysSinceChange: Math.floor(
-          (Date.now() - new Date(i.stateChangedAt).getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - new Date(i.stateChangedAt).getTime()) / (1000 * 60 * 60 * 24),
         ),
         entityUrl: `/incidents/${i.id}`,
       })),
@@ -154,10 +203,11 @@ export async function getAlertItems(
         id: r.id,
         type: "rma_stuck_provider" as const,
         number: r.number,
-        title: [r.deviceBrand, r.deviceModel].filter(Boolean).join(" ") || r.providerName,
+        title:
+          [r.deviceBrand, r.deviceModel].filter(Boolean).join(" ") || r.providerName,
         status: r.status,
         daysSinceChange: Math.floor(
-          (Date.now() - new Date(r.stateChangedAt).getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - new Date(r.stateChangedAt).getTime()) / (1000 * 60 * 60 * 24),
         ),
         entityUrl: `/rmas/${r.id}`,
       })),
@@ -165,10 +215,11 @@ export async function getAlertItems(
         id: r.id,
         type: "rma_warehouse" as const,
         number: r.number,
-        title: [r.deviceBrand, r.deviceModel].filter(Boolean).join(" ") || r.clientName,
+        title:
+          [r.deviceBrand, r.deviceModel].filter(Boolean).join(" ") || r.clientName,
         status: r.status,
         daysSinceChange: Math.floor(
-          (Date.now() - new Date(r.stateChangedAt).getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - new Date(r.stateChangedAt).getTime()) / (1000 * 60 * 60 * 24),
         ),
         entityUrl: `/rmas/${r.id}`,
       })),
@@ -180,7 +231,7 @@ export async function getAlertItems(
         status: i.status,
         priority: i.priority,
         daysSinceChange: Math.floor(
-          (Date.now() - new Date(i.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - new Date(i.createdAt).getTime()) / (1000 * 60 * 60 * 24),
         ),
         entityUrl: `/incidents/${i.id}`,
       })),
@@ -197,20 +248,33 @@ export async function getAlertItems(
       },
     };
   } catch {
-    return {
-      totalCount: 0,
-      items: [],
-      counts: { staleIncidents: 0, stuckRmas: 0, warehouseRmas: 0, slaWarnings: 0 },
-    };
+    return emptyResult;
   }
 }
 
 export async function getAlertCounts(): Promise<AlertBadgeCounts> {
+  const defaults: AlertBadgeCounts = {
+    incidents: 0,
+    rmas: 0,
+    warehouse: 0,
+    intercom: 0,
+    total: 0,
+  };
+
   try {
     const [thresholds, sla] = await Promise.all([
       getAlertThresholds(),
       getSlaThresholds(),
     ]);
+
+    // SLA warning condition using shared helper — accounts for sla_paused_ms
+    const elapsedHoursExpr = slaElapsedHoursRaw();
+    const slaWarningCond = buildSlaPriorityConditionRaw(
+      sla,
+      elapsedHoursExpr,
+      "warning",
+      thresholds.slaWarningPercent,
+    );
 
     const result = await db.execute(sql`
       SELECT
@@ -228,12 +292,7 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
         ) AS warehouse_count,
         (SELECT count(*) FROM hsm.incidents
          WHERE status NOT IN ('cerrado', 'cancelado', 'resuelto')
-           AND (
-             (priority = 'critica' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.critica * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.critica}) OR
-             (priority = 'alta' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.alta * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.alta}) OR
-             (priority = 'media' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.media * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.media}) OR
-             (priority = 'baja' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.baja * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.baja})
-           )
+           AND ${slaWarningCond}
         ) AS sla_count,
         (SELECT count(*) FROM hsm.intercom_inbox
          WHERE status = 'pendiente'
@@ -241,12 +300,13 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
     `);
 
     const row = result[0] as Record<string, string> | undefined;
-    if (!row) return { incidents: 0, rmas: 0, warehouse: 0, intercom: 0, total: 0 };
-    const staleCount = Number(row.stale_count);
-    const slaCount = Number(row.sla_count);
-    const stuckCount = Number(row.stuck_count);
-    const warehouseCount = Number(row.warehouse_count);
-    const intercomCount = Number(row.intercom_count);
+    if (!row) return defaults;
+
+    const staleCount = Number(row.stale_count) || 0;
+    const slaCount = Number(row.sla_count) || 0;
+    const stuckCount = Number(row.stuck_count) || 0;
+    const warehouseCount = Number(row.warehouse_count) || 0;
+    const intercomCount = Number(row.intercom_count) || 0;
     const incidentCount = staleCount + slaCount;
 
     return {
@@ -257,6 +317,6 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
       total: incidentCount + stuckCount + warehouseCount + intercomCount,
     };
   } catch {
-    return { incidents: 0, rmas: 0, warehouse: 0, intercom: 0, total: 0 };
+    return defaults;
   }
 }

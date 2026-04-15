@@ -220,12 +220,14 @@ export async function transitionIncident(
       stateChangedAt: new Date(),
     };
 
-    // SLA pause accumulation: when leaving a paused state, add the time spent paused
+    // SLA pause accumulation: when leaving a paused state, add the time spent paused.
+    // Validate numeric value to prevent CAST(sla_paused_ms AS bigint) failures in queries.
     if (PAUSED_STATES.includes(fromStatus)) {
       const pausedSince = new Date(current.stateChangedAt).getTime();
-      const pausedDuration = Date.now() - pausedSince;
-      const existingPaused = parseInt(current.slaPausedMs || "0", 10);
-      updateValues.slaPausedMs = String(existingPaused + pausedDuration);
+      const pausedDuration = Math.max(0, Date.now() - pausedSince);
+      const existingPaused = Number(current.slaPausedMs) || 0;
+      const newTotal = Math.floor(existingPaused + pausedDuration);
+      updateValues.slaPausedMs = String(newTotal);
     }
 
     if (toStatus === "resuelto") {

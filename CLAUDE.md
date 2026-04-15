@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -57,13 +57,15 @@ src/
       providers/                # Provider management
       users/                    # User management (admin)
       settings/                 # App settings
-    api/                        # API routes (only /api/upload for file uploads)
+      intercom/                   # Intercom inbox (Bandeja Intercom)
+    api/                        # API routes (/api/upload, /api/webhooks/intercom)
     layout.tsx                  # Root layout
   components/
     ui/                         # shadcn/ui base components
     layout/                     # App shell: sidebar, header, breadcrumbs
     incidents/                  # Incident-specific components (forms, tables, detail views)
     rmas/                       # RMA-specific components
+    intercom/                   # Intercom inbox components (conversation list, detail, thread)
     dashboard/                  # Dashboard widgets and charts
     shared/                     # Reusable components (data-table, file-uploader, state-badge, etc.)
   lib/
@@ -76,7 +78,8 @@ src/
     validators/                 # Zod schemas (shared between client and server)
     state-machines/             # Incident and RMA state machine definitions
     utils/                      # Helper functions (formatting, dates, ID generation)
-    constants/                  # App-wide constants (states, roles, categories)
+    constants/                  # App-wide constants (states, roles, categories, incident templates)
+    intercom/                   # Intercom API client, types, sync, device detection
   server/
     actions/                    # Server Actions (mutations)
     queries/                    # Server-side data fetching functions
@@ -111,7 +114,7 @@ docs/                           # Project documentation
 
 ### API Pattern: Server Actions
 
-All data mutations use **Server Actions** (no REST API endpoints). The only exception is `/api/upload` for file uploads (multipart form data).
+All data mutations use **Server Actions** (no REST API endpoints). The only exceptions are `/api/upload` for file uploads (multipart form data) and `/api/webhooks/intercom` for incoming Intercom webhooks.
 
 ```typescript
 // src/server/actions/incidents.ts
@@ -179,7 +182,10 @@ Return Merchandise Authorizations for sending defective hardware to providers.
 - **Flow**: Intercom escalation → webhook → `intercom_inbox` table → team reviews → "Crear Incidencia" inline
 - **Filters**: Only Hardware/RMA escalations are captured (keyword filtering in webhook)
 - **Dedup**: Unique constraint on `intercom_conversation_id` + check `incidents.intercomEscalationId` before creating
-- **API Client**: `src/lib/intercom/client.ts` — REST API v2.11 (getConversation, searchContacts, addNote)
+- **API Client**: `src/lib/intercom/client.ts` — REST API v2.11 (getConversation, searchContacts, addNote, closeTicket)
+- **Bidirectional sync** (`src/lib/intercom/sync.ts`): On incident state transitions, if linked to Intercom, an internal note is posted back. On resolution/closure, the Intercom ticket is auto-closed.
+- **Device detection** (`src/lib/intercom/device-detector.ts`): Regex-based extraction of device type, model, and serial number from Intercom conversation text for auto-fill.
+- **Conversation thread**: `ConversationThread` component renders full Intercom message timeline (client/admin/internal notes) in both Bandeja and incident detail.
 
 ### ID Format
 
@@ -403,6 +409,7 @@ NEXTAUTH_URL=              # App URL (http://localhost:3000 in dev)
 BLOB_READ_WRITE_TOKEN=     # Vercel Blob token
 INTERCOM_ACCESS_TOKEN=     # Intercom API key (for API calls)
 INTERCOM_WEBHOOK_SECRET=   # Secret for webhook HMAC verification
+INTERCOM_ADMIN_ID=         # Intercom admin ID for sync notes (e.g., 8601230)
 ```
 
 ### Auth Security
@@ -443,3 +450,12 @@ INTERCOM_WEBHOOK_SECRET=   # Secret for webhook HMAC verification
 **TanStack Query cache stale after mutation**
 - Invalidate relevant query keys after successful server action mutations.
 - Use `queryClient.invalidateQueries({ queryKey: [...] })` in `onSuccess`.
+
+**Search/filter with `unaccent()` fails on Supabase pooler**
+- Supabase pooler does not support `unaccent()` (even as `extensions.unaccent()`).
+- Use plain `ILIKE` for text search instead.
+
+**DDL migrations fail with `hsm_app` role**
+- The `hsm_app` role only has SELECT/INSERT/UPDATE/DELETE privileges.
+- Run DDL migrations (CREATE TABLE, ALTER TYPE, DROP COLUMN) as `postgres` in Supabase SQL Editor.
+- Split `ALTER TYPE` and `UPDATE` into separate statements (Supabase doesn't support `BEGIN`/`COMMIT`).
