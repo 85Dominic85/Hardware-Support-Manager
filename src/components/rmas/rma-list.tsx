@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { DataTable } from "@/components/shared/data-table";
 import { rmaColumns, RMA_MOBILE_HIDDEN_COLUMNS } from "./rma-columns";
@@ -54,6 +54,7 @@ export function RmaList({
         sortOrder: sortOrder as SortOrder,
         filters: filterValues,
       }),
+    placeholderData: keepPreviousData,
   });
 
   const data = queryData ?? initialData;

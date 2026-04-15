@@ -9,6 +9,7 @@ import { TransitionDialog } from "@/components/shared/transition-dialog";
 import { ForceTransitionButton } from "@/components/shared/force-transition-button";
 import { transitionRma, forceTransitionRma } from "@/server/actions/rmas";
 import { getRmaAvailableTransitions } from "@/lib/state-machines/rma";
+import { invalidateRmaQueries } from "@/lib/query-keys";
 import { RMA_STATUS_LABELS, type RmaStatus } from "@/lib/constants/rmas";
 import type { UserRole } from "@/lib/constants/roles";
 import type { RmaStateTransition } from "@/lib/state-machines/rma";
@@ -45,7 +46,7 @@ export function RmaTransitionButtons({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", "rma", rmaId],
         });
-        queryClient.invalidateQueries({ queryKey: ["alert-badges"] });
+        invalidateRmaQueries(queryClient);
         onTransitionComplete();
       } else {
         toast.error(result.error);

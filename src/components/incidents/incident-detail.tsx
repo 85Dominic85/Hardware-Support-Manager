@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import {
   fetchLinkedRmas,
 } from "@/server/actions/incidents";
 import { formatDateTime } from "@/lib/utils/date-format";
+import { invalidateIncidentQueries } from "@/lib/query-keys";
 import { Badge } from "@/components/ui/badge";
 import {
   INCIDENT_PRIORITY_LABELS,
@@ -52,6 +53,7 @@ interface IncidentDetailProps {
 
 export function IncidentDetail({ incident }: IncidentDetailProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [rmaSheetOpen, setRmaSheetOpen] = useState(false);
 
@@ -72,6 +74,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
       if (result.success) {
         toast.success("Incidencia actualizada correctamente");
         setIsEditing(false);
+        invalidateIncidentQueries(queryClient);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -83,6 +86,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
   });
 
   const handleTransitionComplete = () => {
+    invalidateIncidentQueries(queryClient);
     router.refresh();
   };
 

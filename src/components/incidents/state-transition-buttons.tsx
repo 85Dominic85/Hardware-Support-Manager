@@ -11,6 +11,7 @@ import { TransitionDialog } from "@/components/shared/transition-dialog";
 import { ForceTransitionButton } from "@/components/shared/force-transition-button";
 import { transitionIncident, forceTransitionIncident, quickTransitionToGestion } from "@/server/actions/incidents";
 import { getAvailableTransitions } from "@/lib/state-machines/incident";
+import { invalidateIncidentQueries } from "@/lib/query-keys";
 import { INCIDENT_STATUS_LABELS, type IncidentStatus } from "@/lib/constants/incidents";
 import type { UserRole } from "@/lib/constants/roles";
 import type { StateTransition } from "@/lib/state-machines/incident";
@@ -55,7 +56,7 @@ export function StateTransitionButtons({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", "incident", incidentId],
         });
-        queryClient.invalidateQueries({ queryKey: ["alert-badges"] });
+        invalidateIncidentQueries(queryClient);
         onTransitionComplete();
 
         if (selectedTransition?.resolutionType === "derivado_rma") {
@@ -87,7 +88,7 @@ export function StateTransitionButtons({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", "incident", incidentId],
         });
-        queryClient.invalidateQueries({ queryKey: ["alert-badges"] });
+        invalidateIncidentQueries(queryClient);
         onTransitionComplete();
       } else {
         toast.error(result.error);

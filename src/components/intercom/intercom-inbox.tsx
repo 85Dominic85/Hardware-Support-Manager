@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 import { Inbox, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,6 +40,7 @@ export function IntercomInbox({ initialData }: IntercomInboxProps) {
         search: search || undefined,
         status: params.status as IntercomInboxStatus,
       }),
+    placeholderData: keepPreviousData,
   });
 
   const data = queryData ?? initialData;

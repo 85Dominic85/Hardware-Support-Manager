@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { fetchIncidentsForSelect } from "@/server/actions/incidents";
 import { formatDateTime } from "@/lib/utils/date-format";
 import { DEVICE_TYPE_LABELS, type DeviceType } from "@/lib/constants/device-types";
 import type { RmaStatus } from "@/lib/constants/rmas";
+import { invalidateRmaQueries } from "@/lib/query-keys";
 import type { RmaRow } from "@/server/queries/rmas";
 import type { RmaFormInput } from "@/lib/validators/rma";
 import { TemplatePicker } from "@/components/message-templates/template-picker";
@@ -29,6 +30,7 @@ interface RmaDetailProps {
 
 export function RmaDetail({ rma }: RmaDetailProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
 
   const { data: providers = [], isLoading: isLoadingProviders } = useQuery({
@@ -49,6 +51,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
       if (result.success) {
         toast.success("RMA actualizado correctamente");
         setIsEditing(false);
+        invalidateRmaQueries(queryClient);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -60,6 +63,7 @@ export function RmaDetail({ rma }: RmaDetailProps) {
   });
 
   const handleTransitionComplete = () => {
+    invalidateRmaQueries(queryClient);
     router.refresh();
   };
 

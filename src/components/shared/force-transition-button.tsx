@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { invalidateIncidentQueries, invalidateRmaQueries } from "@/lib/query-keys";
 
 interface StatusOption {
   value: string;
@@ -57,6 +58,8 @@ export function ForceTransitionButton({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", entityType, entityId],
         });
+        if (entityType === "incident") invalidateIncidentQueries(queryClient);
+        else invalidateRmaQueries(queryClient);
         setOpen(false);
         setSelectedStatus(null);
         setComment("");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { invalidateIncidentQueries } from "@/lib/query-keys";
 import {
   DndContext,
   DragOverlay,
@@ -93,7 +94,7 @@ export function IncidentKanban({ data }: IncidentKanbanProps) {
         delete next[vars.incidentId];
         return next;
       });
-      queryClient.invalidateQueries({ queryKey: ["incidents-canvas"] });
+      invalidateIncidentQueries(queryClient);
     },
     onError: (_error, vars) => {
       // Revert optimistic move

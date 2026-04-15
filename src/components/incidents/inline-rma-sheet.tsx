@@ -17,6 +17,7 @@ import { fetchIncidentsForSelect } from "@/server/actions/incidents";
 import { createRma } from "@/server/actions/rmas";
 import type { RmaFormInput } from "@/lib/validators/rma";
 import type { IncidentRow } from "@/server/queries/incidents";
+import { invalidateRmaQueries } from "@/lib/query-keys";
 
 interface InlineRmaSheetProps {
   open: boolean;
@@ -45,7 +46,8 @@ export function InlineRmaSheet({ open, onOpenChange, incident }: InlineRmaSheetP
     onSuccess: (result) => {
       if (result.success) {
         toast.success("RMA creado correctamente");
-        queryClient.invalidateQueries({ queryKey: ["linked-rmas"] });
+        queryClient.invalidateQueries({ queryKey: ["linked-rmas", incident.id] });
+        invalidateRmaQueries(queryClient);
         onOpenChange(false);
         router.push(`/rmas/${result.data.id}`);
       } else {

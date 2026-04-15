@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { invalidateRmaQueries } from "@/lib/query-keys";
 import {
   DndContext,
   DragOverlay,
@@ -79,7 +80,7 @@ export function RmaKanban({ data }: RmaKanbanProps) {
         delete next[vars.rmaId];
         return next;
       });
-      queryClient.invalidateQueries({ queryKey: ["rmas-kanban"] });
+      invalidateRmaQueries(queryClient);
     },
     onError: (_error, vars) => {
       // Revert optimistic move

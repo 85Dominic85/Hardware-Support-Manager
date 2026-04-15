@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchClients, deleteClient } from "@/server/actions/clients";
 import { getClientColumns } from "@/components/clients/client-columns";
@@ -44,6 +44,7 @@ export function ClientList({ initialData, defaultPageSize }: ClientListProps) {
         sortOrder: sortOrder as SortOrder,
         filters: filterValues,
       }),
+    placeholderData: keepPreviousData,
   });
 
   const data = queryData ?? initialData;
