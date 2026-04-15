@@ -85,7 +85,7 @@ export function ClientList({ initialData, defaultPageSize }: ClientListProps) {
         page={data.page}
         pageSize={data.pageSize}
         totalPages={data.totalPages}
-        isLoading={isLoading}
+        isLoading={isLoading && !queryData}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
         searchBar={

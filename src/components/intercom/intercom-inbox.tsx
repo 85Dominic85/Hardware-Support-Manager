@@ -81,7 +81,7 @@ export function IntercomInbox({ initialData }: IntercomInboxProps) {
         {/* Left: Conversation list */}
         <div className="rounded-lg border bg-card overflow-hidden">
           <ScrollArea className="h-[calc(100vh-280px)]">
-            {isLoading ? (
+            {isLoading && !queryData ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>

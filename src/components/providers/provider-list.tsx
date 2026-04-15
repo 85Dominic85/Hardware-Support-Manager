@@ -71,7 +71,7 @@ export function ProviderList({ initialData, defaultPageSize }: ProviderListProps
         page={data.page}
         pageSize={data.pageSize}
         totalPages={data.totalPages}
-        isLoading={isLoading}
+        isLoading={isLoading && !queryData}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
         searchBar={

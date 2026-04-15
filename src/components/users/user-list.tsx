@@ -88,7 +88,7 @@ export function UserList({ initialData, defaultPageSize }: UserListProps) {
         page={data.page}
         pageSize={data.pageSize}
         totalPages={data.totalPages}
-        isLoading={isLoading}
+        isLoading={isLoading && !queryData}
         onPageChange={setPage}
         searchBar={
           <SearchBar

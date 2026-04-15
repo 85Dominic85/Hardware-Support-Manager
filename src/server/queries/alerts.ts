@@ -235,7 +235,8 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
         ) AS intercom_count
     `);
 
-    const row = result[0] as Record<string, string>;
+    const row = result[0] as Record<string, string> | undefined;
+    if (!row) return { incidents: 0, rmas: 0, warehouse: 0, intercom: 0, total: 0 };
     const staleCount = Number(row.stale_count);
     const slaCount = Number(row.sla_count);
     const stuckCount = Number(row.stuck_count);
