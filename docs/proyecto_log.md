@@ -958,6 +958,138 @@ src/server/queries/rmas.ts                          # Quitar clientLocal de sele
 
 ---
 
+---
+
+### Sesión 2026-04-15 — Performance, fix loop de carga, sincronización de cache
+
+**3 commits** (`e81f9f0`, `648afd0`, `e5f03e3`) | **~35 archivos modificados/creados** | +600/-200 líneas
+
+---
+
+#### Entregable 1: Optimización de navegación y rendimiento (`e81f9f0`)
+
+**Problema:** Navegación lenta (~350ms de delay visible), polling agresivo causando peticiones constantes en background, charts cargando de forma síncrona, kanban re-renderizando 200 tarjetas en cada drag.
+
+**Fixes aplicados:**
+
+| Problema | Causa raíz | Fix |
+|----------|-----------|-----|
+| 350ms delay por navegación | `PageTransition` con `setTimeout(50ms)` + animación 300ms | Eliminado el componente `PageTransition` del layout |
+| Polling agresivo en 7 listas | `staleTime: 0` + `refetchInterval: 30s` en cada useQuery | Eliminado polling; `staleTime` 5min, `refetchOnWindowFocus: true` |
+| 5 queries para sidebar badges | 5 round-trips separados a DB | 1 SQL con subqueries en `getAlertCounts()` |
+| Charts (recharts ~120KB) en el bundle inicial | Importados estáticamente | `next/dynamic({ ssr: false })` para 4 charts de dashboard y 5 de analytics |
+| 8 queries SSR en dashboard/page.tsx | Incluyendo charts con timeout 10s | Reducido a 3 queries SSR críticas; charts cargan client-side via TanStack Query |
+| Kanban re-renderizando todas las tarjetas | `toCardData()` creaba objeto nuevo cada render → React.memo no efectivo | `useMemo` para `cardDataMap` (Map por ID); eliminado `statusBadge` JSX de props |
+
+**Archivos modificados:**
+```
+src/app/(dashboard)/layout.tsx              # Eliminado PageTransition
+src/components/shared/query-provider.tsx    # staleTime 5min, gcTime 10min, refetchOnWindowFocus
+src/components/layout/sidebar-badges.tsx    # refetchInterval 120s→300s
+src/server/queries/alerts.ts               # 1 SQL con subqueries (elimina 5 round-trips)
+src/components/dashboard/dashboard-content.tsx # Dynamic imports charts + initialData opcional
+src/components/analytics/analytics-content.tsx # Dynamic imports 5 charts
+src/app/(dashboard)/dashboard/page.tsx     # 8 SSR queries → 3
+src/components/incidents/incident-kanban.tsx   # useMemo cardDataMap
+src/components/rmas/rma-kanban.tsx            # useMemo cardDataMap
+```
+
+---
+
+#### Entregable 2: Fix páginas atascadas en skeleton de carga (`648afd0`)
+
+**Problema:** Tras quitar el polling y ajustar staleTime, las páginas de lista se quedaban mostrando el skeleton aunque `initialData` SSR estaba disponible. El patrón `isLoading && !queryData` no estaba aplicado en todas las listas.
+
+**Causa raíz:** `isLoading` de TanStack Query es `true` durante la primera fetch del cliente aunque haya `initialData` disponible como fallback. Cuando `queryData` es undefined (primera render antes de query result) pero el fallback es `initialData`, el skeleton se mostraba sin necesidad.
+
+**Fix:** Patrón `isLoading={isLoading && !queryData}` + `placeholderData: keepPreviousData` en las 6 listas:
+- `incident-list.tsx` — `keepPreviousData` añadido
+- `rma-list.tsx` — `keepPreviousData` añadido
+- `client-list.tsx` — `keepPreviousData` añadido
+- `provider-list.tsx` — `keepPreviousData` añadido
+- `user-list.tsx` — `keepPreviousData` añadido
+- `intercom-inbox.tsx` — `keepPreviousData` añadido (ya tenía el patrón `isLoading && !queryData`)
+
+`keepPreviousData` mantiene los datos anteriores visibles al cambiar filtros/página en vez de mostrar skeleton.
+
+---
+
+#### Entregable 3: Auditoría completa — Fix cache invalidation (`e5f03e3`)
+
+**Problema raíz identificado:** Las mutaciones de estado (transiciones, ediciones, creación de RMAs inline) NO invalidaban las queries de lista/kanban. El usuario transicionaba un estado y al volver a la lista veía datos obsoletos.
+
+**Nuevo archivo centralizado:** `src/lib/query-keys.ts`
+```ts
+export const queryKeys = {
+  incidents: { all: ["incidents"], canvas: () => ["incidents-canvas"] },
+  rmas:      { all: ["rmas"],      canvas: () => ["rmas-canvas"] },
+  alerts: ["alert-badges"],
+  linkedRmas: (incidentId: string) => ["linked-rmas", incidentId],
+};
+export function invalidateIncidentQueries(qc: QueryClient) { /* 3 keys */ }
+export function invalidateRmaQueries(qc: QueryClient) { /* 3 keys */ }
+```
+
+**Fixes de cache invalidation en 9 componentes:**
+
+| Componente | Bug | Fix |
+|------------|-----|-----|
+| `incidents/state-transition-buttons.tsx` | Solo invalidaba event-log + badges | `invalidateIncidentQueries` en mutation + quickMutation |
+| `rmas/state-transition-buttons.tsx` | Solo invalidaba event-log + badges | `invalidateRmaQueries` en mutation |
+| `incidents/incident-kanban.tsx` | Solo invalidaba canvas, no tabla | `invalidateIncidentQueries` en onSuccess |
+| `rmas/rma-kanban.tsx` | Invalidaba key `"rmas-kanban"` (incorrecto) | `invalidateRmaQueries` en onSuccess |
+| `shared/force-transition-button.tsx` | No invalidaba listas | `invalidateIncidentQueries` o `invalidateRmaQueries` según entityType |
+| `incidents/inline-rma-sheet.tsx` | Invalidaba `["linked-rmas"]` genérico | `["linked-rmas", incident.id]` + `invalidateRmaQueries` |
+| `incidents/incident-detail.tsx` | Solo `router.refresh()` | + `invalidateIncidentQueries(queryClient)` antes del refresh |
+| `rmas/rma-detail.tsx` | Solo `router.refresh()` | + `invalidateRmaQueries(queryClient)` antes del refresh |
+
+**Otros fixes en esta sesión:**
+- `fetchIncidentsForSelect` (`incidents.ts` línea ~397): añadido `"resuelto"` al `notInArray` (antes devolvía incidencias ya resueltas)
+- `getRequiredSession` (`auth/get-session.ts`): mensajes de error en español ("Sesión expirada. Recarga la página e inicia sesión de nuevo." / "No tienes permisos para esta acción.")
+
+---
+
+#### Archivos principales de esta sesión
+
+```
+# NUEVO
+src/lib/query-keys.ts                              # Keys centralizados + helpers invalidación
+
+# Fix cache invalidation
+src/components/incidents/state-transition-buttons.tsx
+src/components/rmas/state-transition-buttons.tsx
+src/components/incidents/incident-kanban.tsx
+src/components/rmas/rma-kanban.tsx
+src/components/shared/force-transition-button.tsx
+src/components/incidents/inline-rma-sheet.tsx
+src/components/incidents/incident-detail.tsx
+src/components/rmas/rma-detail.tsx
+
+# Fix skeleton loop (keepPreviousData)
+src/components/incidents/incident-list.tsx
+src/components/rmas/rma-list.tsx
+src/components/clients/client-list.tsx
+src/components/providers/provider-list.tsx
+src/components/users/user-list.tsx
+src/components/intercom/intercom-inbox.tsx
+
+# Performance
+src/app/(dashboard)/layout.tsx
+src/components/shared/query-provider.tsx
+src/server/queries/alerts.ts
+src/components/dashboard/dashboard-content.tsx
+src/components/analytics/analytics-content.tsx
+src/app/(dashboard)/dashboard/page.tsx
+src/components/incidents/incident-kanban.tsx
+src/components/rmas/rma-kanban.tsx
+
+# Fixes varios
+src/server/actions/incidents.ts                    # fetchIncidentsForSelect + quickTransitionToGestion
+src/lib/auth/get-session.ts                        # Mensajes de error en español
+```
+
+---
+
 ## Próximas Fases
 
 ### Intercom — Pendiente
