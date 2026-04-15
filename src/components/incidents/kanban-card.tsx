@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
@@ -30,7 +31,6 @@ export interface KanbanCardData {
   title: string;
   status: IncidentStatus;
   priorityLabel?: string;
-  statusBadge?: React.ReactNode;
   stateChangedAt?: Date | string | null;
   assignedUser?: string | null;
   clientName?: string | null;
@@ -42,7 +42,7 @@ interface KanbanCardProps {
   isDragOverlay?: boolean;
 }
 
-export function KanbanCard({ data, isDragOverlay }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ data, isDragOverlay }: KanbanCardProps) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: data.id,
@@ -106,4 +106,4 @@ export function KanbanCard({ data, isDragOverlay }: KanbanCardProps) {
       </Card>
     </div>
   );
-}
+});

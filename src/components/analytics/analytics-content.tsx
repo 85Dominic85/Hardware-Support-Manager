@@ -4,13 +4,20 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MonitorSmartphone, Truck, CircleDollarSign } from "lucide-react";
-import { DeviceTypeDistribution } from "./device-type-distribution";
-import { DeviceBrandRanking } from "./device-brand-ranking";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { FailingModelsTable } from "./failing-models-table";
-import { ProviderTurnaroundChart } from "./provider-turnaround-chart";
-import { ProviderVolumeChart } from "./provider-volume-chart";
-import { ProviderSuccessRateChart } from "./provider-success-rate-chart";
 import { CostPlaceholder } from "./cost-placeholder";
+
+const ChartSkeleton = () => (
+  <Card><CardHeader><Skeleton className="h-5 w-40" /></CardHeader><CardContent><Skeleton className="h-[250px] w-full" /></CardContent></Card>
+);
+const DeviceTypeDistribution = dynamic(() => import("./device-type-distribution").then(m => m.DeviceTypeDistribution), { ssr: false, loading: ChartSkeleton });
+const DeviceBrandRanking = dynamic(() => import("./device-brand-ranking").then(m => m.DeviceBrandRanking), { ssr: false, loading: ChartSkeleton });
+const ProviderTurnaroundChart = dynamic(() => import("./provider-turnaround-chart").then(m => m.ProviderTurnaroundChart), { ssr: false, loading: ChartSkeleton });
+const ProviderVolumeChart = dynamic(() => import("./provider-volume-chart").then(m => m.ProviderVolumeChart), { ssr: false, loading: ChartSkeleton });
+const ProviderSuccessRateChart = dynamic(() => import("./provider-success-rate-chart").then(m => m.ProviderSuccessRateChart), { ssr: false, loading: ChartSkeleton });
 import {
   fetchIncidentsByDeviceType,
   fetchIncidentsByBrand,

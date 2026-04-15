@@ -140,7 +140,6 @@ export function DataTable<TData>({
                 <TableRow
                   key={row.id}
                   className="hover:bg-muted/50 transition-colors duration-150"
-                  style={index < 10 ? { animation: `fadeInUp 200ms cubic-bezier(0.16, 1, 0.3, 1) ${index * 30}ms both` } : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

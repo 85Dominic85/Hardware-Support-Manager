@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { incidents, rmas, providers, clients, intercomInbox } from "@/lib/db/schema";
-import { count, sql, not, inArray, and, eq } from "drizzle-orm";
+import { incidents, rmas, providers, clients } from "@/lib/db/schema";
+import { sql, not, inArray, and, eq } from "drizzle-orm";
 import { getAlertThresholds } from "./settings";
 import { getSlaThresholds } from "./settings";
 
@@ -207,66 +207,48 @@ export async function getAlertCounts(): Promise<AlertBadgeCounts> {
       getSlaThresholds(),
     ]);
 
-    const [staleResult, stuckResult, warehouseResult, slaResult, intercomResult] =
-      await Promise.all([
-        db
-          .select({ count: count() })
-          .from(incidents)
-          .where(
-            and(
-              not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-              sql`extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 > ${thresholds.incidentStaleDays}`
-            )
-          ),
-        db
-          .select({ count: count() })
-          .from(rmas)
-          .where(
-            and(
-              eq(rmas.status, "en_proveedor"),
-              sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaStuckProviderDays}`
-            )
-          ),
-        db
-          .select({ count: count() })
-          .from(rmas)
-          .where(
-            and(
-              inArray(rmas.status, [...WAREHOUSE_STATUSES]),
-              sql`extract(epoch from (now() - ${rmas.stateChangedAt})) / 86400 > ${thresholds.rmaWarehouseDays}`
-            )
-          ),
-        db
-          .select({ count: count() })
-          .from(incidents)
-          .where(
-            and(
-              not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])),
-              sql`(
-                (${incidents.priority} = 'critica' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.critica * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.critica}) or
-                (${incidents.priority} = 'alta' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.alta * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.alta}) or
-                (${incidents.priority} = 'media' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.media * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.media}) or
-                (${incidents.priority} = 'baja' and extract(epoch from (now() - ${incidents.createdAt})) / 3600 > ${sla.resolution.baja * thresholds.slaWarningPercent / 100} and extract(epoch from (now() - ${incidents.createdAt})) / 3600 <= ${sla.resolution.baja})
-              )`
-            )
-          ),
-        db
-          .select({ count: count() })
-          .from(intercomInbox)
-          .where(eq(intercomInbox.status, "pendiente")),
-      ]);
+    const result = await db.execute(sql`
+      SELECT
+        (SELECT count(*) FROM hsm.incidents
+         WHERE status NOT IN ('cerrado', 'cancelado', 'resuelto')
+           AND extract(epoch from (now() - state_changed_at)) / 86400 > ${thresholds.incidentStaleDays}
+        ) AS stale_count,
+        (SELECT count(*) FROM hsm.rmas
+         WHERE status = 'en_proveedor'
+           AND extract(epoch from (now() - state_changed_at)) / 86400 > ${thresholds.rmaStuckProviderDays}
+        ) AS stuck_count,
+        (SELECT count(*) FROM hsm.rmas
+         WHERE status IN ('borrador', 'aprobado', 'recibido_oficina')
+           AND extract(epoch from (now() - state_changed_at)) / 86400 > ${thresholds.rmaWarehouseDays}
+        ) AS warehouse_count,
+        (SELECT count(*) FROM hsm.incidents
+         WHERE status NOT IN ('cerrado', 'cancelado', 'resuelto')
+           AND (
+             (priority = 'critica' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.critica * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.critica}) OR
+             (priority = 'alta' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.alta * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.alta}) OR
+             (priority = 'media' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.media * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.media}) OR
+             (priority = 'baja' AND extract(epoch from (now() - created_at)) / 3600 > ${sla.resolution.baja * thresholds.slaWarningPercent / 100} AND extract(epoch from (now() - created_at)) / 3600 <= ${sla.resolution.baja})
+           )
+        ) AS sla_count,
+        (SELECT count(*) FROM hsm.intercom_inbox
+         WHERE status = 'pendiente'
+        ) AS intercom_count
+    `);
 
-    const incidentCount = staleResult[0].count + slaResult[0].count;
-    const rmaCount = stuckResult[0].count;
-    const warehouseCount = warehouseResult[0].count;
-    const intercomCount = intercomResult[0].count;
+    const row = result[0] as Record<string, string>;
+    const staleCount = Number(row.stale_count);
+    const slaCount = Number(row.sla_count);
+    const stuckCount = Number(row.stuck_count);
+    const warehouseCount = Number(row.warehouse_count);
+    const intercomCount = Number(row.intercom_count);
+    const incidentCount = staleCount + slaCount;
 
     return {
       incidents: incidentCount,
-      rmas: rmaCount,
+      rmas: stuckCount,
       warehouse: warehouseCount,
       intercom: intercomCount,
-      total: incidentCount + rmaCount + warehouseCount + intercomCount,
+      total: incidentCount + stuckCount + warehouseCount + intercomCount,
     };
   } catch {
     return { incidents: 0, rmas: 0, warehouse: 0, intercom: 0, total: 0 };

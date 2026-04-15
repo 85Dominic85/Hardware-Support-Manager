@@ -45,6 +45,7 @@ export function RmaTransitionButtons({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", "rma", rmaId],
         });
+        queryClient.invalidateQueries({ queryKey: ["alert-badges"] });
         onTransitionComplete();
       } else {
         toast.error(result.error);

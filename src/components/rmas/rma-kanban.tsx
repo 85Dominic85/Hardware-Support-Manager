@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -135,6 +135,15 @@ export function RmaKanban({ data }: RmaKanbanProps) {
     [mutation]
   );
 
+  // Memoize card data so React.memo on RmaKanbanCard can skip re-renders
+  const cardDataMap = useMemo(() => {
+    const map = new Map<string, RmaKanbanCardData>();
+    for (const rma of data) {
+      map.set(rma.id, toCardData(rma));
+    }
+    return map;
+  }, [data]);
+
   // Group RMAs by effective status
   const grouped = KANBAN_STATUSES.reduce(
     (acc, status) => {
@@ -160,7 +169,7 @@ export function RmaKanban({ data }: RmaKanbanProps) {
             count={grouped[status]?.length ?? 0}
           >
             {grouped[status]?.map((rma) => (
-              <RmaKanbanCard key={rma.id} data={toCardData(rma)} />
+              <RmaKanbanCard key={rma.id} data={cardDataMap.get(rma.id)!} />
             ))}
           </KanbanColumn>
         ))}

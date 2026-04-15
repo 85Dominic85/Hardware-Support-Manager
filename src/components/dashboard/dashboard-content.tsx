@@ -9,17 +9,24 @@ import {
   AlertOctagon,
   RefreshCcw,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { KpiCard } from "./kpi-card";
 import { ExpandableKpiCard } from "./expandable-kpi-card";
-import { IncidentsChart } from "./incidents-chart";
-import { StatusDistribution } from "./status-distribution";
 import { RecentActivity } from "./recent-activity";
 import { QuickActions } from "./quick-actions";
-import { AgingChart } from "./aging-chart";
-import { TechnicianChart } from "./technician-chart";
 import { AttentionWidget } from "./attention-widget";
 import { DateRangeSelector } from "./date-range-selector";
 import { ExportButton } from "./export-button";
+
+const ChartSkeleton = () => (
+  <Card><CardHeader><Skeleton className="h-5 w-40" /></CardHeader><CardContent><Skeleton className="h-[200px] w-full" /></CardContent></Card>
+);
+const IncidentsChart = dynamic(() => import("./incidents-chart").then(m => m.IncidentsChart), { ssr: false, loading: ChartSkeleton });
+const StatusDistribution = dynamic(() => import("./status-distribution").then(m => m.StatusDistribution), { ssr: false, loading: ChartSkeleton });
+const AgingChart = dynamic(() => import("./aging-chart").then(m => m.AgingChart), { ssr: false, loading: ChartSkeleton });
+const TechnicianChart = dynamic(() => import("./technician-chart").then(m => m.TechnicianChart), { ssr: false, loading: ChartSkeleton });
 import { StaggerList } from "@/components/shared/stagger-list";
 import { useDashboardParams } from "@/hooks/use-dashboard-params";
 import {
@@ -53,11 +60,11 @@ function formatHours(hours: number | null): string {
 interface DashboardContentProps {
   initialStats: DashboardStats;
   initialSla: SlaMetrics;
-  initialTrend: TrendPoint[];
-  initialDistribution: StatusDistType[];
-  initialAging: AgingBucket[];
-  initialTechnicians: TechPerfType[];
-  initialActivity: RecentActType[];
+  initialTrend?: TrendPoint[];
+  initialDistribution?: StatusDistType[];
+  initialAging?: AgingBucket[];
+  initialTechnicians?: TechPerfType[];
+  initialActivity?: RecentActType[];
   initialAlerts: AlertSummary;
 }
 
@@ -80,58 +87,48 @@ export function DashboardContent({
     queryKey: ["dashboard-stats", dateRange],
     queryFn: () => fetchDashboardStats(dateRange),
     initialData: hasCustomRange ? undefined : initialStats,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
   });
 
   const { data: sla } = useQuery({
     queryKey: ["dashboard-sla", dateRange],
     queryFn: () => fetchSlaMetrics(dateRange),
     initialData: hasCustomRange ? undefined : initialSla,
-    staleTime: 30_000,
   });
 
   const { data: trend } = useQuery({
     queryKey: ["dashboard-trend", dateRange],
     queryFn: () => fetchIncidentTrend(dateRange),
     initialData: hasCustomRange ? undefined : initialTrend,
-    staleTime: 30_000,
   });
 
   const { data: distribution } = useQuery({
     queryKey: ["dashboard-distribution", dateRange],
     queryFn: () => fetchIncidentStatusDistribution(dateRange),
     initialData: hasCustomRange ? undefined : initialDistribution,
-    staleTime: 30_000,
   });
 
   const { data: aging } = useQuery({
     queryKey: ["dashboard-aging", dateRange],
     queryFn: () => fetchAgingDistribution(dateRange),
     initialData: hasCustomRange ? undefined : initialAging,
-    staleTime: 30_000,
   });
 
   const { data: technicians } = useQuery({
     queryKey: ["dashboard-technicians", dateRange],
     queryFn: () => fetchTechnicianPerformance(dateRange),
     initialData: hasCustomRange ? undefined : initialTechnicians,
-    staleTime: 30_000,
   });
 
   const { data: activity } = useQuery({
     queryKey: ["dashboard-activity", dateRange],
     queryFn: () => fetchRecentActivity(dateRange),
     initialData: hasCustomRange ? undefined : initialActivity,
-    staleTime: 30_000,
   });
 
   const { data: alerts } = useQuery({
     queryKey: ["dashboard-alerts"],
     queryFn: () => fetchAlertItems(),
     initialData: initialAlerts,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
   });
 
   const s = stats ?? initialStats;
@@ -214,21 +211,21 @@ export function DashboardContent({
       {/* Row 2: Trend + Distribution */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <IncidentsChart data={trend ?? initialTrend} />
+          <IncidentsChart data={trend ?? initialTrend ?? []} />
         </div>
-        <StatusDistribution data={distribution ?? initialDistribution} />
+        <StatusDistribution data={distribution ?? initialDistribution ?? []} />
       </div>
 
       {/* Row 3: Aging + Technician Performance */}
       <div className="grid gap-4 md:grid-cols-2">
-        <AgingChart data={aging ?? initialAging} />
-        <TechnicianChart data={technicians ?? initialTechnicians} />
+        <AgingChart data={aging ?? initialAging ?? []} />
+        <TechnicianChart data={technicians ?? initialTechnicians ?? []} />
       </div>
 
       {/* Row 4: Activity + Quick Actions */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <RecentActivity data={activity ?? initialActivity} />
+          <RecentActivity data={activity ?? initialActivity ?? []} />
         </div>
         <QuickActions />
       </div>

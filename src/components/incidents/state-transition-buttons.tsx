@@ -55,6 +55,7 @@ export function StateTransitionButtons({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", "incident", incidentId],
         });
+        queryClient.invalidateQueries({ queryKey: ["alert-badges"] });
         onTransitionComplete();
 
         if (selectedTransition?.resolutionType === "derivado_rma") {
@@ -86,6 +87,7 @@ export function StateTransitionButtons({
         queryClient.invalidateQueries({
           queryKey: ["event-logs", "incident", incidentId],
         });
+        queryClient.invalidateQueries({ queryKey: ["alert-badges"] });
         onTransitionComplete();
       } else {
         toast.error(result.error);

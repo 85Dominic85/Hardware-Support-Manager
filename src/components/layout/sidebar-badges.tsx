@@ -8,7 +8,7 @@ export function useAlertBadges() {
   return useQuery<AlertBadgeCounts>({
     queryKey: ["alert-badges"],
     queryFn: () => fetchAlertCounts(),
-    refetchInterval: 120_000,
-    staleTime: 60_000,
+    refetchInterval: 300_000,
+    staleTime: 300_000,
   });
 }

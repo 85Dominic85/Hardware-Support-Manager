@@ -30,7 +30,6 @@ export function WarehouseTable({ initialData }: WarehouseTableProps) {
     queryKey: ["warehouse"],
     queryFn: () => fetchWarehouseItems(),
     initialData,
-    refetchInterval: 60000, // refresh every minute
   });
 
   const filtered = useMemo(() => {

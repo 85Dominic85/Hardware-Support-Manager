@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -14,7 +14,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { KanbanColumn } from "./kanban-column";
 import { KanbanCard, type KanbanCardData } from "./kanban-card";
-import { IncidentStateBadge } from "@/components/shared/state-badge";
 import { isValidTransition } from "@/lib/state-machines/incident";
 import { transitionIncident } from "@/server/actions/incidents";
 import {
@@ -60,7 +59,6 @@ function toCardData(inc: IncidentRow): KanbanCardData {
     title: inc.title,
     status: inc.status as IncidentStatus,
     priorityLabel: INCIDENT_PRIORITY_LABELS[inc.priority as IncidentPriority],
-    statusBadge: <IncidentStateBadge status={inc.status as IncidentStatus} />,
     stateChangedAt: inc.stateChangedAt,
     assignedUser: inc.assignedUserName,
     clientName: inc.clientName,
@@ -151,6 +149,15 @@ export function IncidentKanban({ data }: IncidentKanbanProps) {
     [mutation]
   );
 
+  // Memoize card data so React.memo on KanbanCard can skip re-renders
+  const cardDataMap = useMemo(() => {
+    const map = new Map<string, KanbanCardData>();
+    for (const inc of data) {
+      map.set(inc.id, toCardData(inc));
+    }
+    return map;
+  }, [data]);
+
   // Group incidents by effective status
   const grouped = KANBAN_STATUSES.reduce(
     (acc, status) => {
@@ -176,7 +183,7 @@ export function IncidentKanban({ data }: IncidentKanbanProps) {
             count={grouped[status]?.length ?? 0}
           >
             {grouped[status]?.map((inc) => (
-              <KanbanCard key={inc.id} data={toCardData(inc)} />
+              <KanbanCard key={inc.id} data={cardDataMap.get(inc.id)!} />
             ))}
           </KanbanColumn>
         ))}

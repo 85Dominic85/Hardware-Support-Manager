@@ -30,8 +30,6 @@ export function ProviderList({ initialData, defaultPageSize }: ProviderListProps
     queryKey: ["providers", { page, pageSize, search, sortBy, sortOrder }],
     queryFn: () =>
       fetchProviders({ page, pageSize, search, sortBy, sortOrder: sortOrder as SortOrder }),
-    staleTime: 0,
-    refetchInterval: 30_000,
   });
 
   const data = queryData ?? initialData;

@@ -216,18 +216,21 @@ export function RmaForm({
   const { data: articleTypes = [] } = useQuery({
     queryKey: ["article-types"],
     queryFn: () => fetchArticleTypes(),
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: articleBrands = [] } = useQuery({
     queryKey: ["article-brands", selectedDeviceType],
     queryFn: () => fetchArticleBrands(selectedDeviceType!),
     enabled: !!selectedDeviceType && selectedDeviceType !== "otro" && selectedDeviceType !== "desconocido",
+    staleTime: 10 * 60 * 1000,
   });
 
   const { data: articleModels = [] } = useQuery({
     queryKey: ["article-models", selectedDeviceType, selectedDeviceBrand],
     queryFn: () => fetchArticleModels(selectedDeviceType!, selectedDeviceBrand!),
     enabled: !!selectedDeviceType && !!selectedDeviceBrand && selectedDeviceType !== "otro",
+    staleTime: 10 * 60 * 1000,
   });
 
   // Reset brand/model when type changes

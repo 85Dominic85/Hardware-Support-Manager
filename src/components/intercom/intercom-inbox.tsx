@@ -40,8 +40,6 @@ export function IntercomInbox({ initialData }: IntercomInboxProps) {
         search: search || undefined,
         status: params.status as IntercomInboxStatus,
       }),
-    staleTime: 0,
-    refetchInterval: 30_000,
   });
 
   const data = queryData ?? initialData;

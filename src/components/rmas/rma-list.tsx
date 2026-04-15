@@ -54,8 +54,6 @@ export function RmaList({
         sortOrder: sortOrder as SortOrder,
         filters: filterValues,
       }),
-    staleTime: 0,
-    refetchInterval: 30_000,
   });
 
   const data = queryData ?? initialData;

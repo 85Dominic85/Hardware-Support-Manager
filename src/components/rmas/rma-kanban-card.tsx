@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
@@ -25,7 +26,7 @@ interface RmaKanbanCardProps {
   isDragOverlay?: boolean;
 }
 
-export function RmaKanbanCard({ data, isDragOverlay }: RmaKanbanCardProps) {
+export const RmaKanbanCard = memo(function RmaKanbanCard({ data, isDragOverlay }: RmaKanbanCardProps) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: data.id,
@@ -78,4 +79,4 @@ export function RmaKanbanCard({ data, isDragOverlay }: RmaKanbanCardProps) {
       </Card>
     </div>
   );
-}
+});

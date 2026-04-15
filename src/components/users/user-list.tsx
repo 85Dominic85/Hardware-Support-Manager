@@ -36,8 +36,6 @@ export function UserList({ initialData, defaultPageSize }: UserListProps) {
         sortBy,
         sortOrder: sortOrder as SortOrder,
       }),
-    staleTime: 0,
-    refetchInterval: 30_000,
   });
 
   const data = queryData ?? initialData;
