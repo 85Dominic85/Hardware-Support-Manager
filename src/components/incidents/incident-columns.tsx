@@ -45,6 +45,25 @@ export const incidentColumns: ColumnDef<IncidentRow, unknown>[] = [
     cell: ({ row }) => <IncidentPreviewPopover incident={row.original} />,
   },
   {
+    accessorKey: "clientName",
+    header: "Cliente",
+    cell: ({ row }) => {
+      const name = row.original.clientCompanyName ?? row.original.clientName;
+      if (!name) return "-";
+      if (row.original.clientId) {
+        return (
+          <Link
+            href={`/clients/${row.original.clientId}`}
+            className="text-primary hover:underline"
+          >
+            {name}
+          </Link>
+        );
+      }
+      return name;
+    },
+  },
+  {
     accessorKey: "title",
     header: "Título",
     meta: { sortKey: "title" },
@@ -67,25 +86,6 @@ export const incidentColumns: ColumnDef<IncidentRow, unknown>[] = [
         {INCIDENT_PRIORITY_LABELS[row.original.priority as IncidentPriority] ?? row.original.priority}
       </Badge>
     ),
-  },
-  {
-    accessorKey: "clientName",
-    header: "Cliente",
-    cell: ({ row }) => {
-      const name = row.original.clientCompanyName ?? row.original.clientName;
-      if (!name) return "-";
-      if (row.original.clientId) {
-        return (
-          <Link
-            href={`/clients/${row.original.clientId}`}
-            className="text-primary hover:underline"
-          >
-            {name}
-          </Link>
-        );
-      }
-      return name;
-    },
   },
   {
     accessorKey: "assignedUserName",

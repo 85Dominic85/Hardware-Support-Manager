@@ -36,17 +36,6 @@ export const rmaColumns: ColumnDef<RmaRow, unknown>[] = [
     cell: ({ row }) => <RmaPreviewPopover rma={row.original} />,
   },
   {
-    accessorKey: "status",
-    header: "Estado",
-    meta: { sortKey: "status" },
-    cell: ({ row }) => <RmaStateBadge status={row.original.status} />,
-  },
-  {
-    accessorKey: "providerName",
-    header: "Proveedor",
-    cell: ({ row }) => row.original.providerName ?? "-",
-  },
-  {
     accessorKey: "clientName",
     header: "Cliente",
     cell: ({ row }) => {
@@ -64,6 +53,17 @@ export const rmaColumns: ColumnDef<RmaRow, unknown>[] = [
       }
       return name;
     },
+  },
+  {
+    accessorKey: "status",
+    header: "Estado",
+    meta: { sortKey: "status" },
+    cell: ({ row }) => <RmaStateBadge status={row.original.status} />,
+  },
+  {
+    accessorKey: "providerName",
+    header: "Proveedor",
+    cell: ({ row }) => row.original.providerName ?? "-",
   },
   {
     accessorKey: "deviceBrand",
