@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/shared/searchable-select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   createIncidentSchema,
   type CreateIncidentInput,
@@ -37,6 +38,7 @@ import {
 import {
   INCIDENT_CATEGORY_LABELS,
   INCIDENT_PRIORITY_LABELS,
+  HARDWARE_ORIGIN_LABELS,
 } from "@/lib/constants/incidents";
 import { DEVICE_TYPE_LABELS } from "@/lib/constants/device-types";
 import { fetchClientsForSelect } from "@/server/actions/clients";
@@ -70,6 +72,7 @@ export function IncidentForm({
       title: defaultValues?.title ?? "",
       description: defaultValues?.description ?? "",
       category: defaultValues?.category ?? "escalado",
+      hardwareOrigin: defaultValues?.hardwareOrigin,
       priority: defaultValues?.priority ?? "media",
       assignedUserId: defaultValues?.assignedUserId ?? "",
       articleId: defaultValues?.articleId ?? "",
@@ -391,6 +394,39 @@ export function IncidentForm({
           <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />
             Dispositivo
           </h3>
+
+          <FormField
+            control={form.control}
+            name="hardwareOrigin"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Origen del hardware *</FormLabel>
+                <FormControl>
+                  <ToggleGroup
+                    type="single"
+                    value={field.value ?? ""}
+                    onValueChange={(v) => { if (v) field.onChange(v); }}
+                    className="justify-start gap-2"
+                  >
+                    <ToggleGroupItem
+                      value="qamarero"
+                      className="rounded-md border px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      {HARDWARE_ORIGIN_LABELS.qamarero}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="cliente_reciclado"
+                      className="rounded-md border px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      {HARDWARE_ORIGIN_LABELS.cliente_reciclado}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <FormField
               control={form.control}

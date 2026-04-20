@@ -53,6 +53,7 @@ export async function createIncident(
         title: parsed.data.title,
         description: parsed.data.description || null,
         category: parsed.data.category,
+        hardwareOrigin: parsed.data.hardwareOrigin,
         priority: parsed.data.priority,
         assignedUserId: parsed.data.assignedUserId || null,
         articleId: parsed.data.articleId || null,
@@ -105,6 +106,7 @@ export async function updateIncident(
   if (parsed.data.description !== undefined)
     values.description = parsed.data.description || null;
   if (parsed.data.category !== undefined) values.category = parsed.data.category;
+  if (parsed.data.hardwareOrigin !== undefined) values.hardwareOrigin = parsed.data.hardwareOrigin;
   if (parsed.data.priority !== undefined) values.priority = parsed.data.priority;
   if (parsed.data.assignedUserId !== undefined)
     values.assignedUserId = parsed.data.assignedUserId || null;

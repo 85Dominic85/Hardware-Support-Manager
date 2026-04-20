@@ -14,8 +14,10 @@ import { AgingBadge } from "@/components/shared/aging-badge";
 import {
   INCIDENT_PRIORITY_LABELS,
   INCIDENT_CATEGORY_LABELS,
+  HARDWARE_ORIGIN_LABELS,
   type IncidentPriority,
   type IncidentCategory,
+  type HardwareOrigin,
 } from "@/lib/constants/incidents";
 import { DEVICE_TYPE_LABELS, type DeviceType } from "@/lib/constants/device-types";
 import { formatDateTime } from "@/lib/utils/date-format";
@@ -82,6 +84,14 @@ export function IncidentPreviewPopover({ incident }: IncidentPreviewProps) {
                 <dt className="text-muted-foreground">Categoría</dt>
                 <dd className="font-medium">
                   {INCIDENT_CATEGORY_LABELS[incident.category as IncidentCategory] ?? incident.category}
+                </dd>
+              </div>
+            )}
+            {incident.hardwareOrigin && (
+              <div>
+                <dt className="text-muted-foreground">Origen hardware</dt>
+                <dd className="font-medium">
+                  {HARDWARE_ORIGIN_LABELS[incident.hardwareOrigin as HardwareOrigin] ?? incident.hardwareOrigin}
                 </dd>
               </div>
             )}

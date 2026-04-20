@@ -21,9 +21,14 @@ import { SearchableSelect } from "@/components/shared/searchable-select";
 import { InboxStatusBadge } from "./inbox-status-badge";
 import { ConversationThread } from "./conversation-thread";
 import { convertToIncident, dismissInboxItem } from "@/server/actions/intercom-inbox";
-import { fetchClientsForSelect, fetchClientByExternalId, fetchClientLocationsForSelect } from "@/server/actions/clients";
-import type { ClientLocationRow } from "@/server/queries/clients";
-import { INCIDENT_CATEGORY_LABELS, type IncidentCategory } from "@/lib/constants/incidents";
+import { fetchClientsForSelect, fetchClientByExternalId } from "@/server/actions/clients";
+import {
+  INCIDENT_CATEGORY_LABELS,
+  HARDWARE_ORIGIN_LABELS,
+  type IncidentCategory,
+  type HardwareOrigin,
+} from "@/lib/constants/incidents";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatRelativeTime } from "@/lib/utils/date-format";
 import { detectDevice, extractSerialNumber } from "@/lib/intercom/device-detector";
 import type { IntercomInboxRow } from "@/server/queries/intercom-inbox";
@@ -172,17 +177,10 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
   );
 
   // Location and address state
-  const [clientLocationId, setClientLocationId] = useState("");
   const [pickupAddress, setPickupAddress] = useState("");
   const [pickupCity, setPickupCity] = useState("");
   const [pickupPostalCode, setPickupPostalCode] = useState("");
-
-  // Fetch locations when client is selected
-  const { data: locationsData = [] } = useQuery({
-    queryKey: ["client-locations", clientId],
-    queryFn: () => fetchClientLocationsForSelect(clientId),
-    enabled: !!clientId,
-  });
+  const [hardwareOrigin, setHardwareOrigin] = useState<HardwareOrigin | "">("");
 
   // Set clientId when auto-match resolves
   useEffect(() => {
@@ -192,29 +190,17 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
     }
   }, [matchedClient, clientId]);
 
-  // Auto-select location when locations load (single or default)
-  useEffect(() => {
-    if (locationsData.length === 0 || clientLocationId) return;
-    const defaultLoc = locationsData.find((l: ClientLocationRow) => l.isDefault);
-    const autoLoc = defaultLoc ?? (locationsData.length === 1 ? locationsData[0] : null);
-    if (autoLoc) {
-      setClientLocationId(autoLoc.id);
-      if (!contactName && autoLoc.contactName) setContactName(autoLoc.contactName);
-      if (!contactPhone && autoLoc.contactPhone) setContactPhone(autoLoc.contactPhone);
-      if (!pickupAddress && autoLoc.address) setPickupAddress(autoLoc.address);
-      if (!pickupCity && autoLoc.city) setPickupCity(autoLoc.city);
-      if (!pickupPostalCode && autoLoc.postalCode) setPickupPostalCode(autoLoc.postalCode);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationsData]);
-
   const convertMutation = useMutation({
-    mutationFn: () =>
-      convertToIncident({
+    mutationFn: () => {
+      if (!hardwareOrigin) {
+        return Promise.resolve({ success: false as const, error: "Indica el origen del hardware (Qamarero / Reciclado cliente)" });
+      }
+      return convertToIncident({
         inboxItemId: item.id,
         title: title.trim() || item.subject || "Incidencia desde Intercom",
         description,
         category,
+        hardwareOrigin,
         priority,
         clientId: clientId || undefined,
         clientName,
@@ -224,11 +210,11 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
         deviceBrand: deviceBrand || undefined,
         deviceModel: deviceModel || undefined,
         deviceSerialNumber: deviceSerialNumber || undefined,
-        clientLocationId: clientLocationId || undefined,
         pickupAddress: pickupAddress || undefined,
         pickupCity: pickupCity || undefined,
         pickupPostalCode: pickupPostalCode || undefined,
-      }),
+      });
+    },
     onSuccess: (result) => {
       if (result.success) {
         toast.success(`Incidencia ${result.data.incidentNumber} creada`, {
@@ -494,6 +480,28 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">Origen del hardware *</Label>
+                <ToggleGroup
+                  type="single"
+                  value={hardwareOrigin}
+                  onValueChange={(v) => { if (v) setHardwareOrigin(v as HardwareOrigin); }}
+                  className="justify-start gap-2"
+                >
+                  <ToggleGroupItem
+                    value="qamarero"
+                    className="rounded-md border px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                  >
+                    {HARDWARE_ORIGIN_LABELS.qamarero}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="cliente_reciclado"
+                    className="rounded-md border px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                  >
+                    {HARDWARE_ORIGIN_LABELS.cliente_reciclado}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Prioridad</Label>
                 <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
@@ -559,7 +567,7 @@ export function ConversationDetail({ item, onConvert, onDismiss }: ConversationD
             <div className="flex items-center gap-2 pt-2">
               <Button
                 onClick={() => convertMutation.mutate()}
-                disabled={convertMutation.isPending || !title.trim()}
+                disabled={convertMutation.isPending || !title.trim() || !hardwareOrigin}
                 className="flex-1 sm:flex-none"
               >
                 {convertMutation.isPending ? (

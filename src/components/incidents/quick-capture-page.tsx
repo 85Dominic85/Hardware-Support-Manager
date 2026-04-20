@@ -33,11 +33,14 @@ import {
   INCIDENT_PRIORITIES,
   INCIDENT_CATEGORY_LABELS,
   INCIDENT_PRIORITY_LABELS,
+  HARDWARE_ORIGIN_LABELS,
 } from "@/lib/constants/incidents";
 import type {
   IncidentCategory,
   IncidentPriority,
+  HardwareOrigin,
 } from "@/lib/constants/incidents";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { CreateIncidentInput } from "@/lib/validators/incident";
 
 // ---------------------------------------------------------------------------
@@ -258,6 +261,7 @@ export function QuickCapturePage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<IncidentCategory>(INCIDENT_CATEGORIES.ESCALADO);
+  const [hardwareOrigin, setHardwareOrigin] = useState<HardwareOrigin | "">("");
   const [priority, setPriority] = useState<IncidentPriority>(INCIDENT_PRIORITIES.MEDIA);
   const [deviceType, setDeviceType] = useState("");
   const [deviceBrand, setDeviceBrand] = useState("");
@@ -313,11 +317,16 @@ export function QuickCapturePage() {
       toast.error("El título es obligatorio");
       return;
     }
+    if (!hardwareOrigin) {
+      toast.error("Indica el origen del hardware (Qamarero / Reciclado cliente)");
+      return;
+    }
 
     createMutation.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
       category,
+      hardwareOrigin,
       priority,
       clientName: clientName.trim() || undefined,
       contactName: contactName.trim() || undefined,
@@ -542,6 +551,28 @@ export function QuickCapturePage() {
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Dispositivo
                 </p>
+                <div className="space-y-1.5">
+                  <Label>Origen del hardware *</Label>
+                  <ToggleGroup
+                    type="single"
+                    value={hardwareOrigin}
+                    onValueChange={(v) => { if (v) setHardwareOrigin(v as HardwareOrigin); }}
+                    className="justify-start gap-2"
+                  >
+                    <ToggleGroupItem
+                      value="qamarero"
+                      className="rounded-md border px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      {HARDWARE_ORIGIN_LABELS.qamarero}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="cliente_reciclado"
+                      className="rounded-md border px-4 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      {HARDWARE_ORIGIN_LABELS.cliente_reciclado}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="p-device-type">Tipo</Label>

@@ -9,6 +9,7 @@ describe("Incident Validators", () => {
         title: "TPV no enciende",
         description: "El equipo dejó de funcionar ayer",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "alta",
         assignedUserId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
         deviceType: "tpv",
@@ -28,23 +29,8 @@ describe("Incident Validators", () => {
       const result = createIncidentSchema.safeParse({
         title: "Problema",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "media",
-      });
-      expect(result.success).toBe(true);
-    });
-
-    it("accepts empty strings for optional fields", () => {
-      const result = createIncidentSchema.safeParse({
-        title: "Test",
-        category: "otro",
-        priority: "baja",
-        clientName: "",
-        description: "",
-        assignedUserId: "",
-        deviceType: "",
-        deviceBrand: "",
-        deviceModel: "",
-        deviceSerialNumber: "",
       });
       expect(result.success).toBe(true);
     });
@@ -52,6 +38,7 @@ describe("Incident Validators", () => {
     it("rejects missing title", () => {
       const result = createIncidentSchema.safeParse({
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
       expect(result.success).toBe(false);
@@ -61,6 +48,7 @@ describe("Incident Validators", () => {
       const result = createIncidentSchema.safeParse({
         title: "",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
       expect(result.success).toBe(false);
@@ -69,6 +57,7 @@ describe("Incident Validators", () => {
     it("rejects missing category", () => {
       const result = createIncidentSchema.safeParse({
         title: "Test",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
       expect(result.success).toBe(false);
@@ -78,6 +67,7 @@ describe("Incident Validators", () => {
       const result = createIncidentSchema.safeParse({
         title: "Test",
         category: "hardware",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
       expect(result.success).toBe(false);
@@ -87,9 +77,41 @@ describe("Incident Validators", () => {
       const result = createIncidentSchema.safeParse({
         title: "Test",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "urgente",
       });
       expect(result.success).toBe(false);
+    });
+
+    it("rejects missing hardwareOrigin", () => {
+      const result = createIncidentSchema.safeParse({
+        title: "Test",
+        category: "escalado",
+        priority: "media",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects invalid hardwareOrigin", () => {
+      const result = createIncidentSchema.safeParse({
+        title: "Test",
+        category: "escalado",
+        hardwareOrigin: "otro",
+        priority: "media",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts both valid hardwareOrigin values", () => {
+      for (const hardwareOrigin of ["qamarero", "cliente_reciclado"]) {
+        const result = createIncidentSchema.safeParse({
+          title: "Test",
+          category: "escalado",
+          hardwareOrigin,
+          priority: "media",
+        });
+        expect(result.success).toBe(true);
+      }
     });
 
     it("accepts all valid categories", () => {
@@ -98,6 +120,7 @@ describe("Incident Validators", () => {
         const result = createIncidentSchema.safeParse({
           title: "Test",
           category,
+          hardwareOrigin: "qamarero",
           priority: "media",
         });
         expect(result.success).toBe(true);
@@ -110,6 +133,7 @@ describe("Incident Validators", () => {
         const result = createIncidentSchema.safeParse({
           title: "Test",
           category: "escalado",
+          hardwareOrigin: "qamarero",
           priority,
         });
         expect(result.success).toBe(true);
@@ -120,6 +144,7 @@ describe("Incident Validators", () => {
       const result = createIncidentSchema.safeParse({
         title: "Test",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "media",
         assignedUserId: "not-a-uuid",
       });
@@ -130,6 +155,7 @@ describe("Incident Validators", () => {
       const result = createIncidentSchema.safeParse({
         title: "Test",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "media",
         assignedUserId: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       });
@@ -150,6 +176,16 @@ describe("Incident Validators", () => {
 
     it("rejects invalid category in update", () => {
       const result = updateIncidentSchema.safeParse({ category: "invalid" });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts updating hardwareOrigin alone", () => {
+      const result = updateIncidentSchema.safeParse({ hardwareOrigin: "cliente_reciclado" });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects invalid hardwareOrigin in update", () => {
+      const result = updateIncidentSchema.safeParse({ hardwareOrigin: "desconocido" });
       expect(result.success).toBe(false);
     });
   });

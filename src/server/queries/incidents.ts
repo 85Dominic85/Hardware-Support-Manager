@@ -37,6 +37,9 @@ export async function getIncidents(
   if (filters?.category && Array.isArray(filters.category) && filters.category.length > 0) {
     filterConditions.push(inArray(incidents.category, filters.category as typeof incidents.category.enumValues));
   }
+  if (filters?.hardwareOrigin && Array.isArray(filters.hardwareOrigin) && filters.hardwareOrigin.length > 0) {
+    filterConditions.push(inArray(incidents.hardwareOrigin, filters.hardwareOrigin as typeof incidents.hardwareOrigin.enumValues));
+  }
   if (filters?.assignedUserId && Array.isArray(filters.assignedUserId) && filters.assignedUserId.length > 0) {
     filterConditions.push(inArray(incidents.assignedUserId, filters.assignedUserId));
   }
@@ -60,6 +63,7 @@ export async function getIncidents(
         clientName: incidents.clientName,
         assignedUserId: incidents.assignedUserId,
         category: incidents.category,
+        hardwareOrigin: incidents.hardwareOrigin,
         priority: incidents.priority,
         status: incidents.status,
         title: incidents.title,
@@ -120,6 +124,7 @@ export async function getIncidentById(id: string): Promise<IncidentRow | null> {
       clientName: incidents.clientName,
       assignedUserId: incidents.assignedUserId,
       category: incidents.category,
+      hardwareOrigin: incidents.hardwareOrigin,
       priority: incidents.priority,
       status: incidents.status,
       title: incidents.title,

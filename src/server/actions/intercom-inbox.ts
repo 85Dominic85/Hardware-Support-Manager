@@ -42,7 +42,7 @@ export async function convertToIncident(
     return { success: false, error: `Datos inválidos: ${fields}` };
   }
 
-  const { inboxItemId, title, description, category, priority, ...rest } = parsed.data;
+  const { inboxItemId, title, description, category, hardwareOrigin, priority, ...rest } = parsed.data;
 
   try {
     // Fetch inbox item
@@ -97,6 +97,7 @@ export async function convertToIncident(
           title,
           description: description || null,
           category,
+          hardwareOrigin,
           priority,
           status: "nuevo",
           clientId: resolvedClientId,

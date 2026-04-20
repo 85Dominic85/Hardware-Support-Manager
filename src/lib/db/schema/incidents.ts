@@ -17,6 +17,10 @@ export const incidentCategoryEnum = hsmSchema.enum("incident_category", [
   "escalado", "incidencia_directa", "mencion", "otro",
 ]);
 
+export const hardwareOriginEnum = hsmSchema.enum("hardware_origin", [
+  "qamarero", "cliente_reciclado",
+]);
+
 export const incidents = hsmSchema.table("incidents", {
   id: uuid("id").defaultRandom().primaryKey(),
   incidentNumber: varchar("incident_number", { length: 20 }).notNull().unique(),
@@ -24,6 +28,7 @@ export const incidents = hsmSchema.table("incidents", {
   clientName: varchar("client_name", { length: 500 }),
   assignedUserId: uuid("assigned_user_id").references(() => users.id, { onDelete: "set null" }),
   category: incidentCategoryEnum("category").notNull(),
+  hardwareOrigin: hardwareOriginEnum("hardware_origin"),
   priority: incidentPriorityEnum("priority").notNull().default("media"),
   status: incidentStatusEnum("status").notNull().default("nuevo"),
   title: varchar("title", { length: 500 }).notNull(),

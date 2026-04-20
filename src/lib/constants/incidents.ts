@@ -53,3 +53,15 @@ export const INCIDENT_CATEGORY_LABELS: Record<IncidentCategory, string> = {
   mencion: "Mención",
   otro: "Otro",
 };
+
+export const HARDWARE_ORIGINS = {
+  QAMARERO: "qamarero",
+  CLIENTE_RECICLADO: "cliente_reciclado",
+} as const;
+
+export type HardwareOrigin = (typeof HARDWARE_ORIGINS)[keyof typeof HARDWARE_ORIGINS];
+
+export const HARDWARE_ORIGIN_LABELS: Record<HardwareOrigin, string> = {
+  qamarero: "Qamarero",
+  cliente_reciclado: "Reciclado cliente",
+};

@@ -27,9 +27,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   INCIDENT_PRIORITY_LABELS,
   INCIDENT_CATEGORY_LABELS,
+  HARDWARE_ORIGIN_LABELS,
   type IncidentStatus,
   type IncidentPriority,
   type IncidentCategory,
+  type HardwareOrigin,
 } from "@/lib/constants/incidents";
 import type { IncidentRow } from "@/server/queries/incidents";
 import { DEFAULT_SLA_THRESHOLDS } from "@/lib/constants/sla";
@@ -119,6 +121,7 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
                 title: incident.title,
                 description: incident.description ?? "",
                 category: incident.category as IncidentCategory,
+                hardwareOrigin: incident.hardwareOrigin as HardwareOrigin | undefined,
                 priority: incident.priority as IncidentPriority,
                 assignedUserId: incident.assignedUserId ?? "",
                 deviceType: (incident.deviceType as CreateIncidentInput["deviceType"]) ?? "",
@@ -284,6 +287,16 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
           </CardHeader>
           <CardContent>
             <dl className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <dt className="text-sm font-medium text-muted-foreground">
+                  Origen del hardware
+                </dt>
+                <dd className="mt-1 text-sm">
+                  {incident.hardwareOrigin
+                    ? HARDWARE_ORIGIN_LABELS[incident.hardwareOrigin as HardwareOrigin] ?? incident.hardwareOrigin
+                    : "—"}
+                </dd>
+              </div>
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">
                   Tipo de dispositivo

@@ -6,6 +6,9 @@ export const createIncidentSchema = z.object({
   title: z.string().min(1, "El título es obligatorio").max(500),
   description: z.string().optional().or(z.literal("")),
   category: z.enum(["escalado", "incidencia_directa", "mencion", "otro"]),
+  hardwareOrigin: z.enum(["qamarero", "cliente_reciclado"], {
+    error: "Indica si el hardware es de Qamarero o reciclado del cliente",
+  }),
   priority: z.enum(["baja", "media", "alta", "critica"]),
   assignedUserId: z.string().uuid("Usuario inválido").optional().or(z.literal("")),
   articleId: z.string().uuid("Artículo inválido").optional().or(z.literal("")),

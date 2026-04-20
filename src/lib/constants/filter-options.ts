@@ -2,6 +2,7 @@ import {
   INCIDENT_STATUS_LABELS,
   INCIDENT_PRIORITY_LABELS,
   INCIDENT_CATEGORY_LABELS,
+  HARDWARE_ORIGIN_LABELS,
 } from "./incidents";
 import { RMA_STATUS_LABELS } from "./rmas";
 
@@ -40,6 +41,12 @@ const INCIDENT_STATIC_FILTERS: FilterConfig[] = [
     label: "Categoría",
     type: "multi-select",
     options: labelsToOptions(INCIDENT_CATEGORY_LABELS),
+  },
+  {
+    key: "hardwareOrigin",
+    label: "Origen hardware",
+    type: "multi-select",
+    options: labelsToOptions(HARDWARE_ORIGIN_LABELS),
   },
 ];
 

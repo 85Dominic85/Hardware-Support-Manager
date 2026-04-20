@@ -5,6 +5,9 @@ export const convertToIncidentSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().optional().or(z.literal("")),
   category: z.enum(["escalado", "incidencia_directa", "mencion", "otro"]),
+  hardwareOrigin: z.enum(["qamarero", "cliente_reciclado"], {
+    error: "Indica el origen del hardware",
+  }),
   priority: z.enum(["baja", "media", "alta", "critica"]).default("media"),
   clientId: z.string().uuid("Cliente inválido").optional().or(z.literal("")),
   clientName: z.string().max(500).optional().or(z.literal("")),

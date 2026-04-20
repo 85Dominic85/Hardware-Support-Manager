@@ -141,6 +141,7 @@ describe("Server Actions: Incidents", () => {
       const result = await createIncident({
         title: "TPV no enciende",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "alta",
         clientName: "Bar El Rincón",
         description: "El TPV no enciende desde ayer",
@@ -180,6 +181,7 @@ describe("Server Actions: Incidents", () => {
       const result = await createIncident({
         title: "Problema genérico",
         category: "otro",
+        hardwareOrigin: "cliente_reciclado",
         priority: "baja",
       });
 
@@ -188,6 +190,7 @@ describe("Server Actions: Incidents", () => {
         expect.objectContaining({
           title: "Problema genérico",
           category: "otro",
+          hardwareOrigin: "cliente_reciclado",
           priority: "baja",
           clientName: null,
           assignedUserId: null,
@@ -196,10 +199,23 @@ describe("Server Actions: Incidents", () => {
       );
     });
 
+    it("should reject creation without hardwareOrigin", async () => {
+      const result = await createIncident({
+        title: "Falta origen",
+        category: "escalado",
+        priority: "media",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe("Datos inválidos");
+      }
+    });
+
     it("should convert empty strings to null for optional fields", async () => {
       const result = await createIncident({
         title: "Test empty strings",
         category: "incidencia_directa",
+        hardwareOrigin: "qamarero",
         priority: "media",
         clientName: "",
         assignedUserId: "",
@@ -227,6 +243,7 @@ describe("Server Actions: Incidents", () => {
     it("should reject invalid data (missing title)", async () => {
       const result = await createIncident({
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
 
@@ -240,6 +257,7 @@ describe("Server Actions: Incidents", () => {
       const result = await createIncident({
         title: "Test",
         category: "invalid_category",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
 
@@ -250,6 +268,7 @@ describe("Server Actions: Incidents", () => {
       const result = await createIncident({
         title: "Test",
         category: "hardware",
+        hardwareOrigin: "qamarero",
         priority: "alta",
       });
 
@@ -260,6 +279,7 @@ describe("Server Actions: Incidents", () => {
       const result = await createIncident({
         title: "Test",
         category: "escalado",
+        hardwareOrigin: "qamarero",
         priority: "urgente",
       });
 
@@ -274,6 +294,7 @@ describe("Server Actions: Incidents", () => {
         const result = await createIncident({
           title: `Test ${category}`,
           category,
+          hardwareOrigin: "qamarero",
           priority: "media",
         });
         expect(result.success).toBe(true);
@@ -288,7 +309,21 @@ describe("Server Actions: Incidents", () => {
         const result = await createIncident({
           title: `Test ${priority}`,
           category: "escalado",
+          hardwareOrigin: "qamarero",
           priority,
+        });
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it("should accept both hardwareOrigin values", async () => {
+      for (const hardwareOrigin of ["qamarero", "cliente_reciclado"]) {
+        vi.clearAllMocks();
+        const result = await createIncident({
+          title: `Test ${hardwareOrigin}`,
+          category: "escalado",
+          hardwareOrigin,
+          priority: "media",
         });
         expect(result.success).toBe(true);
       }
