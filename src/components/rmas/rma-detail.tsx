@@ -95,7 +95,6 @@ export function RmaDetail({ rma }: RmaDetailProps) {
                 providerId: rma.providerId,
                 incidentId: rma.incidentId ?? "",
                 clientId: rma.clientId ?? "",
-                clientLocationId: rma.clientLocationId ?? "",
                 clientName: rma.clientName ?? "",
                 clientExternalId: rma.clientExternalId ?? "",
                 clientIntercomUrl: rma.clientIntercomUrl ?? "",
@@ -103,10 +102,11 @@ export function RmaDetail({ rma }: RmaDetailProps) {
                 deviceBrand: rma.deviceBrand ?? "",
                 deviceModel: rma.deviceModel ?? "",
                 deviceSerialNumber: rma.deviceSerialNumber ?? "",
-                address: rma.address ?? "",
-                postalCode: rma.postalCode ?? "",
-                city: rma.city ?? "",
-                phone: rma.phone ?? "",
+                contactName: rma.contactName ?? "",
+                contactPhone: rma.contactPhone ?? "",
+                pickupAddress: rma.pickupAddress ?? "",
+                pickupPostalCode: rma.pickupPostalCode ?? "",
+                pickupCity: rma.pickupCity ?? "",
                 trackingNumberOutgoing: rma.trackingNumberOutgoing ?? "",
                 trackingNumberReturn: rma.trackingNumberReturn ?? "",
                 providerRmaNumber: rma.providerRmaNumber ?? "",
@@ -165,10 +165,11 @@ export function RmaDetail({ rma }: RmaDetailProps) {
               deviceSerialNumber: rma.deviceSerialNumber ?? "",
               trackingNumberOutgoing: rma.trackingNumberOutgoing ?? "",
               trackingNumberReturn: rma.trackingNumberReturn ?? "",
-              address: rma.address ?? "",
-              postalCode: rma.postalCode ?? "",
-              city: rma.city ?? "",
-              phone: rma.phone ?? "",
+              contactName: rma.contactName ?? "",
+              address: rma.pickupAddress ?? "",
+              postalCode: rma.pickupPostalCode ?? "",
+              city: rma.pickupCity ?? "",
+              phone: rma.contactPhone ?? "",
             }}
           />
           <Button onClick={() => setIsEditing(true)}>Editar</Button>
@@ -340,25 +341,31 @@ export function RmaDetail({ rma }: RmaDetailProps) {
             </CardContent>
           </Card>
 
-          {(rma.address || rma.postalCode || rma.city || rma.phone) && (
+          {(rma.contactName || rma.contactPhone || rma.pickupAddress || rma.pickupPostalCode || rma.pickupCity) && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Ubicación del cliente</CardTitle>
+                <CardTitle className="text-lg">Contacto y Recogida</CardTitle>
               </CardHeader>
               <CardContent>
                 <dl className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">
+                      Persona de contacto
+                    </dt>
+                    <dd className="mt-1 text-sm">{rma.contactName || "-"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-muted-foreground">
                       Teléfono
                     </dt>
-                    <dd className="mt-1 text-sm">{rma.phone || "-"}</dd>
+                    <dd className="mt-1 text-sm">{rma.contactPhone || "-"}</dd>
                   </div>
                   <div className="sm:col-span-2">
                     <dt className="text-sm font-medium text-muted-foreground">
-                      Dirección
+                      Dirección de recogida
                     </dt>
                     <dd className="mt-1 text-sm">
-                      {[rma.address, rma.city, rma.postalCode].filter(Boolean).join(", ") || "-"}
+                      {[rma.pickupAddress, rma.pickupCity, rma.pickupPostalCode].filter(Boolean).join(", ") || "-"}
                     </dd>
                   </div>
                 </dl>

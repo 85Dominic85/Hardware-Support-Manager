@@ -60,21 +60,21 @@ interface ParsedIncident {
 // Parsing helpers
 // ---------------------------------------------------------------------------
 
-const DEVICE_KEYWORDS: { pattern: RegExp; device: string; category: IncidentCategory }[] = [
-  { pattern: /\bTPV\b/i, device: "tpv", category: INCIDENT_CATEGORIES.HARDWARE },
-  { pattern: /\bimpresora\b/i, device: "impresora_lan", category: INCIDENT_CATEGORIES.IMPRESORA },
-  { pattern: /\bprinter\b/i, device: "impresora_lan", category: INCIDENT_CATEGORIES.IMPRESORA },
-  { pattern: /\bSunmi\b/i, device: "tpv", category: INCIDENT_CATEGORIES.HARDWARE },
-  { pattern: /\bOPAL\b/i, device: "opal", category: INCIDENT_CATEGORIES.HARDWARE },
-  { pattern: /\bcaj[oó]n\b/i, device: "cajon_portamonedas", category: INCIDENT_CATEGORIES.PERIFERICO },
-  { pattern: /\bpantalla\b/i, device: "otro", category: INCIDENT_CATEGORIES.MONITOR },
-  { pattern: /\bmonitor\b/i, device: "otro", category: INCIDENT_CATEGORIES.MONITOR },
-  { pattern: /\brouter\b/i, device: "otro", category: INCIDENT_CATEGORIES.RED },
-  { pattern: /\bred\b/i, device: "otro", category: INCIDENT_CATEGORIES.RED },
-  { pattern: /\bwifi\b/i, device: "otro", category: INCIDENT_CATEGORIES.RED },
-  { pattern: /\balmacenamiento\b/i, device: "otro", category: INCIDENT_CATEGORIES.ALMACENAMIENTO },
-  { pattern: /\bSSD\b/i, device: "otro", category: INCIDENT_CATEGORIES.ALMACENAMIENTO },
-  { pattern: /\bHDD\b/i, device: "otro", category: INCIDENT_CATEGORIES.ALMACENAMIENTO },
+const DEVICE_KEYWORDS: { pattern: RegExp; device: string }[] = [
+  { pattern: /\bTPV\b/i, device: "tpv" },
+  { pattern: /\bimpresora\b/i, device: "impresora_lan" },
+  { pattern: /\bprinter\b/i, device: "impresora_lan" },
+  { pattern: /\bSunmi\b/i, device: "tpv" },
+  { pattern: /\bOPAL\b/i, device: "opal" },
+  { pattern: /\bcaj[oó]n\b/i, device: "cajon_portamonedas" },
+  { pattern: /\bpantalla\b/i, device: "otro" },
+  { pattern: /\bmonitor\b/i, device: "otro" },
+  { pattern: /\brouter\b/i, device: "otro" },
+  { pattern: /\bred\b/i, device: "otro" },
+  { pattern: /\bwifi\b/i, device: "otro" },
+  { pattern: /\balmacenamiento\b/i, device: "otro" },
+  { pattern: /\bSSD\b/i, device: "otro" },
+  { pattern: /\bHDD\b/i, device: "otro" },
 ];
 
 const BRAND_KEYWORDS = ["AQPROX", "Posiflex", "JASSWAY", "GEON", "Sunmi", "Epson", "Star"];
@@ -139,16 +139,13 @@ function extractBusinessName(text: string): { clientName: string; contactName: s
 
 function detectDevice(text: string): {
   device: string;
-  category: IncidentCategory;
   brand: string;
 } {
   let device = "";
-  let category: IncidentCategory = INCIDENT_CATEGORIES.OTRO;
 
   for (const kw of DEVICE_KEYWORDS) {
     if (kw.pattern.test(text)) {
       device = kw.device;
-      category = kw.category;
       break;
     }
   }
@@ -164,7 +161,7 @@ function detectDevice(text: string): {
   // Sunmi implies brand
   if (/\bSunmi\b/i.test(text) && !brand) brand = "Sunmi";
 
-  return { device, category, brand };
+  return { device, brand };
 }
 
 function detectPriority(text: string): IncidentPriority {
@@ -202,7 +199,7 @@ function generateTitle(text: string, device: string, brand: string): string {
 
 function parseIntercomText(text: string): ParsedIncident {
   const { clientName, contactName } = extractBusinessName(text);
-  const { device, category, brand } = detectDevice(text);
+  const { device, brand } = detectDevice(text);
   const priority = detectPriority(text);
   const title = generateTitle(text, device, brand);
 
@@ -214,7 +211,7 @@ function parseIntercomText(text: string): ParsedIncident {
     contactName,
     title,
     description,
-    category,
+    category: INCIDENT_CATEGORIES.ESCALADO,
     priority,
     deviceType: device,
     deviceBrand: brand,
@@ -260,7 +257,7 @@ export function QuickCapturePage() {
   const [contactName, setContactName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<IncidentCategory>(INCIDENT_CATEGORIES.OTRO);
+  const [category, setCategory] = useState<IncidentCategory>(INCIDENT_CATEGORIES.ESCALADO);
   const [priority, setPriority] = useState<IncidentPriority>(INCIDENT_PRIORITIES.MEDIA);
   const [deviceType, setDeviceType] = useState("");
   const [deviceBrand, setDeviceBrand] = useState("");

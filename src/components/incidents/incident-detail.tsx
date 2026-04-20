@@ -115,7 +115,6 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
               users={users}
               defaultValues={{
                 clientId: incident.clientId ?? "",
-                clientLocationId: incident.clientLocationId ?? "",
                 clientName: incident.clientName ?? "",
                 title: incident.title,
                 description: incident.description ?? "",

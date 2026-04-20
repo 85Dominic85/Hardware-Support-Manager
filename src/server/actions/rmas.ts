@@ -49,7 +49,6 @@ export async function createRma(
         providerId: parsed.data.providerId,
         incidentId: parsed.data.incidentId || null,
         clientId: parsed.data.clientId || null,
-        clientLocationId: parsed.data.clientLocationId || null,
         clientName,
         clientExternalId: parsed.data.clientExternalId || null,
         clientIntercomUrl: parsed.data.clientIntercomUrl || null,
@@ -58,10 +57,11 @@ export async function createRma(
         deviceBrand: parsed.data.deviceBrand || null,
         deviceModel: parsed.data.deviceModel || null,
         deviceSerialNumber: parsed.data.deviceSerialNumber || null,
-        address: parsed.data.address || null,
-        postalCode: parsed.data.postalCode || null,
-        city: parsed.data.city || null,
-        phone: parsed.data.phone || null,
+        contactName: parsed.data.contactName || null,
+        contactPhone: parsed.data.contactPhone || null,
+        pickupAddress: parsed.data.pickupAddress || null,
+        pickupPostalCode: parsed.data.pickupPostalCode || null,
+        pickupCity: parsed.data.pickupCity || null,
         trackingNumberOutgoing: parsed.data.trackingNumberOutgoing || null,
         trackingNumberReturn: parsed.data.trackingNumberReturn || null,
         providerRmaNumber: parsed.data.providerRmaNumber || null,
@@ -103,8 +103,6 @@ export async function updateRma(
     values.incidentId = parsed.data.incidentId || null;
   if (parsed.data.clientId !== undefined)
     values.clientId = parsed.data.clientId || null;
-  if (parsed.data.clientLocationId !== undefined)
-    values.clientLocationId = parsed.data.clientLocationId || null;
   if (parsed.data.clientName !== undefined)
     values.clientName = parsed.data.clientName || null;
   if (parsed.data.clientExternalId !== undefined)
@@ -119,14 +117,16 @@ export async function updateRma(
     values.deviceModel = parsed.data.deviceModel || null;
   if (parsed.data.deviceSerialNumber !== undefined)
     values.deviceSerialNumber = parsed.data.deviceSerialNumber || null;
-  if (parsed.data.address !== undefined)
-    values.address = parsed.data.address || null;
-  if (parsed.data.postalCode !== undefined)
-    values.postalCode = parsed.data.postalCode || null;
-  if (parsed.data.city !== undefined)
-    values.city = parsed.data.city || null;
-  if (parsed.data.phone !== undefined)
-    values.phone = parsed.data.phone || null;
+  if (parsed.data.contactName !== undefined)
+    values.contactName = parsed.data.contactName || null;
+  if (parsed.data.contactPhone !== undefined)
+    values.contactPhone = parsed.data.contactPhone || null;
+  if (parsed.data.pickupAddress !== undefined)
+    values.pickupAddress = parsed.data.pickupAddress || null;
+  if (parsed.data.pickupPostalCode !== undefined)
+    values.pickupPostalCode = parsed.data.pickupPostalCode || null;
+  if (parsed.data.pickupCity !== undefined)
+    values.pickupCity = parsed.data.pickupCity || null;
   if (parsed.data.trackingNumberOutgoing !== undefined)
     values.trackingNumberOutgoing = parsed.data.trackingNumberOutgoing || null;
   if (parsed.data.trackingNumberReturn !== undefined)

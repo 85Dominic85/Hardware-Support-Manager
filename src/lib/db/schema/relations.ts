@@ -25,13 +25,11 @@ export const clientsRelations = relations(clients, ({ many }) => ({
   rmas: many(rmas),
 }));
 
-export const clientLocationsRelations = relations(clientLocations, ({ one, many }) => ({
+export const clientLocationsRelations = relations(clientLocations, ({ one }) => ({
   client: one(clients, {
     fields: [clientLocations.clientId],
     references: [clients.id],
   }),
-  incidents: many(incidents),
-  rmas: many(rmas),
 }));
 
 export const articlesRelations = relations(articles, ({ many }) => ({
@@ -47,10 +45,6 @@ export const incidentsRelations = relations(incidents, ({ one, many }) => ({
   client: one(clients, {
     fields: [incidents.clientId],
     references: [clients.id],
-  }),
-  clientLocation: one(clientLocations, {
-    fields: [incidents.clientLocationId],
-    references: [clientLocations.id],
   }),
   article: one(articles, {
     fields: [incidents.articleId],
@@ -71,10 +65,6 @@ export const rmasRelations = relations(rmas, ({ one }) => ({
   client: one(clients, {
     fields: [rmas.clientId],
     references: [clients.id],
-  }),
-  clientLocation: one(clientLocations, {
-    fields: [rmas.clientLocationId],
-    references: [clientLocations.id],
   }),
   article: one(articles, {
     fields: [rmas.articleId],

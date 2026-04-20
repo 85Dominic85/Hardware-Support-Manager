@@ -107,7 +107,6 @@ export async function convertToIncident(
           deviceSerialNumber: rest.deviceSerialNumber || null,
           contactName: rest.contactName || item.contactName || null,
           contactPhone: rest.contactPhone || null,
-          clientLocationId: rest.clientLocationId || null,
           pickupAddress: rest.pickupAddress || null,
           pickupCity: rest.pickupCity || null,
           pickupPostalCode: rest.pickupPostalCode || null,

@@ -33,17 +33,13 @@ import {
   type RmaFormInput,
 } from "@/lib/validators/rma";
 import { DEVICE_TYPE_LABELS } from "@/lib/constants/device-types";
-import {
-  fetchClientsForSelect,
-  fetchClientLocationsForSelect,
-} from "@/server/actions/clients";
+import { fetchClientsForSelect } from "@/server/actions/clients";
 import {
   fetchArticleTypes,
   fetchArticleBrands,
   fetchArticleModels,
 } from "@/server/actions/articles";
 import { fetchIncidentById } from "@/server/actions/incidents";
-import type { ClientLocationRow } from "@/server/queries/clients";
 
 interface RmaFormProps {
   providers: { id: string; name: string }[];
@@ -72,7 +68,6 @@ export function RmaForm({
       providerId: defaultValues?.providerId ?? "",
       incidentId: defaultValues?.incidentId ?? "",
       clientId: defaultValues?.clientId ?? "",
-      clientLocationId: defaultValues?.clientLocationId ?? "",
       clientName: defaultValues?.clientName ?? "",
       clientExternalId: defaultValues?.clientExternalId ?? "",
       clientIntercomUrl: defaultValues?.clientIntercomUrl ?? "",
@@ -81,10 +76,11 @@ export function RmaForm({
       deviceBrand: defaultValues?.deviceBrand ?? "",
       deviceModel: defaultValues?.deviceModel ?? "",
       deviceSerialNumber: defaultValues?.deviceSerialNumber ?? "",
-      address: defaultValues?.address ?? "",
-      postalCode: defaultValues?.postalCode ?? "",
-      city: defaultValues?.city ?? "",
-      phone: defaultValues?.phone ?? "",
+      contactName: defaultValues?.contactName ?? "",
+      contactPhone: defaultValues?.contactPhone ?? "",
+      pickupAddress: defaultValues?.pickupAddress ?? "",
+      pickupPostalCode: defaultValues?.pickupPostalCode ?? "",
+      pickupCity: defaultValues?.pickupCity ?? "",
       trackingNumberOutgoing: defaultValues?.trackingNumberOutgoing ?? "",
       trackingNumberReturn: defaultValues?.trackingNumberReturn ?? "",
       providerRmaNumber: defaultValues?.providerRmaNumber ?? "",
@@ -92,18 +88,11 @@ export function RmaForm({
     },
   });
 
-  const selectedClientId = form.watch("clientId");
   const selectedIncidentId = form.watch("incidentId");
 
   const { data: clientsData = [] } = useQuery({
     queryKey: ["clients", "select"],
     queryFn: () => fetchClientsForSelect(),
-  });
-
-  const { data: locationsData = [] } = useQuery({
-    queryKey: ["client-locations", selectedClientId],
-    queryFn: () => fetchClientLocationsForSelect(selectedClientId!),
-    enabled: !!selectedClientId,
   });
 
   const { data: incidentData } = useQuery({
@@ -142,25 +131,18 @@ export function RmaForm({
       }
     }
 
-    if (incidentData.clientLocationId) {
-      const currentLocationId = form.getValues("clientLocationId");
-      if (!currentLocationId) {
-        form.setValue("clientLocationId", incidentData.clientLocationId, { shouldDirty: true });
-        didFill = true;
-      }
-    }
-
     // Device fields
     setIfEmpty("deviceType", incidentData.deviceType);
     setIfEmpty("deviceBrand", incidentData.deviceBrand);
     setIfEmpty("deviceModel", incidentData.deviceModel);
     setIfEmpty("deviceSerialNumber", incidentData.deviceSerialNumber);
 
-    // Location / contact fields
-    setIfEmpty("phone", incidentData.contactPhone);
-    setIfEmpty("address", incidentData.pickupAddress);
-    setIfEmpty("postalCode", incidentData.pickupPostalCode);
-    setIfEmpty("city", incidentData.pickupCity);
+    // Contact and pickup fields
+    setIfEmpty("contactName", incidentData.contactName);
+    setIfEmpty("contactPhone", incidentData.contactPhone);
+    setIfEmpty("pickupAddress", incidentData.pickupAddress);
+    setIfEmpty("pickupPostalCode", incidentData.pickupPostalCode);
+    setIfEmpty("pickupCity", incidentData.pickupCity);
 
     // Intercom
     setIfEmpty("clientIntercomUrl", incidentData.intercomUrl);
@@ -188,26 +170,6 @@ export function RmaForm({
       toast.success("Datos importados de la incidencia");
     }
   }, [incidentData, selectedIncidentId, defaultValues, form]);
-
-  // Auto-fill from selected location
-  const handleLocationChange = (locationId: string) => {
-    form.setValue("clientLocationId", locationId);
-    if (!locationId) return;
-    const location = locationsData.find((l: ClientLocationRow) => l.id === locationId);
-    if (location) {
-      form.setValue("address", location.address ?? "");
-      form.setValue("postalCode", location.postalCode ?? "");
-      form.setValue("city", location.city ?? "");
-      form.setValue("phone", location.contactPhone ?? "");
-    }
-  };
-
-  // Reset location when client changes
-  useEffect(() => {
-    if (!selectedClientId) {
-      form.setValue("clientLocationId", "");
-    }
-  }, [selectedClientId, form]);
 
   // Article cascading dropdowns
   const selectedDeviceType = form.watch("deviceType");
@@ -255,11 +217,6 @@ export function RmaForm({
   const clientOptions = clientsData.map((c: { id: string; name: string }) => ({
     value: c.id,
     label: c.name,
-  }));
-
-  const locationOptions = locationsData.map((l: ClientLocationRow) => ({
-    value: l.id,
-    label: l.name,
   }));
 
   return (
@@ -348,28 +305,6 @@ export function RmaForm({
           <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
             <FormField
               control={form.control}
-              name="clientLocationId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Local / Sucursal</FormLabel>
-                  <FormControl>
-                    <SearchableSelect
-                      options={locationOptions}
-                      value={field.value ?? ""}
-                      onValueChange={handleLocationChange}
-                      placeholder="Seleccionar local..."
-                      searchPlaceholder="Buscar local..."
-                      emptyMessage="Sin locales."
-                      disabled={!selectedClientId}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="clientName"
               render={({ field }) => (
                 <FormItem>
@@ -416,18 +351,20 @@ export function RmaForm({
 
         <Separator className="bg-border/40" />
 
-        {/* Seccion 2 — Ubicacion cliente */}
-        <div>
-          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide mb-4"><span className="h-4 w-1 rounded-full bg-primary" />Ubicacion del cliente</h3>
-          <div className="grid gap-6 sm:grid-cols-2">
+        {/* Seccion 2 — Contacto y Recogida */}
+        <div className="space-y-4">
+          <h3 className="flex items-center gap-3 text-sm font-semibold text-foreground uppercase tracking-wide"><span className="h-4 w-1 rounded-full bg-primary" />
+            Contacto y Recogida
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
-              name="phone"
+              name="contactName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Telefono</FormLabel>
+                  <FormLabel>Persona de contacto</FormLabel>
                   <FormControl>
-                    <Input placeholder="Telefono de contacto" {...field} />
+                    <Input placeholder="Nombre del contacto" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -436,21 +373,37 @@ export function RmaForm({
 
             <FormField
               control={form.control}
-              name="address"
+              name="contactPhone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Direccion</FormLabel>
+                  <FormLabel>Teléfono de contacto</FormLabel>
                   <FormControl>
-                    <Input placeholder="Direccion completa" {...field} />
+                    <Input placeholder="Teléfono" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </div>
 
+          <FormField
+            control={form.control}
+            name="pickupAddress"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Dirección de recogida</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Dirección completa" rows={2} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
-              name="city"
+              name="pickupCity"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ciudad</FormLabel>
@@ -464,12 +417,12 @@ export function RmaForm({
 
             <FormField
               control={form.control}
-              name="postalCode"
+              name="pickupPostalCode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Codigo postal</FormLabel>
+                  <FormLabel>Código Postal</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: 28001" {...field} />
+                    <Input placeholder="CP" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

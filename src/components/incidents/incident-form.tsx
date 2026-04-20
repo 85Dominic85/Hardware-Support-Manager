@@ -39,16 +39,12 @@ import {
   INCIDENT_PRIORITY_LABELS,
 } from "@/lib/constants/incidents";
 import { DEVICE_TYPE_LABELS } from "@/lib/constants/device-types";
-import {
-  fetchClientsForSelect,
-  fetchClientLocationsForSelect,
-} from "@/server/actions/clients";
+import { fetchClientsForSelect } from "@/server/actions/clients";
 import {
   fetchArticleTypes,
   fetchArticleBrands,
   fetchArticleModels,
 } from "@/server/actions/articles";
-import type { ClientLocationRow } from "@/server/queries/clients";
 
 interface IncidentFormProps {
   users: { id: string; name: string }[];
@@ -70,11 +66,10 @@ export function IncidentForm({
     mode: "onTouched",
     defaultValues: {
       clientId: defaultValues?.clientId ?? "",
-      clientLocationId: defaultValues?.clientLocationId ?? "",
       clientName: defaultValues?.clientName ?? "",
       title: defaultValues?.title ?? "",
       description: defaultValues?.description ?? "",
-      category: defaultValues?.category ?? "hardware",
+      category: defaultValues?.category ?? "escalado",
       priority: defaultValues?.priority ?? "media",
       assignedUserId: defaultValues?.assignedUserId ?? "",
       articleId: defaultValues?.articleId ?? "",
@@ -115,39 +110,10 @@ export function IncidentForm({
     setSelectedTemplateId(null);
   };
 
-  const selectedClientId = form.watch("clientId");
-
   const { data: clientsData = [] } = useQuery({
     queryKey: ["clients", "select"],
     queryFn: () => fetchClientsForSelect(),
   });
-
-  const { data: locationsData = [] } = useQuery({
-    queryKey: ["client-locations", selectedClientId],
-    queryFn: () => fetchClientLocationsForSelect(selectedClientId!),
-    enabled: !!selectedClientId,
-  });
-
-  // Auto-fill from selected location
-  const handleLocationChange = (locationId: string) => {
-    form.setValue("clientLocationId", locationId);
-    if (!locationId) return;
-    const location = locationsData.find((l: ClientLocationRow) => l.id === locationId);
-    if (location) {
-      form.setValue("contactName", location.contactName ?? "");
-      form.setValue("contactPhone", location.contactPhone ?? "");
-      form.setValue("pickupAddress", location.address ?? "");
-      form.setValue("pickupPostalCode", location.postalCode ?? "");
-      form.setValue("pickupCity", location.city ?? "");
-    }
-  };
-
-  // Reset location when client changes
-  useEffect(() => {
-    if (!selectedClientId) {
-      form.setValue("clientLocationId", "");
-    }
-  }, [selectedClientId, form]);
 
   // Article cascading dropdowns
   const selectedDeviceType = form.watch("deviceType");
@@ -195,11 +161,6 @@ export function IncidentForm({
   const clientOptions = clientsData.map((c: { id: string; name: string }) => ({
     value: c.id,
     label: c.name,
-  }));
-
-  const locationOptions = locationsData.map((l: ClientLocationRow) => ({
-    value: l.id,
-    label: l.name,
   }));
 
   return (
@@ -258,40 +219,18 @@ export function IncidentForm({
 
             <FormField
               control={form.control}
-              name="clientLocationId"
+              name="clientName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Local / Sucursal</FormLabel>
+                  <FormLabel>Nombre cliente (texto libre)</FormLabel>
                   <FormControl>
-                    <SearchableSelect
-                      options={locationOptions}
-                      value={field.value ?? ""}
-                      onValueChange={handleLocationChange}
-                      placeholder="Seleccionar local..."
-                      searchPlaceholder="Buscar local..."
-                      emptyMessage="Sin locales."
-                      disabled={!selectedClientId}
-                    />
+                    <Input placeholder="Si no hay cliente registrado, escribir nombre aquí" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
-
-          <FormField
-            control={form.control}
-            name="clientName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre cliente (texto libre)</FormLabel>
-                <FormControl>
-                  <Input placeholder="Si no hay cliente registrado, escribir nombre aquí" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField

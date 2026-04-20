@@ -63,7 +63,6 @@ export function InlineRmaSheet({ open, onOpenChange, incident }: InlineRmaSheetP
   const defaultValues: Partial<RmaFormInput> = {
     incidentId: incident.id,
     clientId: incident.clientId ?? "",
-    clientLocationId: incident.clientLocationId ?? "",
     clientName: incident.clientCompanyName ?? incident.clientName ?? "",
     clientIntercomUrl: incident.intercomUrl ?? "",
     articleId: incident.articleId ?? "",
@@ -71,10 +70,11 @@ export function InlineRmaSheet({ open, onOpenChange, incident }: InlineRmaSheetP
     deviceBrand: incident.deviceBrand ?? "",
     deviceModel: incident.deviceModel ?? "",
     deviceSerialNumber: incident.deviceSerialNumber ?? "",
-    phone: incident.contactPhone ?? "",
-    address: incident.pickupAddress ?? "",
-    postalCode: incident.pickupPostalCode ?? "",
-    city: incident.pickupCity ?? "",
+    contactName: incident.contactName ?? "",
+    contactPhone: incident.contactPhone ?? "",
+    pickupAddress: incident.pickupAddress ?? "",
+    pickupPostalCode: incident.pickupPostalCode ?? "",
+    pickupCity: incident.pickupCity ?? "",
     notes: [incident.title, incident.description?.slice(0, 500)].filter(Boolean).join("\n\n"),
   };
 

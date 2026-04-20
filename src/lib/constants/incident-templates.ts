@@ -12,7 +12,7 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
   {
     id: "tpv-no-enciende",
     name: "TPV no enciende / no responde",
-    category: "hardware",
+    category: "escalado",
     priority: "alta",
     deviceType: "TPV",
     title: "TPV no enciende",
@@ -22,7 +22,7 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
   {
     id: "tpv-fallo-software",
     name: "TPV fallo software / reinicio",
-    category: "hardware",
+    category: "escalado",
     priority: "media",
     deviceType: "TPV",
     title: "TPV fallo de software / requiere reinicio",
@@ -32,7 +32,7 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
   {
     id: "impresora-no-imprime",
     name: "Impresora no imprime / desconectada",
-    category: "impresora",
+    category: "escalado",
     priority: "media",
     deviceType: "Printer USB/LAN",
     title: "Impresora no imprime",
@@ -42,7 +42,7 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
   {
     id: "impresora-error-corte",
     name: "Impresora error de corte / atasco",
-    category: "impresora",
+    category: "escalado",
     priority: "baja",
     deviceType: "Printer USB/LAN",
     title: "Impresora error de corte / atasco de papel",
@@ -52,7 +52,7 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
   {
     id: "problema-red",
     name: "Problema de red / WiFi",
-    category: "red",
+    category: "escalado",
     priority: "media",
     deviceType: "Router",
     title: "Problema de conectividad de red",

@@ -113,24 +113,9 @@ function extractTicketData(payload: unknown) {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-function detectCategory(text: string, categoria2?: string | null): IncidentCategory {
-  // Prefer Intercom's Categoría - 2 if available
-  if (categoria2) {
-    const c2 = categoria2.toLowerCase();
-    if (/tpv/.test(c2)) return "hardware";
-    if (/impresora/.test(c2)) return "impresora";
-    if (/red|wifi|internet/.test(c2)) return "red";
-    if (/monitor|pantalla/.test(c2)) return "monitor";
-    if (/caj[oó]n|portamonedas/.test(c2)) return "hardware";
-    if (/perif[eé]rico/.test(c2)) return "periferico";
-  }
-  const lower = text.toLowerCase();
-  if (/tpv|sunmi|opal|flint|terminal/.test(lower)) return "hardware";
-  if (/impresora|printer|epson|star/.test(lower)) return "impresora";
-  if (/caj[oó]n|portamonedas|cash/.test(lower)) return "hardware";
-  if (/red|wifi|internet|router|ethernet/.test(lower)) return "red";
-  if (/monitor|pantalla|display/.test(lower)) return "monitor";
-  return "otro";
+function detectCategory(_text: string, _categoria2?: string | null): IncidentCategory {
+  // Incidencias creadas desde la Bandeja Intercom siempre proceden de un escalado.
+  return "escalado";
 }
 
 function mapPriority(urgency: string): "baja" | "media" | "alta" | "critica" {

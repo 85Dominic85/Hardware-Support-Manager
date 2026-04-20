@@ -39,23 +39,17 @@ export const INCIDENT_PRIORITY_LABELS: Record<IncidentPriority, string> = {
 };
 
 export const INCIDENT_CATEGORIES = {
-  HARDWARE: "hardware",
-  PERIFERICO: "periferico",
-  RED: "red",
-  ALMACENAMIENTO: "almacenamiento",
-  IMPRESORA: "impresora",
-  MONITOR: "monitor",
+  ESCALADO: "escalado",
+  INCIDENCIA_DIRECTA: "incidencia_directa",
+  MENCION: "mencion",
   OTRO: "otro",
 } as const;
 
 export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[keyof typeof INCIDENT_CATEGORIES];
 
 export const INCIDENT_CATEGORY_LABELS: Record<IncidentCategory, string> = {
-  hardware: "Hardware",
-  periferico: "Periférico",
-  red: "Red",
-  almacenamiento: "Almacenamiento",
-  impresora: "Impresora",
-  monitor: "Monitor",
+  escalado: "Escalado",
+  incidencia_directa: "Incidencia directa",
+  mencion: "Mención",
   otro: "Otro",
 };
