@@ -176,6 +176,18 @@ async function computeThroughputAndCritical(
 }
 
 /**
+ * Coerciona valores que las queries Drizzle marcan como `number` pero
+ * Postgres devuelve como string (e.g. NUMERIC, ROUND(numeric, 1)). Sin
+ * esto, los strings cuelan al JSON serializado y el portal falla en el
+ * `safeParse` Zod con "Shape inesperado".
+ */
+function toNumberOrNull(v: number | string | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Combina los 3 arrays de proveedores en `topProviders` ordenado por
  * volumen RMA descendente (top 5).
  */
@@ -191,9 +203,11 @@ function buildTopProviders(
     .map((v) => ({
       provider_id: v.providerId,
       provider_name: v.providerName,
-      rma_count: Number(v.total) || 0,
-      success_rate_pct: successById.get(v.providerId)?.rate ?? 0,
-      avg_turnaround_days: turnaroundById.get(v.providerId)?.avgDays ?? null,
+      rma_count: toNumberOrNull(v.total) ?? 0,
+      success_rate_pct: toNumberOrNull(successById.get(v.providerId)?.rate) ?? 0,
+      // `avgDays` viene como string desde Postgres (ROUND devuelve numeric).
+      // Sin coerción, el portal falla en el Zod parse → escudo neutral.
+      avg_turnaround_days: toNumberOrNull(turnaroundById.get(v.providerId)?.avgDays),
     }))
     .sort((a, b) => b.rma_count - a.rma_count)
     .slice(0, 5);
