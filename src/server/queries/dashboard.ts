@@ -69,21 +69,25 @@ export interface AgingBucket {
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function getDashboardStats(
-  range?: DateRangeParams,
+  _range?: DateRangeParams,
 ): Promise<DashboardStats> {
+  // NOTE: `range` se acepta por compatibilidad con la API existente pero NO
+  // se aplica a los conteos de "abiertas/activas". Estas son métricas
+  // SNAPSHOT del estado actual del depto: una incidencia creada en marzo
+  // que sigue en "esperando_cliente" hoy debe contar como abierta hoy,
+  // independientemente del rango temporal seleccionado en el dashboard.
+  // El filtro temporal solo aplica a métricas de actividad (resueltas en
+  // periodo, throughput, avg resolution) en `getSlaMetrics`.
+  void _range;
   const defaults: DashboardStats = { openIncidents: 0, activeRmas: 0, totalProviders: 0 };
   try {
-    const { incFrom, incTo, rmaFrom, rmaTo } = rawDateFragments(range);
-
     const result = await db.execute(sql`
       SELECT
         (SELECT count(*) FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
-         ${incFrom} ${incTo}
         ) AS open_incidents,
         (SELECT count(*) FROM hsm.rmas
          WHERE status NOT IN ('recibido_oficina','cerrado','cancelado')
-         ${rmaFrom} ${rmaTo}
         ) AS active_rmas,
         (SELECT count(*) FROM hsm.providers
          WHERE deleted_at IS NULL
@@ -148,10 +152,12 @@ export async function getSlaMetrics(
          AND ${complianceCondition}
         ) AS comp_compliant,
 
+        -- overdue_count: SNAPSHOT actual (sin filtro de fecha). Una incidencia
+        -- creada en marzo y todavía abierta hoy debe contar como vencida si
+        -- supera su umbral SLA, independientemente del rango temporal.
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
-         ${incFrom} ${incTo}
          AND ${overdueCondition}
         ) AS overdue_count,
 
@@ -191,17 +197,16 @@ export async function getSlaMetrics(
       : 0;
     const rmaDays = row.rma_avg_days ? parseFloat(row.rma_avg_days) : null;
 
-    // By priority (separate query — returns multiple rows)
-    const dateConds = incidentDateConds(range);
+    // By priority — SNAPSHOT del estado actual. Reparto de incidencias que
+    // están abiertas AHORA por prioridad, sin filtro de fecha (una crítica
+    // creada en abril que sigue abierta hoy debe seguir contando).
     const byPriority = await db
       .select({
         priority: incidents.priority,
         count: count(),
       })
       .from(incidents)
-      .where(
-        and(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])), ...dateConds),
-      )
+      .where(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])))
       .groupBy(incidents.priority);
 
     return {
@@ -218,11 +223,15 @@ export async function getSlaMetrics(
 }
 
 export async function getAgingDistribution(
-  range?: DateRangeParams,
+  _range?: DateRangeParams,
 ): Promise<AgingBucket[]> {
+  // El aging mide tiempo en estado actual (`stateChangedAt`) — debe ser un
+  // SNAPSHOT de las incidencias abiertas HOY, sin filtro de fecha. Filtrar
+  // por `createdAt` excluiría incidencias creadas antes del rango que
+  // siguen abiertas (precisamente las más viejas, que son las que más
+  // importa visualizar en aging).
+  void _range;
   try {
-    const dateConds = incidentDateConds(range);
-
     const bucketExpr = sql`CASE
       WHEN extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 1 THEN '< 1 día'
       WHEN extract(epoch from (now() - ${incidents.stateChangedAt})) / 86400 < 3 THEN '1-3 días'
@@ -236,9 +245,7 @@ export async function getAgingDistribution(
         count: count(),
       })
       .from(incidents)
-      .where(
-        and(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])), ...dateConds),
-      )
+      .where(not(inArray(incidents.status, [...CLOSED_INCIDENT_STATUSES])))
       .groupBy(bucketExpr);
 
     const order = ["< 1 día", "1-3 días", "3-7 días", "7+ días"];
