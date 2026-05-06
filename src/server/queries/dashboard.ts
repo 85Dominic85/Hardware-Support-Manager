@@ -66,6 +66,25 @@ export interface AgingBucket {
   count: number;
 }
 
+export interface QuickConsultationByTechnician {
+  name: string;
+  count: number;
+  totalMinutes: number;
+}
+
+export interface QuickConsultationsStats {
+  /** Consultas rápidas creadas en el periodo. */
+  count: number;
+  /** Suma de quick_duration_minutes (ignora null). */
+  totalMinutes: number;
+  /** Promedio en minutos. null si no hay datos con duración registrada. */
+  avgMinutes: number | null;
+  /** Top 5 técnicos por count. */
+  byTechnician: QuickConsultationByTechnician[];
+  /** % de consultas creadas en el periodo que después se convirtieron en formal. */
+  conversionRatePct: number;
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function getDashboardStats(
@@ -131,23 +150,31 @@ export async function getSlaMetrics(
     const overdueCondition = buildSlaPriorityConditionRaw(sla, elapsedHoursExpr, "exceeded");
 
     // Single query with 7 scalar subqueries
+    // NOTE: las queries que miden "actividad de resolución" excluyen
+    // `category='consulta_rapida'` para no distorsionar los promedios. Las
+    // consultas rápidas se crean ya resueltas (resolved_at = created_at) y
+    // sesgarían avg_hours/sla compliance hacia valores artificialmente buenos.
+    // Sus métricas viven en getQuickConsultationsStats.
     const result = await db.execute(sql`
       SELECT
         (SELECT avg(${resolvedHoursExpr})
          FROM hsm.incidents
          WHERE status = 'resuelto' AND resolved_at IS NOT NULL
+         AND category != 'consulta_rapida'
          ${incFrom} ${incTo}
         ) AS avg_hours,
 
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
+         AND category != 'consulta_rapida'
          ${incFrom} ${incTo}
         ) AS comp_total,
 
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado') AND resolved_at IS NOT NULL
+         AND category != 'consulta_rapida'
          ${incFrom} ${incTo}
          AND ${complianceCondition}
         ) AS comp_compliant,
@@ -155,6 +182,7 @@ export async function getSlaMetrics(
         -- overdue_count: SNAPSHOT actual (sin filtro de fecha). Una incidencia
         -- creada en marzo y todavía abierta hoy debe contar como vencida si
         -- supera su umbral SLA, independientemente del rango temporal.
+        -- consulta_rapida siempre está resuelta, así que no entra aquí.
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status NOT IN ('resuelto','cerrado','cancelado')
@@ -170,6 +198,7 @@ export async function getSlaMetrics(
         (SELECT count(*)
          FROM hsm.incidents
          WHERE status IN ('resuelto','cerrado')
+         AND category != 'consulta_rapida'
          ${incFrom} ${incTo}
         ) AS total_resolved,
 
@@ -391,5 +420,97 @@ export async function getIncidentTrend(
     return results;
   } catch {
     return [];
+  }
+}
+
+/**
+ * Estadísticas de consultas rápidas (category='consulta_rapida') en el rango.
+ *
+ * Mide la "carga oculta" del depto: count + tiempo total invertido +
+ * distribución por técnico + tasa de conversión a incidencia formal.
+ *
+ * Filtra por `created_at` en rango porque las consultas se crean ya resueltas
+ * (created_at = resolved_at), así que ambos filtros son equivalentes.
+ */
+export async function getQuickConsultationsStats(
+  range?: DateRangeParams,
+): Promise<QuickConsultationsStats> {
+  const defaults: QuickConsultationsStats = {
+    count: 0,
+    totalMinutes: 0,
+    avgMinutes: null,
+    byTechnician: [],
+    conversionRatePct: 0,
+  };
+
+  try {
+    const dateConds = incidentDateConds(range);
+
+    // Aggregate: count + suma minutos + avg.
+    const [agg] = await db
+      .select({
+        count: count(),
+        totalMinutes: sql<number>`coalesce(sum(${incidents.quickDurationMinutes}), 0)`,
+        avgMinutes: sql<number | null>`avg(${incidents.quickDurationMinutes})`,
+      })
+      .from(incidents)
+      .where(
+        and(eq(incidents.category, "consulta_rapida"), ...dateConds),
+      );
+
+    const total = Number(agg?.count) || 0;
+    const totalMin = Number(agg?.totalMinutes) || 0;
+    const avgMin =
+      agg?.avgMinutes != null ? Math.round(Number(agg.avgMinutes) * 10) / 10 : null;
+
+    // Top 5 técnicos por count + suma minutos.
+    const techRows = await db
+      .select({
+        name: users.name,
+        count: count(),
+        totalMinutes: sql<number>`coalesce(sum(${incidents.quickDurationMinutes}), 0)`,
+      })
+      .from(incidents)
+      .innerJoin(users, eq(incidents.assignedUserId, users.id))
+      .where(
+        and(eq(incidents.category, "consulta_rapida"), ...dateConds),
+      )
+      .groupBy(users.name)
+      .orderBy(desc(count()))
+      .limit(5);
+
+    const byTechnician: QuickConsultationByTechnician[] = techRows.map((r) => ({
+      name: r.name,
+      count: Number(r.count) || 0,
+      totalMinutes: Number(r.totalMinutes) || 0,
+    }));
+
+    // Conversion rate: count(event_logs WHERE action='converted_from_quick' AND
+    // created_at IN range) / count(consultas creadas en range).
+    let conversions = 0;
+    if (total > 0 && range?.dateFrom && range?.dateTo) {
+      const convResult = await db.execute(sql`
+        SELECT count(*)::int AS c
+        FROM hsm.event_logs
+        WHERE entity_type = 'incident'
+          AND action = 'converted_from_quick'
+          AND created_at >= ${range.dateFrom + "T00:00:00"}
+          AND created_at <= ${range.dateTo + "T23:59:59"}
+      `);
+      const row = convResult[0] as { c?: number | string } | undefined;
+      conversions = Number(row?.c) || 0;
+    }
+    const conversionRatePct =
+      total > 0 ? Math.round((conversions / total) * 1000) / 10 : 0;
+
+    return {
+      count: total,
+      totalMinutes: totalMin,
+      avgMinutes: avgMin,
+      byTechnician,
+      conversionRatePct,
+    };
+  } catch {
+    return defaults;
   }
 }

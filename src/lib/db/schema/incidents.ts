@@ -1,4 +1,4 @@
-import { uuid, varchar, text, timestamp, bigint } from "drizzle-orm/pg-core";
+import { uuid, varchar, text, timestamp, bigint, integer } from "drizzle-orm/pg-core";
 import { hsmSchema } from "./hsm-schema";
 import { users } from "./users";
 import { clients } from "./clients";
@@ -14,7 +14,7 @@ export const incidentPriorityEnum = hsmSchema.enum("incident_priority", [
 ]);
 
 export const incidentCategoryEnum = hsmSchema.enum("incident_category", [
-  "escalado", "incidencia_directa", "mencion", "otro",
+  "escalado", "incidencia_directa", "mencion", "otro", "consulta_rapida",
 ]);
 
 export const hardwareOriginEnum = hsmSchema.enum("hardware_origin", [
@@ -52,4 +52,7 @@ export const incidents = hsmSchema.table("incidents", {
   resolutionType: varchar("resolution_type", { length: 50 }),
   articleId: uuid("article_id").references(() => articles.id, { onDelete: "set null" }),
   deviceValueCents: bigint("device_value_cents", { mode: "number" }),
+  // Minutos invertidos en consultas rápidas in-situ (category='consulta_rapida').
+  // NULL para incidencias normales. No se usa en cálculos SLA.
+  quickDurationMinutes: integer("quick_duration_minutes"),
 });

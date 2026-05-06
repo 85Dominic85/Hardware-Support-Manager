@@ -9,6 +9,8 @@ import {
   createIncidentSchema,
   updateIncidentSchema,
   transitionIncidentSchema,
+  createQuickConsultationSchema,
+  convertQuickConsultationSchema,
 } from "@/lib/validators/incident";
 import { isValidTransition } from "@/lib/state-machines/incident";
 import { generateSequentialId } from "@/lib/utils/id-generator";
@@ -474,4 +476,171 @@ export async function quickTransitionToGestion(
   revalidatePath("/incidents");
   revalidatePath(`/incidents/${incidentId}`);
   return { success: true, data: { id: incidentId } };
+}
+
+// ─── Quick consultations ────────────────────────────────────────────────────
+//
+// In-situ quick consultations: incidencias creadas YA resueltas para registrar
+// el tiempo invertido en consultas que el técnico atiende en su mesa en pocos
+// minutos. Se diferencian con `category='consulta_rapida'` y NO contaminan los
+// cálculos SLA (las queries de getSlaMetrics las excluyen explícitamente).
+
+/**
+ * Crea una consulta rápida (incidencia ya resuelta).
+ *
+ * Defaults aplicados:
+ *   - status='resuelto', resolvedAt=now(), createdAt=now()
+ *   - category='consulta_rapida', priority='baja', hardwareOrigin='qamarero'
+ *   - assignedUserId = session.user.id (el técnico que la atendió)
+ *
+ * eventLog registra 2 eventos: 'created' (toState='nuevo') y 'transition'
+ * (fromState='nuevo' → toState='resuelto') para mantener auditoría coherente
+ * con el resto del sistema.
+ */
+export async function createQuickConsultation(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await getRequiredSession();
+
+  const parsed = createQuickConsultationSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors;
+    const fields = Object.keys(fieldErrors).join(", ");
+    return { success: false, error: `Datos inválidos en: ${fields}` };
+  }
+
+  const incidentNumber = await generateSequentialId("INC");
+  const now = new Date();
+
+  const [createdInc] = await db.transaction(async (tx) => {
+    const [inc] = await tx
+      .insert(incidents)
+      .values({
+        incidentNumber,
+        clientName: parsed.data.clientName || null,
+        title: parsed.data.title,
+        description: parsed.data.description || null,
+        category: "consulta_rapida",
+        hardwareOrigin: "qamarero",
+        priority: "baja",
+        status: "resuelto",
+        assignedUserId: session.user.id,
+        createdAt: now,
+        updatedAt: now,
+        resolvedAt: now,
+        stateChangedAt: now,
+        quickDurationMinutes: parsed.data.durationMinutes ?? null,
+      })
+      .returning({ id: incidents.id });
+
+    // Auditoría coherente con el resto: dos eventos en orden — created y
+    // transición directa a resuelto.
+    await tx.insert(eventLogs).values({
+      entityType: "incident",
+      entityId: inc.id,
+      action: "created",
+      toState: "nuevo",
+      userId: session.user.id,
+      details: { kind: "quick_consultation" },
+    });
+
+    await tx.insert(eventLogs).values({
+      entityType: "incident",
+      entityId: inc.id,
+      action: "transition",
+      fromState: "nuevo",
+      toState: "resuelto",
+      userId: session.user.id,
+      details: {
+        kind: "quick_consultation",
+        durationMinutes: parsed.data.durationMinutes ?? null,
+      },
+    });
+
+    return [inc];
+  });
+
+  revalidatePath("/incidents");
+  revalidatePath("/dashboard");
+  return { success: true, data: { id: createdInc.id } };
+}
+
+/**
+ * Convierte una consulta rápida en incidencia formal (escalado / directa).
+ *
+ * Cambia category, status, hardwareOrigin y priority. Reabre la incidencia
+ * (resolvedAt → null) y reinicia el reloj SLA (stateChangedAt = now()).
+ *
+ * `quickDurationMinutes` se PRESERVA — registra el tiempo previo al escalado,
+ * útil como contexto cuando se cierre formalmente.
+ */
+export async function convertQuickConsultation(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await getRequiredSession();
+
+  const parsed = convertQuickConsultationSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors;
+    const fields = Object.keys(fieldErrors).join(", ");
+    return { success: false, error: `Datos inválidos en: ${fields}` };
+  }
+
+  const [current] = await db
+    .select({
+      id: incidents.id,
+      category: incidents.category,
+      status: incidents.status,
+    })
+    .from(incidents)
+    .where(eq(incidents.id, parsed.data.incidentId))
+    .limit(1);
+
+  if (!current) {
+    return { success: false, error: "Incidencia no encontrada" };
+  }
+
+  if (current.category !== "consulta_rapida") {
+    return {
+      success: false,
+      error: "Solo se pueden convertir consultas rápidas",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(incidents)
+      .set({
+        category: parsed.data.toCategory,
+        status: parsed.data.toStatus,
+        hardwareOrigin: parsed.data.hardwareOrigin,
+        priority: parsed.data.priority,
+        resolvedAt: null,
+        stateChangedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(incidents.id, parsed.data.incidentId));
+
+    await tx.insert(eventLogs).values({
+      entityType: "incident",
+      entityId: parsed.data.incidentId,
+      action: "converted_from_quick",
+      fromState: current.status,
+      toState: parsed.data.toStatus,
+      userId: session.user.id,
+      details: {
+        toCategory: parsed.data.toCategory,
+        priority: parsed.data.priority,
+        hardwareOrigin: parsed.data.hardwareOrigin,
+        comment: parsed.data.comment ?? null,
+      },
+    });
+  });
+
+  revalidatePath("/incidents");
+  revalidatePath(`/incidents/${parsed.data.incidentId}`);
+  revalidatePath("/dashboard");
+  return { success: true, data: { id: parsed.data.incidentId } };
 }

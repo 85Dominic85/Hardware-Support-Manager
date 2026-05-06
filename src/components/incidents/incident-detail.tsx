@@ -167,6 +167,24 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
                 Derivado a RMA
               </Badge>
             )}
+            {incident.category === "consulta_rapida" && (
+              <Badge
+                variant="outline"
+                className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                title={
+                  incident.quickDurationMinutes != null
+                    ? `Consulta resuelta in-situ · ${incident.quickDurationMinutes} min`
+                    : "Consulta resuelta in-situ"
+                }
+              >
+                ⚡ Consulta rápida
+                {incident.quickDurationMinutes != null && (
+                  <span className="ml-1 font-mono text-[10px] opacity-80">
+                    {incident.quickDurationMinutes}m
+                  </span>
+                )}
+              </Badge>
+            )}
           </div>
           <p className="mt-1 text-lg text-muted-foreground">{incident.title}</p>
         </div>

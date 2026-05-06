@@ -9,6 +9,7 @@ import {
   Clock,
   AlertOctagon,
   RefreshCcw,
+  Zap,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +40,7 @@ import {
   fetchAgingDistribution,
   fetchTechnicianPerformance,
   fetchRecentActivity,
+  fetchQuickConsultationsStats,
 } from "@/server/actions/dashboard";
 import { fetchAlertItems } from "@/server/actions/alerts";
 import type {
@@ -49,6 +51,7 @@ import type {
   AgingBucket,
   TechnicianPerformance as TechPerfType,
   RecentActivity as RecentActType,
+  QuickConsultationsStats,
 } from "@/server/queries/dashboard";
 import type { AlertSummary } from "@/server/queries/alerts";
 
@@ -68,6 +71,7 @@ interface DashboardContentProps {
   initialTechnicians?: TechPerfType[];
   initialActivity?: RecentActType[];
   initialAlerts: AlertSummary;
+  initialQuickConsultations?: QuickConsultationsStats;
 }
 
 export function DashboardContent({
@@ -79,6 +83,7 @@ export function DashboardContent({
   initialTechnicians,
   initialActivity,
   initialAlerts,
+  initialQuickConsultations,
 }: DashboardContentProps) {
   const { preset, dateFrom, dateTo, dateRange, setPreset, setCustomRange } =
     useDashboardParams();
@@ -148,9 +153,18 @@ export function DashboardContent({
     initialDataUpdatedAt: ssrTimestamp,
   });
 
+  const quickConsultationsDefaults: QuickConsultationsStats = { count: 0, totalMinutes: 0, avgMinutes: null, byTechnician: [], conversionRatePct: 0 };
+  const { data: quickConsultations } = useQuery({
+    queryKey: ["dashboard-quick-consultations", dateRange],
+    queryFn: () => fetchQuickConsultationsStats(dateRange),
+    initialData: hasCustomRange ? undefined : initialQuickConsultations,
+    initialDataUpdatedAt: ssrTimestamp,
+  });
+
   const s = stats ?? initialStats;
   const sl = sla ?? initialSla;
   const al = alerts ?? initialAlerts;
+  const qc = quickConsultations ?? initialQuickConsultations ?? quickConsultationsDefaults;
 
   const hasCriticalError = statsError && slaError;
 
@@ -243,6 +257,13 @@ export function DashboardContent({
             value={`${sl.reopenRate}%`}
             icon={RefreshCcw}
             color={sl.reopenRate > 5 ? "red" : "green"}
+          />
+          <KpiCard
+            title="Consultas rápidas"
+            value={qc.count}
+            icon={Zap}
+            color="amber"
+            subtitle={`${(qc.totalMinutes / 60).toFixed(1)}h dedicadas`}
           />
         </StaggerList>
       </div>

@@ -67,9 +67,22 @@ export const incidentColumns: ColumnDef<IncidentRow, unknown>[] = [
     accessorKey: "title",
     header: "Título",
     meta: { sortKey: "title" },
-    cell: ({ row }) => (
-      <span className="max-w-[200px] truncate block">{row.original.title}</span>
-    ),
+    cell: ({ row }) => {
+      const isQuick = row.original.category === "consulta_rapida";
+      return (
+        <span className="flex max-w-[220px] items-center gap-1.5 truncate">
+          {isQuick && (
+            <span
+              className="inline-flex shrink-0 items-center rounded border border-amber-500/30 bg-amber-500/10 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+              title="Consulta rápida (resuelta in-situ)"
+            >
+              ⚡ Rápida
+            </span>
+          )}
+          <span className="truncate">{row.original.title}</span>
+        </span>
+      );
+    },
   },
   {
     accessorKey: "status",

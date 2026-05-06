@@ -87,7 +87,10 @@ export function AttachmentSection({
 
       if (!uploadRes.ok) {
         const err = await uploadRes.json();
-        toast.error(err.error || "Error al subir el archivo");
+        const message = err.detail
+          ? `${err.error}: ${err.detail}`
+          : err.error;
+        toast.error(message || "Error al subir el archivo");
         return;
       }
 

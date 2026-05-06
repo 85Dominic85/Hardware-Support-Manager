@@ -43,6 +43,7 @@ export const INCIDENT_CATEGORIES = {
   INCIDENCIA_DIRECTA: "incidencia_directa",
   MENCION: "mencion",
   OTRO: "otro",
+  CONSULTA_RAPIDA: "consulta_rapida",
 } as const;
 
 export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[keyof typeof INCIDENT_CATEGORIES];
@@ -52,6 +53,7 @@ export const INCIDENT_CATEGORY_LABELS: Record<IncidentCategory, string> = {
   incidencia_directa: "Incidencia directa",
   mencion: "Mención",
   otro: "Otro",
+  consulta_rapida: "Consulta rápida",
 };
 
 export const HARDWARE_ORIGINS = {

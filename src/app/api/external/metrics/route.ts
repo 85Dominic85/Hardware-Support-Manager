@@ -8,6 +8,7 @@ import {
   getDashboardStats,
   getSlaMetrics,
   getAgingDistribution,
+  getQuickConsultationsStats,
 } from "@/server/queries/dashboard";
 import {
   getProviderRmaVolume,
@@ -228,6 +229,8 @@ async function buildPayload(periods: PeriodStrings) {
     statsPrev,
     slaPrev,
     extra,
+    quickCurrent,
+    quickPrev,
   ] = await Promise.all([
     getDashboardStats(currentRange),
     getSlaMetrics(currentRange),
@@ -238,6 +241,8 @@ async function buildPayload(periods: PeriodStrings) {
     getDashboardStats(prevRange),
     getSlaMetrics(prevRange),
     computeThroughputAndCritical(from, to),
+    getQuickConsultationsStats(currentRange),
+    getQuickConsultationsStats(prevRange),
   ]);
 
   const topProviders = buildTopProviders(
@@ -256,7 +261,7 @@ async function buildPayload(periods: PeriodStrings) {
 
   return {
     generated_at: new Date().toISOString(),
-    schema_version: "1.0.0",
+    schema_version: "1.1.0",
     filters: { from, to, prev_from: prevFrom, prev_to: prevTo },
     current: {
       open_incidents: statsCurrent.openIncidents,
@@ -271,12 +276,30 @@ async function buildPayload(periods: PeriodStrings) {
       incidents_by_priority: slaCurrent.incidentsByPriority,
       aging_distribution: agingDistribution,
       top_providers: topProviders,
+      // "Carga oculta": consultas rápidas atendidas in-situ. NO entran en
+      // el cálculo SLA (filtradas en getSlaMetrics) pero sí cuentan como
+      // capacidad resolutiva del depto en su propio bloque.
+      quick_consultations: {
+        count: toNumberOrNull(quickCurrent.count) ?? 0,
+        total_minutes: toNumberOrNull(quickCurrent.totalMinutes) ?? 0,
+        avg_minutes: toNumberOrNull(quickCurrent.avgMinutes),
+        by_technician: quickCurrent.byTechnician.map((t) => ({
+          name: t.name,
+          count: toNumberOrNull(t.count) ?? 0,
+          total_minutes: toNumberOrNull(t.totalMinutes) ?? 0,
+        })),
+        conversion_rate_pct: toNumberOrNull(quickCurrent.conversionRatePct) ?? 0,
+      },
     },
     previous: {
       sla_compliance_pct: slaPrev.slaCompliancePercent,
       avg_resolution_hours: slaPrev.avgResolutionHours,
       reopen_rate_pct: slaPrev.reopenRate,
       open_incidents_at_close: statsPrev.openIncidents,
+      quick_consultations: {
+        count: toNumberOrNull(quickPrev.count) ?? 0,
+        total_minutes: toNumberOrNull(quickPrev.totalMinutes) ?? 0,
+      },
     },
   };
 }

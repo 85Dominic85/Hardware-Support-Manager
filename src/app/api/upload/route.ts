@@ -4,6 +4,14 @@ import { vercelBlobStorage } from "@/lib/storage/vercel-blob";
 import { MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from "@/lib/constants/attachments";
 
 export async function POST(request: NextRequest) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error("[api/upload] BLOB_READ_WRITE_TOKEN no configurado");
+    return NextResponse.json({
+      error: "Storage no configurado",
+      detail: "Vercel Blob no está conectado en este deploy. Habilita en Dashboard → Storage → Connect Blob.",
+    }, { status: 503 });
+  }
+
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
@@ -29,7 +37,12 @@ export async function POST(request: NextRequest) {
     const path = `attachments/${timestamp}-${file.name}`;
     const result = await vercelBlobStorage.upload(file, path);
     return NextResponse.json({ url: result.url, fileName: file.name, fileSize: file.size, fileType: file.type });
-  } catch {
-    return NextResponse.json({ error: "Error al subir el archivo" }, { status: 500 });
+  } catch (err) {
+    console.error("[api/upload] error:", err);
+    const detail = err instanceof Error ? err.message : "unknown";
+    return NextResponse.json({
+      error: "Error al subir el archivo",
+      detail,
+    }, { status: 500 });
   }
 }

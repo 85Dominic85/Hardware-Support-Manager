@@ -9,6 +9,7 @@ import {
   getAgingDistribution,
   getTechnicianPerformance,
   getRecentActivity,
+  getQuickConsultationsStats,
   type DashboardStats,
   type SlaMetrics,
   type TrendPoint,
@@ -16,6 +17,7 @@ import {
   type AgingBucket,
   type TechnicianPerformance,
   type RecentActivity,
+  type QuickConsultationsStats,
 } from "@/server/queries/dashboard";
 import type { DateRangeParams } from "@/hooks/use-dashboard-params";
 
@@ -52,4 +54,9 @@ export async function fetchTechnicianPerformance(range?: DateRangeParams): Promi
 export async function fetchRecentActivity(range?: DateRangeParams): Promise<RecentActivity[]> {
   await getRequiredSession();
   return getRecentActivity(undefined, range);
+}
+
+export async function fetchQuickConsultationsStats(range?: DateRangeParams): Promise<QuickConsultationsStats> {
+  await getRequiredSession();
+  return getQuickConsultationsStats(range);
 }
