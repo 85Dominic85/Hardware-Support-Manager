@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { incidents, rmas, providers } from "@/lib/db/schema";
-import { count, sql, desc, eq, and, isNull, not } from "drizzle-orm";
+import { count, sql, desc, eq, and, isNull, not, inArray } from "drizzle-orm";
 import type { DateRangeParams } from "./dashboard";
 import { dateConds } from "@/lib/utils/date-conditions";
 
@@ -157,10 +157,14 @@ export async function getDeviceFailureTrend(range?: DateRangeParams): Promise<De
 // ─── Provider Analytics ──────────────────────────────────────────────────────
 
 export async function getProviderRmaTurnaround(range?: DateRangeParams): Promise<ProviderTurnaround[]> {
-  const closedStatuses = ["recibido_oficina", "cerrado"];
+  const closedStatuses = ["recibido_oficina", "cerrado"] as const;
   const conditions = [
     ...dateConditions(rmas, range),
-    sql`${rmas.status} = ANY(${closedStatuses})`,
+    // NOTE: usar `inArray` en vez de `sql\`... = ANY(${array})\`` porque el
+    // template literal de drizzle splittea el JS array en parámetros separados
+    // (`ANY($3, $4)`) que es SQL inválido en Postgres y revienta en runtime
+    // cuando hay datos. `inArray` genera correctamente `"col" in ($3, $4)`.
+    inArray(rmas.status, closedStatuses),
   ];
 
   return db
@@ -197,10 +201,11 @@ export async function getProviderRmaVolume(range?: DateRangeParams): Promise<Pro
 }
 
 export async function getProviderSuccessRate(range?: DateRangeParams): Promise<ProviderSuccessRate[]> {
-  const finishedStatuses = ["cerrado", "cancelado"];
+  const finishedStatuses = ["cerrado", "cancelado"] as const;
   const conditions = [
     ...dateConditions(rmas, range),
-    sql`${rmas.status} = ANY(${finishedStatuses})`,
+    // Mismo fix que en getProviderRmaTurnaround — ver comentario allí.
+    inArray(rmas.status, finishedStatuses),
   ];
 
   const rows = await db
