@@ -101,7 +101,20 @@ export async function addNote(
   });
 }
 
-/** Cerrar un ticket/folio (no la conversación) */
+/**
+ * Cerrar un ticket de Intercom.
+ *
+ * NOTA: actualmente NO se usa desde sync.ts porque el `intercomEscalationId`
+ * que guardamos puede ser un conversation_id (caso común) en lugar de un
+ * ticket_id, y la API rechaza el PUT cuando se pasa el ID equivocado.
+ * Para implementar cierre automático del ticket habría que:
+ *   1. getConversation(conversationId)
+ *   2. Extraer tickets vinculados via `linked_objects` o atributos del ticket
+ *   3. Cerrar cada ticket con su estado de workspace específico
+ *
+ * Por ahora, sync.ts añade una nota indicando que el ticket puede cerrarse.
+ * Se mantiene esta función para implementar el cierre automático en el futuro.
+ */
 export async function closeTicket(ticketId: string): Promise<void> {
   await intercomFetch(`/tickets/${ticketId}`, {
     method: "PUT",

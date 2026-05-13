@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { incidents, users, clients, eventLogs } from "@/lib/db/schema";
 import { eq, isNull, notInArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { getRequiredSession, requireRole } from "@/lib/auth/get-session";
 import {
   createIncidentSchema,
@@ -265,31 +266,33 @@ export async function transitionIncident(
     return { success: false, error: result.error };
   }
 
-  // Sync note to Intercom — await the DB query to release the connection,
-  // only the external HTTP call to Intercom is fire-and-forget.
-  try {
-    const [inc] = await db.select({
-      intercomUrl: incidents.intercomUrl,
-      intercomEscalationId: incidents.intercomEscalationId,
-      incidentNumber: incidents.incidentNumber,
-    })
-      .from(incidents)
-      .where(eq(incidents.id, incidentId))
-      .limit(1);
+  // Sync note to Intercom after the response is sent. `after()` guarantees
+  // the work runs even in serverless (Vercel may freeze the instance otherwise).
+  after(async () => {
+    try {
+      const [inc] = await db.select({
+        intercomUrl: incidents.intercomUrl,
+        intercomEscalationId: incidents.intercomEscalationId,
+        incidentNumber: incidents.incidentNumber,
+      })
+        .from(incidents)
+        .where(eq(incidents.id, incidentId))
+        .limit(1);
 
-    if (inc?.intercomUrl || inc?.intercomEscalationId) {
-      syncIncidentTransition({
-        intercomUrl: inc.intercomUrl,
-        intercomEscalationId: inc.intercomEscalationId,
-        incidentNumber: inc.incidentNumber,
-        fromStatus: result.fromStatus,
-        toStatus,
-        comment,
-      });
+      if (inc?.intercomUrl || inc?.intercomEscalationId) {
+        await syncIncidentTransition({
+          intercomUrl: inc.intercomUrl,
+          intercomEscalationId: inc.intercomEscalationId,
+          incidentNumber: inc.incidentNumber,
+          fromStatus: result.fromStatus,
+          toStatus,
+          comment,
+        });
+      }
+    } catch (err) {
+      console.error("[Intercom sync] transitionIncident post-commit failed:", err);
     }
-  } catch {
-    // Intercom sync failure should not break the transition
-  }
+  });
 
   revalidatePath("/incidents");
   revalidatePath(`/incidents/${incidentId}`);
@@ -309,6 +312,7 @@ export async function forceTransitionIncident(
 
   const { incidentId, toStatus, comment } = parsed.data;
 
+  let capturedFromStatus: IncidentStatus | null = null;
 
   try {
     await db.transaction(async (tx) => {
@@ -326,6 +330,7 @@ export async function forceTransitionIncident(
       if (!current) throw new Error("Incidencia no encontrada");
 
       const fromStatus = current.status as IncidentStatus;
+      capturedFromStatus = fromStatus;
       const updateValues: Record<string, unknown> = {
         status: toStatus,
         stateChangedAt: new Date(),
@@ -364,6 +369,36 @@ export async function forceTransitionIncident(
         },
       });
     });
+
+    // Sync note to Intercom after response (waitUntil ensures execution in serverless)
+    if (capturedFromStatus) {
+      const fromStatusFinal = capturedFromStatus;
+      after(async () => {
+        try {
+          const [inc] = await db.select({
+            intercomUrl: incidents.intercomUrl,
+            intercomEscalationId: incidents.intercomEscalationId,
+            incidentNumber: incidents.incidentNumber,
+          })
+            .from(incidents)
+            .where(eq(incidents.id, incidentId))
+            .limit(1);
+
+          if (inc?.intercomUrl || inc?.intercomEscalationId) {
+            await syncIncidentTransition({
+              intercomUrl: inc.intercomUrl,
+              intercomEscalationId: inc.intercomEscalationId,
+              incidentNumber: inc.incidentNumber,
+              fromStatus: fromStatusFinal,
+              toStatus,
+              comment: comment ? `[Transición forzada] ${comment}` : "[Transición forzada]",
+            });
+          }
+        } catch (err) {
+          console.error("[Intercom sync] forceTransitionIncident post-commit failed:", err);
+        }
+      });
+    }
 
     revalidatePath("/incidents");
     revalidatePath(`/incidents/${incidentId}`);
@@ -472,6 +507,33 @@ export async function quickTransitionToGestion(
   if (!result.success) {
     return { success: false, error: result.error };
   }
+
+  // Sync note to Intercom after response. Reports the final state (en_gestion).
+  after(async () => {
+    try {
+      const [inc] = await db.select({
+        intercomUrl: incidents.intercomUrl,
+        intercomEscalationId: incidents.intercomEscalationId,
+        incidentNumber: incidents.incidentNumber,
+      })
+        .from(incidents)
+        .where(eq(incidents.id, incidentId))
+        .limit(1);
+
+      if (inc?.intercomUrl || inc?.intercomEscalationId) {
+        await syncIncidentTransition({
+          intercomUrl: inc.intercomUrl,
+          intercomEscalationId: inc.intercomEscalationId,
+          incidentNumber: inc.incidentNumber,
+          fromStatus: "nuevo",
+          toStatus: "en_gestion",
+          comment: comment ? `[Inicio rápido de gestión] ${comment}` : "[Inicio rápido de gestión]",
+        });
+      }
+    } catch (err) {
+      console.error("[Intercom sync] quickTransitionToGestion post-commit failed:", err);
+    }
+  });
 
   revalidatePath("/incidents");
   revalidatePath(`/incidents/${incidentId}`);

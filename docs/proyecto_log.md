@@ -1090,6 +1090,346 @@ src/lib/auth/get-session.ts                        # Mensajes de error en españ
 
 ---
 
+### Sesión 2026-04-16 — Refactor formularios, hardware_origin, API externa, consultas rápidas
+
+**7 commits** | **~45 archivos** | +3 migraciones SQL nuevas
+
+---
+
+#### Entregable 1: Refactor formularios — drop Local/Sucursal + remap category (`9f6ffc1`)
+
+Cambio de modelo de datos importante: eliminamos `client_location_id` de incidencias y RMAs (el campo se mantenía sin uso real desde antes) y rediseñamos la enum `incident_category` para que mida **canal de origen** en vez de tipo de dispositivo.
+
+**Nueva enum `incident_category`:**
+
+| Antes (tipo dispositivo) | Después (canal de origen) |
+|--------------------------|---------------------------|
+| hardware, periferico, red, almacenamiento, impresora, monitor, otro | `escalado`, `incidencia_directa`, `mencion`, `otro` |
+
+El objetivo: poder medir cuánto trabajo absorbemos de otros equipos (escalados vs incidencias directas vs menciones casuales en canales internos).
+
+**Homogeneización de campos en RMAs:**
+- Rename `phone` → `contact_phone`
+- Rename `address` → `pickup_address`
+- Rename `city` → `pickup_city`
+- Rename `postal_code` → `pickup_postal_code`
+- Nuevo campo `contact_name` (antes solo existía en incidencias)
+
+Ahora el form RMA tiene la misma estructura "Contacto y Recogida" que el form incidencia.
+
+**Otros cambios:**
+- Auto-fill de `contactName` al convertir incidencia → RMA via inline sheet
+- Migración SQL: `sql/008-drop-location-and-remodel-category.sql` (ejecutado manualmente en Supabase SQL Editor)
+- Tests: 116/116 passing (incluye tests nuevos para validators e incidents/rmas actions)
+- 25 archivos | +1366/-339 líneas
+
+---
+
+#### Entregable 2: Campo obligatorio `hardware_origin` (`a98abd6`)
+
+Nuevo campo para distinguir si el hardware afectado es propiedad de Qamarero o reciclado por el cliente — necesario para métricas de fallos por origen.
+
+**Schema:**
+- Nuevo enum `hsm.hardware_origin` con valores `qamarero | cliente_reciclado`
+- Columna nullable en `incidents` (para no romper registros legacy)
+- Migración: `sql/009-add-hardware-origin.sql`
+
+**UI:**
+- Obligatorio en los 3 puntos de entrada de creación: formulario manual, Bandeja Intercom, Quick Capture
+- ToggleGroup destacado (Qamarero / Reciclado cliente) en sección Dispositivo
+- Zod refine fuerza valor; UI deshabilita botón "Crear" hasta que se elige
+- Visible en incident-detail e incident-preview
+- Nuevo filtro "Origen hardware" en listado de incidencias
+
+**Limpieza:**
+- Residuos de `clientLocationId` en `conversation-detail.tsx` que quedaron del refactor anterior
+
+**Tests:** 122/122 passing | 16 archivos | +270/-49 líneas
+
+---
+
+#### Entregable 3: API externa `/api/external/metrics` (`7458b75`)
+
+Endpoint público GET autenticado para que el **HW Main Portal** consuma métricas HSM (banner home + tab detalle).
+
+**Auth:**
+- Header `X-API-Key` validado contra env var `MAIN_PORTAL_API_KEY` con `crypto.timingSafeEqual` (mitiga timing attacks)
+- Helper `src/lib/external-auth.ts` con `requireMainPortalAuth()`:
+  - 503 si falta env var
+  - 401 si no hay header
+  - 403 si no coincide
+  - null si OK
+
+**Métricas agregadas:**
+- `getDashboardStats`, `getSlaMetrics`, `getAgingDistribution`
+- `getProviderRmaVolume`, `getProviderSuccessRate`, `getProviderRmaTurnaround`
+- Calcula periodo actual Y equivalente anterior (mismo nº días justo antes de `from`)
+
+**Cálculos SQL inline nuevos:**
+- `throughput_ratio` = cerradas / creadas en periodo
+- `critical_in_sla_pct` = priority=critica resueltas en ≤8h
+
+**Otros:**
+- Aging buckets mapeados de español a enum del spec: `lt_1d`, `1_3d`, `3_7d`, `gt_7d`
+- Top 5 proveedores combinando arrays de las 3 queries
+- Cache con `unstable_cache(60s)` + tag
+- Runtime `nodejs` (timingSafeEqual), `dynamic = "force-dynamic"`
+
+**Env vars nuevas (Vercel Production + Preview):**
+- `MAIN_PORTAL_API_KEY` — valor compartido con HSM_API_KEY en el portal
+
+**Spec contract:** `docs/connectors/hsm-endpoint-spec.md` en el repo HW Main Portal.
+
+2 archivos nuevos | +373 líneas
+
+---
+
+#### Entregable 4: Fixes API externa (`a5b56ba` + `6adae19` + `8b1222f`)
+
+Tres bugs detectados al integrar el HW Main Portal con producción real.
+
+**a5b56ba — Replace `SQL ANY(${array})` with `inArray()`:**
+- Bug: `sql\`${col} = ANY(${jsArray})\`` partía el array en parámetros individuales → SQL inválido `ANY($3, $4)`
+- HTTP 500 cuando había RMAs en `recibido_oficina`/`cerrado`/`cancelado` en el periodo
+- Fix: `inArray()` de drizzle (`"col" in ($3, $4)` correcto)
+- Afecta `getProviderRmaTurnaround()` y `getProviderSuccessRate()` en `analytics.ts`
+
+**6adae19 — Snapshot metrics ignore date range:**
+- Bug conceptual: queries de "open/active/overdue/by priority/aging" filtraban por `created_at` dentro del rango → excluían items creados ANTES del rango pero aún abiertos hoy
+- Caso real: una incidencia `esperando_cliente` desde marzo NO aparecía en el banner del mes actual
+- Fix: las queries snapshot ahora ignoran `range` explícitamente (`void _range`)
+  - `getDashboardStats`: open_incidents + active_rmas
+  - `getSlaMetrics`: overdue_count + incidentsByPriority
+  - `getAgingDistribution`: completo
+- Las 6 métricas temporales mantienen filtro de fecha: avg_hours, comp_total, comp_compliant, reopen_count, total_resolved, rma_avg_days
+- Co-side effect: el dashboard interno HSM ahora también muestra snapshots correctos
+
+**8b1222f — Coerce `avg_turnaround_days` string→number:**
+- Bug: `getProviderRmaTurnaround` devolvía `avgDays` como STRING (Postgres `ROUND(numeric, 1)` serializa como string) pero el tipo Drizzle decía `number`
+- Manifestación: `top_providers[].avg_turnaround_days` en JSON era string → Main Portal lo rechazaba con "Shape inesperado" (banner neutro)
+- Fix: helper `toNumberOrNull()` en route handler, aplicado a `avg_turnaround_days`, `rma_count`, `success_rate_pct`
+- No tocó las queries para no regresionar el dashboard interno
+
+---
+
+#### Entregable 5: Consultas rápidas + logging upload (`c55b106`)
+
+Dos cambios shipeados juntos por ir en la misma sesión de integración del portal.
+
+**A) Consultas rápidas (cambio principal)**
+
+Caso de uso: un técnico resuelve consulta de un compañero en su mesa en 5-15 min. Antes era invisible y distorsionaba el SLA porque era tiempo real no registrado. Ahora se contabiliza como workload pero NO entra en métricas SLA (al estar resuelta de inmediato no hay tiempo de respuesta que medir).
+
+**Schema** (`sql/010-quick-consultations.sql`):
+- `ALTER TYPE hsm.incident_category ADD VALUE 'consulta_rapida'`
+- `ADD COLUMN incidents.quick_duration_minutes INTEGER NULL`
+- `CREATE INDEX idx_incidents_category`
+
+**Drizzle/types:**
+- Nueva enum value en schema, columna integer
+- Constant `CONSULTA_RAPIDA = "consulta_rapida"` con label "Consulta rápida"
+
+**Validators:**
+- `createQuickConsultationSchema` — solo `title` requerido
+- `convertQuickConsultationSchema` — para escalar a incidencia formal
+
+**Server actions:**
+- `createQuickConsultation`: crea incidencia con `status=resuelto`, `category=consulta_rapida`, `priority=baja`, `hardwareOrigin=qamarero`, `createdAt=resolvedAt=stateChangedAt=now()`. Logs 2 events (created → transition resuelto) para audit consistency
+- `convertQuickConsultation`: escala a incidencia formal cambiando category/status/priority/hardwareOrigin, reabre (`resolvedAt=null`), preserva `quickDurationMinutes` como contexto histórico
+
+**UI:**
+- Nuevo modal `QuickConsultationModal` accesible desde el header (botón "+ Consulta rápida")
+- En incident-detail: botón "Escalar a incidencia" si `category === "consulta_rapida"`
+
+**B) Mejora logging upload errors**
+- `src/app/api/upload/route.ts`: logs con context completo (file type, size, presencia de blob token) para diagnosticar fallos en producción
+
+**Total:** 18 archivos | +806/-21 líneas
+
+---
+
+#### Archivos principales de esta sesión
+
+```
+# Migraciones SQL (nuevas, ejecutadas manualmente en Supabase)
+sql/008-drop-location-and-remodel-category.sql
+sql/009-add-hardware-origin.sql
+sql/010-quick-consultations.sql
+
+# Schema & validators
+src/lib/db/schema/incidents.ts                  # +hardware_origin, +quick_duration_minutes
+src/lib/db/schema/rmas.ts                       # Drop location, rename pickup fields
+src/lib/db/schema/relations.ts                  # Drop clientLocation relations
+src/lib/validators/incident.ts                  # New category enum, +hardwareOrigin, +quick schemas
+src/lib/validators/rma.ts                       # Rename pickup fields
+src/lib/validators/intercom-inbox.ts            # +hardwareOrigin in convertToIncidentSchema
+src/lib/constants/incidents.ts                  # New labels, HARDWARE_ORIGINS, CONSULTA_RAPIDA
+src/lib/constants/filter-options.ts             # +hardware_origin filter
+src/lib/constants/incident-templates.ts         # Remap category values
+
+# Forms & UI
+src/components/incidents/incident-form.tsx      # hardware_origin toggle, simplified
+src/components/incidents/incident-detail.tsx    # Show hardware_origin + escalate button
+src/components/incidents/incident-preview.tsx   # Show hardware_origin
+src/components/incidents/quick-capture-page.tsx # hardware_origin required
+src/components/incidents/inline-rma-sheet.tsx   # Auto-fill contactName
+src/components/incidents/quick-consultation-modal.tsx  # NUEVO — modal consulta rápida
+src/components/intercom/conversation-detail.tsx # hardware_origin + cleanup
+src/components/rmas/rma-form.tsx                # Rename fields, "Contacto y Recogida" section
+src/components/rmas/rma-detail.tsx              # Rename fields display
+src/components/layout/app-header.tsx            # Botón "+ Consulta rápida"
+src/components/dashboard/dashboard-content.tsx  # Card consultas rápidas
+
+# Server
+src/server/actions/incidents.ts                 # +createQuickConsultation, +convertQuickConsultation
+src/server/actions/rmas.ts                      # Rename pickup fields
+src/server/actions/intercom-inbox.ts            # hardware_origin support
+src/server/actions/dashboard.ts                 # Quick consultations queries
+src/server/queries/incidents.ts                 # Select hardware_origin + quick_duration_minutes
+src/server/queries/rmas.ts                      # Rename pickup fields
+src/server/queries/dashboard.ts                 # Snapshot metrics ignore range + quick consultations
+src/server/queries/analytics.ts                 # Fix inArray() in provider queries
+
+# API externa (nueva)
+src/app/api/external/metrics/route.ts           # NUEVO — endpoint para HW Main Portal
+src/lib/external-auth.ts                        # NUEVO — requireMainPortalAuth helper
+src/app/api/upload/route.ts                     # Mejor logging errores
+
+# Tests (nuevos)
+src/lib/validators/incident.test.ts
+src/lib/validators/rma.test.ts
+src/server/actions/incidents.test.ts
+src/server/actions/rmas.test.ts
+```
+
+---
+
+#### Env vars nuevas (Vercel)
+- `MAIN_PORTAL_API_KEY` — shared secret con HW Main Portal (Production + Preview)
+
+---
+
+### Sesión 2026-05-13 — Fix Intercom sync + Fix plantillas + Bandeja Soporte (form público CX)
+
+Sesión orientada a desbloquear tres problemas:
+
+1. **Mensajes a Intercom no se mandaban** — auditoría reveló 10 bugs en el módulo de sync.
+2. **Plantillas exportaban variables vacías** — `renderTemplate` silenciaba placeholders faltantes y `rma-detail` pasaba contexto incompleto.
+3. **Nueva Bandeja Soporte** — formulario público `/submit` para que el equipo CX pueda iniciar incidencias estructuradas sin acceso a HSM.
+
+---
+
+#### Entregable 1: Documentación de commits faltantes
+
+Añadidas en este mismo `proyecto_log.md`: sesión 2026-04-16 documentando 7 commits previos (refactor formularios + hardware_origin + API externa + consultas rápidas).
+
+---
+
+#### Entregable 2: Fix sync HSM → Intercom
+
+**Problema raíz:**
+- `INTERCOM_ADMIN_ID` no estaba documentado en `.env.example`. El default `"0"` hacía que la API rechazara todas las notas silenciosamente.
+- `closeTicket()` se llamaba con `conversation_id` cuando el endpoint espera `ticket_id` → siempre fallaba.
+- 4 de las 5 acciones de transición no llamaban a la sync: `forceTransitionIncident`, `quickTransitionToGestion`, `transitionRma`, `forceTransitionRma`.
+- En serverless (Vercel), el patrón `try { sync(...) }` después del response podía no ejecutarse porque la función se congelaba.
+
+**Fixes aplicados:**
+
+| Bug | Fix |
+|-----|-----|
+| `INTERCOM_ADMIN_ID` no documentado | Añadido a `.env.example` con instrucciones. En `sync.ts`: `getAdminId()` con warning si no configurado (admin_id válido es requerido por Intercom) |
+| `closeTicket` con ID incorrecto | Eliminada la llamada en `sync.ts`. La función sigue exportada en `client.ts` con JSDoc explicando por qué no se usa. En su lugar, la nota final añade: "Esta incidencia está resuelta en HSM — este folio puede cerrarse" |
+| Sync ausente en 4 acciones | Añadido `syncIncidentTransition` / `syncRmaTransition` a las 4 con `after()` de `next/server` |
+| Fragilidad en serverless | Refactor de TODAS las llamadas de sync a `after(async () => { ... })` — Next.js 15 garantiza ejecución tras el response |
+| `extractConversationId` regex frágil | Soporta múltiples formatos (`/conversation/{id}/`, `/conversations/{id}`, ID directo) + log warning si falla |
+| Silent failure si no hay referencia Intercom | `console.info` explícito cuando se salta la sync |
+| RMA sin intercom fields directos | `transitionRma` + `forceTransitionRma` ahora hacen `LEFT JOIN incidents` para obtener `intercomUrl`/`intercomEscalationId` de la incidencia vinculada |
+
+**Notas añadidas con contexto:**
+- Transiciones normales: `📋 [HSM] Incidencia INC-XXXX actualizada: estado → estado`
+- Transición forzada: prefijo `[Transición forzada]`
+- Inicio rápido de gestión: prefijo `[Inicio rápido de gestión]`
+- RMAs: `📦 [HSM] RMA RMA-XXXX actualizado: estado → estado`
+- Cuando incidencia llega a `resuelto`/`cerrado`: añade línea "✅ Este folio puede cerrarse"
+
+---
+
+#### Entregable 3: Fix plantillas de mensajes
+
+**Problema raíz:**
+- `renderTemplate()` usaba `context[key] || ""` → variables no pasadas en contexto se renderizaban vacías silenciosamente. El usuario veía huecos en lugar de un placeholder visible.
+- `rma-detail.tsx` solo pasaba 14 de las 28 variables disponibles. Plantillas como "Solicitud RMA a proveedor" que referencian campos de la incidencia (description, pickupAddress, contactName...) se rompían cuando se abrían desde un RMA.
+- Variables obsoletas en el catálogo: `address`, `postalCode`, `city`, `phone` ya no existen como columnas RMA directas tras el commit `9f6ffc1`.
+
+**Fixes:**
+
+```ts
+// src/lib/constants/message-templates.ts
+return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+  if (key in context) return context[key] ?? "";  // vacío legítimo permitido
+  return `{{${key}}}`;  // ausente → preserve placeholder visible
+});
+```
+
+**Cambios:**
+- `renderTemplate` preserva `{{var}}` literal cuando la key no está en contexto.
+- `RMA_TEMPLATE_VARIABLES`: eliminados `address`, `postalCode`, `city`, `phone` (heredadas de `INCIDENT_TEMPLATE_VARIABLES` como `pickup*` y `contactPhone`).
+- Añadida variable `hardwareOrigin` al catálogo.
+- `rma-detail.tsx`: nuevo `useQuery` con `fetchIncidentById(rma.incidentId)` y merge en el context del TemplatePicker. Si la incidencia vinculada existe, se incluyen sus campos (title, description, category, hardwareOrigin, priority, assignedUserName, intercomUrl, contactName, contactPhone, pickup*).
+- `incident-detail.tsx`: añadida variable `hardwareOrigin` al context.
+
+**Resultado:** las 4 plantillas seed (`sql/003-message-templates.sql`) ahora rinden correctamente tanto desde incidencia como desde RMA con incidencia vinculada.
+
+---
+
+#### Entregable 4: Bandeja Soporte — formulario público para equipo CX
+
+Feature nueva: una página pública `/submit` (sin auth) donde el equipo CX de Qamarero rellena un formulario estructurado para reportar incidencias hardware. Las sumisiones llegan a una cola de revisión `/submissions` donde el equipo HW las aprueba y convierte en incidencias.
+
+**Arquitectura** (siguiendo el patrón de `intercom_inbox`):
+
+| Capa | Archivos |
+|------|----------|
+| Schema BD | `src/lib/db/schema/support-submissions.ts` (tabla `support_submissions` + enums status/priority) |
+| Migración | `sql/011-support-submissions.sql` (DDL + permisos `hsm_app`) |
+| Validators | `src/lib/validators/support-submission.ts` (create + convert + dismiss) |
+| Constants | `src/lib/constants/support-submissions.ts` (status labels, allowed domains, rate limit) |
+| Rate limiter | `src/lib/utils/rate-limit.ts` (in-memory Map, 5 req / 10 min por IP) |
+| Queries | `src/server/queries/support-submissions.ts` (list + count + findClientByName) |
+| Actions | `src/server/actions/support-submissions.ts` (submit público + fetch + convert + dismiss) |
+| Form público | `src/app/submit/{layout,page}.tsx` + `src/components/submit/{submission-form,submission-success}.tsx` |
+| Bandeja revisión | `src/app/(dashboard)/submissions/page.tsx` + `src/components/submissions/{submissions-inbox,submission-list,submission-detail,submission-status-badge}.tsx` |
+| Auth | `src/lib/auth/config.ts` añade `/submissions` a rutas protegidas (`/submit` queda público) |
+| Sidebar | `src/components/layout/app-sidebar.tsx` añade entrada "Bandeja Soporte" con icono `ClipboardList` |
+
+**Formulario público** (`/submit`):
+- Campos: nombre + email submitter, cliente, título, descripción, prioridad, dispositivo opcional, teléfono, URL Intercom.
+- Email validado contra dominios permitidos: `@qamarero.com`, `@qami.es` (configurable en `ALLOWED_SUBMITTER_DOMAINS`).
+- Honeypot field invisible (`website`) — si bot lo rellena, se rechaza silenciosamente.
+- Rate limit: 5 sumisiones / 10 min por IP (en memoria, suficiente para volumen interno).
+- Auto-match cliente por nombre (`ILIKE`) al recibir — si encuentra, guarda `clientId`.
+
+**Bandeja revisión** (`/submissions`):
+- Split-pane (lista izquierda / detalle derecha), igual que Bandeja Intercom.
+- Tabs: Pendientes / Convertidas / Descartadas.
+- Detalle muestra preview de datos recibidos + form editable para crear la incidencia.
+- Botón "Crear Incidencia" requiere seleccionar **Origen del hardware** (ToggleGroup Qamarero / Reciclado, igual que en formularios HSM).
+- Categoría default `escalado` (las sumisiones del equipo CX son escalaciones por definición).
+- Convertir es atómico: inserta incidencia + actualiza submission a `convertida` + log de evento con `source: support_submission`.
+- Descartar es one-click con razón opcional.
+
+**Adaptaciones al schema actual** (commits 9f6ffc1 + a98abd6):
+- `category` enum usa nuevos valores `escalado | incidencia_directa | mencion | otro` (no los antiguos por tipo de dispositivo).
+- `hardwareOrigin` requerido al convertir (sin default, el revisor debe elegir).
+
+#### Env vars nuevas
+Ninguna nueva en este entregable.
+
+#### Migración pendiente
+- Ejecutar `sql/011-support-submissions.sql` en Supabase SQL Editor antes del deploy.
+
+---
+
 ## Próximas Fases
 
 ### Intercom — Pendiente
@@ -1110,7 +1450,11 @@ src/lib/auth/get-session.ts                        # Mensajes de error en españ
 | `sql/003-message-templates.sql` | Ejecutado | Tabla message_templates + seed |
 | `sql/004-update-state-machines.sql` | Ejecutado | ALTER TYPE enums + UPDATE datos |
 | (manual en Supabase) | Ejecutado | Tabla `intercom_inbox` + enum `intercom_inbox_status` + índice |
-| `sql/007-remove-client-local-from-rmas.sql` | **Pendiente** | DROP column client_local de rmas |
+| `sql/007-remove-client-local-from-rmas.sql` | Ejecutado | DROP column client_local de rmas |
+| `sql/008-drop-location-and-remodel-category.sql` | Ejecutado | Drop client_location_id de incidents+rmas, remap category enum, homogenize pickup fields |
+| `sql/009-add-hardware-origin.sql` | Ejecutado | Add hardware_origin enum + nullable column en incidents |
+| `sql/010-quick-consultations.sql` | Ejecutado | Add 'consulta_rapida' enum value + quick_duration_minutes column |
+| `sql/011-support-submissions.sql` | **Pendiente** | Nueva tabla `support_submissions` + enums status/priority |
 
 > **Nota**: Las migraciones se ejecutan manualmente en el SQL Editor de Supabase porque el usuario `hsm_app` no tiene permisos DDL. Los ALTER TYPE deben ejecutarse separados de los UPDATE (Supabase no soporta BEGIN/COMMIT explícitos).
 

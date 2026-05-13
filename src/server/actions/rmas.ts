@@ -1,8 +1,10 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { rmas, providers, clients, eventLogs } from "@/lib/db/schema";
+import { rmas, providers, clients, eventLogs, incidents } from "@/lib/db/schema";
 import { eq, isNull } from "drizzle-orm";
+import { after } from "next/server";
+import { syncRmaTransition } from "@/lib/intercom/sync";
 import { revalidatePath } from "next/cache";
 import { getRequiredSession, requireRole } from "@/lib/auth/get-session";
 import {
@@ -230,12 +232,42 @@ export async function transitionRma(
       details: comment ? { comment } : undefined,
     });
 
-    return { success: true as const };
+    return { success: true as const, fromStatus };
   });
 
   if (!result.success) {
     return { success: false, error: result.error };
   }
+
+  // Sync note to Intercom after response using the linked incident's
+  // Intercom references — RMAs don't have intercom fields directly.
+  const fromStatusFinal = result.fromStatus;
+  after(async () => {
+    try {
+      const [info] = await db.select({
+        rmaNumber: rmas.rmaNumber,
+        intercomUrl: incidents.intercomUrl,
+        intercomEscalationId: incidents.intercomEscalationId,
+      })
+        .from(rmas)
+        .leftJoin(incidents, eq(rmas.incidentId, incidents.id))
+        .where(eq(rmas.id, rmaId))
+        .limit(1);
+
+      if (info && (info.intercomUrl || info.intercomEscalationId)) {
+        await syncRmaTransition({
+          intercomUrl: info.intercomUrl,
+          intercomEscalationId: info.intercomEscalationId,
+          rmaNumber: info.rmaNumber,
+          fromStatus: fromStatusFinal,
+          toStatus,
+          comment,
+        });
+      }
+    } catch (err) {
+      console.error("[Intercom sync] transitionRma post-commit failed:", err);
+    }
+  });
 
   revalidatePath("/rmas");
   revalidatePath(`/rmas/${rmaId}`);
@@ -255,6 +287,8 @@ export async function forceTransitionRma(
 
   const { rmaId, toStatus, comment } = parsed.data;
 
+  let capturedFromStatus: RmaStatus | null = null;
+
   try {
     await db.transaction(async (tx) => {
       const [current] = await tx
@@ -265,6 +299,8 @@ export async function forceTransitionRma(
         .limit(1);
 
       if (!current) throw new Error("RMA no encontrado");
+
+      capturedFromStatus = current.status as RmaStatus;
 
       await tx
         .update(rmas)
@@ -284,6 +320,37 @@ export async function forceTransitionRma(
         },
       });
     });
+
+    // Sync note to Intercom after response
+    if (capturedFromStatus) {
+      const fromStatusFinal: RmaStatus = capturedFromStatus;
+      after(async () => {
+        try {
+          const [info] = await db.select({
+            rmaNumber: rmas.rmaNumber,
+            intercomUrl: incidents.intercomUrl,
+            intercomEscalationId: incidents.intercomEscalationId,
+          })
+            .from(rmas)
+            .leftJoin(incidents, eq(rmas.incidentId, incidents.id))
+            .where(eq(rmas.id, rmaId))
+            .limit(1);
+
+          if (info && (info.intercomUrl || info.intercomEscalationId)) {
+            await syncRmaTransition({
+              intercomUrl: info.intercomUrl,
+              intercomEscalationId: info.intercomEscalationId,
+              rmaNumber: info.rmaNumber,
+              fromStatus: fromStatusFinal,
+              toStatus,
+              comment: comment ? `[Transición forzada] ${comment}` : "[Transición forzada]",
+            });
+          }
+        } catch (err) {
+          console.error("[Intercom sync] forceTransitionRma post-commit failed:", err);
+        }
+      });
+    }
 
     revalidatePath("/rmas");
     revalidatePath(`/rmas/${rmaId}`);

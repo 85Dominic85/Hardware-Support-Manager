@@ -12,6 +12,7 @@ export const INCIDENT_TEMPLATE_VARIABLES = [
   { key: "description", label: "Descripción" },
   { key: "status", label: "Estado" },
   { key: "category", label: "Categoría" },
+  { key: "hardwareOrigin", label: "Origen hardware" },
   { key: "priority", label: "Prioridad" },
   { key: "clientName", label: "Cliente" },
   { key: "assignedUserName", label: "Asignado a" },
@@ -28,7 +29,11 @@ export const INCIDENT_TEMPLATE_VARIABLES = [
   { key: "pickupPostalCode", label: "CP recogida" },
 ] as const;
 
-/** Variables available when rendering a template from an RMA context */
+/**
+ * Variables available when rendering a template from an RMA context.
+ * Includes all incident variables (heredadas porque el RMA se vincula a una
+ * incidencia y mergeamos su contexto) + campos propios del RMA.
+ */
 export const RMA_TEMPLATE_VARIABLES = [
   ...INCIDENT_TEMPLATE_VARIABLES,
   { key: "rmaNumber", label: "Nº RMA" },
@@ -36,10 +41,6 @@ export const RMA_TEMPLATE_VARIABLES = [
   { key: "providerRmaNumber", label: "Nº RMA proveedor" },
   { key: "trackingNumberOutgoing", label: "Tracking envío" },
   { key: "trackingNumberReturn", label: "Tracking devolución" },
-  { key: "address", label: "Dirección" },
-  { key: "postalCode", label: "Código postal" },
-  { key: "city", label: "Ciudad" },
-  { key: "phone", label: "Teléfono" },
 ] as const;
 
 /** All known variables (union of both contexts) — used in template form */
@@ -48,10 +49,22 @@ export const ALL_TEMPLATE_VARIABLES = RMA_TEMPLATE_VARIABLES;
 /**
  * Render a template body/subject by replacing `{{variable}}` placeholders
  * with values from the provided context.
+ *
+ * Behaviour:
+ * - If `key` exists in context (even with empty string): substitute → user
+ *   sees real value or empty (legitimate case: data not yet captured, e.g.
+ *   tracking number before shipping).
+ * - If `key` is NOT in context: preserve `{{key}}` literal so the user can
+ *   see at preview time that a variable is missing and react. Avoids the
+ *   silent data loss that happens when typo'd or out-of-context variables
+ *   render as empty.
  */
 export function renderTemplate(
   template: string,
   context: Record<string, string>
 ): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => context[key] || "");
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+    if (key in context) return context[key] ?? "";
+    return `{{${key}}}`;
+  });
 }

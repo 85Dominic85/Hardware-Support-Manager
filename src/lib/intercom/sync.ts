@@ -1,34 +1,82 @@
 /**
  * Intercom sync utilities.
- * Handles HSM → Intercom communication (notes, ticket closure).
+ * Handles HSM → Intercom communication (internal notes on state changes).
  * All calls are fire-and-forget to not block HSM operations.
+ *
+ * IMPORTANT: requires `INTERCOM_ADMIN_ID` env var to be set to a valid
+ * admin ID (see .env.example for instructions). Without it, Intercom
+ * rejects the note creation requests silently.
  */
 
-import { addNote, closeTicket } from "./client";
+import { addNote } from "./client";
 import { INCIDENT_STATUS_LABELS } from "@/lib/constants/incidents";
 import { RMA_STATUS_LABELS } from "@/lib/constants/rmas";
 
-const INTERCOM_ADMIN_ID = process.env.INTERCOM_ADMIN_ID || "0";
+function getAdminId(): string | null {
+  const id = process.env.INTERCOM_ADMIN_ID;
+  if (!id || id === "0" || id.trim() === "") {
+    console.warn(
+      "[Intercom sync] INTERCOM_ADMIN_ID not configured — notes won't be posted. " +
+      "Set it in Vercel env vars. See .env.example for instructions."
+    );
+    return null;
+  }
+  return id;
+}
 
 /**
- * Extract conversation ID from Intercom URL.
- * Handles formats like:
- * - https://app.intercom.com/a/inbox/.../conversation/123456
- * - https://app.intercom.com/a/inbox/.../inbox/view/123456/conversation/789
- * - Raw conversation ID
+ * Extract conversation ID from Intercom URL or raw ID string.
+ * Handles formats:
+ * - Raw conversation ID (digits only): "123456"
+ * - Modern URL: https://app.intercom.com/a/inbox/{workspace}/conversation/{id}
+ * - Inbox view URL: https://app.intercom.com/a/inbox/{workspace}/inbox/view/{viewId}/conversation/{id}
+ * - Legacy URL: https://app.intercom.com/a/apps/{workspace}/inbox/inbox/all/conversations/{id}
  */
 export function extractConversationId(intercomUrl: string): string | null {
   if (!intercomUrl) return null;
-  // Direct conversation ID (just digits)
-  if (/^\d+$/.test(intercomUrl)) return intercomUrl;
-  // URL pattern
-  const match = intercomUrl.match(/conversation\/(\d+)/);
-  return match?.[1] ?? null;
+
+  // Trim whitespace
+  const trimmed = intercomUrl.trim();
+
+  // Direct ID (just digits)
+  if (/^\d+$/.test(trimmed)) return trimmed;
+
+  // Try multiple URL patterns (last digit group after a known segment)
+  // Capture id from "/conversation/123" or "/conversations/123"
+  const patterns = [
+    /\/conversation\/(\d+)(?:\/|$|\?|#)/,
+    /\/conversations\/(\d+)(?:\/|$|\?|#)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  console.warn(
+    `[Intercom sync] Could not extract conversation ID from URL: ${trimmed.slice(0, 100)}`
+  );
+  return null;
+}
+
+function resolveConversationId(opts: {
+  intercomUrl: string | null;
+  intercomEscalationId: string | null;
+}): string | null {
+  // Prefer escalationId (already a raw ID) over URL parsing
+  if (opts.intercomEscalationId && opts.intercomEscalationId.trim() !== "") {
+    return opts.intercomEscalationId.trim();
+  }
+  return extractConversationId(opts.intercomUrl ?? "");
 }
 
 /**
  * Post a note to Intercom when an incident state changes.
  * Fire-and-forget: logs errors but never throws.
+ *
+ * When the incident reaches a terminal state (resuelto/cerrado), the note
+ * explicitly asks the CX team to close the linked Intercom ticket. We do
+ * NOT attempt to close the ticket programmatically — see B2 note below.
  */
 export async function syncIncidentTransition(opts: {
   intercomUrl: string | null;
@@ -38,9 +86,16 @@ export async function syncIncidentTransition(opts: {
   toStatus: string;
   comment?: string;
 }): Promise<void> {
-  const conversationId = opts.intercomEscalationId
-    ?? extractConversationId(opts.intercomUrl ?? "");
-  if (!conversationId) return;
+  const conversationId = resolveConversationId(opts);
+  if (!conversationId) {
+    console.info(
+      `[Intercom sync] Skipped — no Intercom reference for incident ${opts.incidentNumber}`
+    );
+    return;
+  }
+
+  const adminId = getAdminId();
+  if (!adminId) return;
 
   const fromLabel = INCIDENT_STATUS_LABELS[opts.fromStatus as keyof typeof INCIDENT_STATUS_LABELS] ?? opts.fromStatus;
   const toLabel = INCIDENT_STATUS_LABELS[opts.toStatus as keyof typeof INCIDENT_STATUS_LABELS] ?? opts.toStatus;
@@ -51,26 +106,31 @@ export async function syncIncidentTransition(opts: {
   ];
   if (opts.comment) lines.push(`Comentario: ${opts.comment}`);
 
-  try {
-    await addNote(conversationId, lines.join("\n"), INTERCOM_ADMIN_ID);
+  // Terminal states: ask CX to close the linked Intercom ticket manually.
+  // TODO: implement automated ticket closure. Requires fetching the
+  //       conversation's linked ticket(s) and PUT /tickets/{id} with the
+  //       workspace's "resolved" state. See B2 audit notes.
+  if (opts.toStatus === "resuelto" || opts.toStatus === "cerrado") {
+    lines.push("");
+    lines.push("✅ La incidencia está resuelta en HSM — este folio puede cerrarse.");
+  }
 
-    // Close ticket when incident is resolved or closed
-    if (opts.toStatus === "resuelto" || opts.toStatus === "cerrado") {
-      try {
-        await closeTicket(conversationId);
-      } catch (ticketErr) {
-        // Ticket close may fail if it's a conversation, not a ticket — that's OK
-        console.warn("[Intercom sync] Could not close ticket (may be a conversation):", ticketErr);
-      }
-    }
+  try {
+    await addNote(conversationId, lines.join("\n"), adminId);
   } catch (err) {
-    console.error("[Intercom sync] Error posting note:", err);
+    console.error(
+      `[Intercom sync] Error posting note to conversation ${conversationId}:`,
+      err
+    );
   }
 }
 
 /**
  * Post a note to Intercom when an RMA state changes.
  * Fire-and-forget: logs errors but never throws.
+ *
+ * RMAs don't have intercomUrl/escalationId directly — the caller must fetch
+ * the linked incident's Intercom fields and pass them here.
  */
 export async function syncRmaTransition(opts: {
   intercomUrl: string | null;
@@ -80,9 +140,16 @@ export async function syncRmaTransition(opts: {
   toStatus: string;
   comment?: string;
 }): Promise<void> {
-  const conversationId = opts.intercomEscalationId
-    ?? extractConversationId(opts.intercomUrl ?? "");
-  if (!conversationId) return;
+  const conversationId = resolveConversationId(opts);
+  if (!conversationId) {
+    console.info(
+      `[Intercom sync] Skipped — no Intercom reference for RMA ${opts.rmaNumber}`
+    );
+    return;
+  }
+
+  const adminId = getAdminId();
+  if (!adminId) return;
 
   const fromLabel = RMA_STATUS_LABELS[opts.fromStatus as keyof typeof RMA_STATUS_LABELS] ?? opts.fromStatus;
   const toLabel = RMA_STATUS_LABELS[opts.toStatus as keyof typeof RMA_STATUS_LABELS] ?? opts.toStatus;
@@ -94,8 +161,11 @@ export async function syncRmaTransition(opts: {
   if (opts.comment) lines.push(`Comentario: ${opts.comment}`);
 
   try {
-    await addNote(conversationId, lines.join("\n"), INTERCOM_ADMIN_ID);
+    await addNote(conversationId, lines.join("\n"), adminId);
   } catch (err) {
-    console.error("[Intercom sync] Error posting RMA note:", err);
+    console.error(
+      `[Intercom sync] Error posting RMA note to conversation ${conversationId}:`,
+      err
+    );
   }
 }

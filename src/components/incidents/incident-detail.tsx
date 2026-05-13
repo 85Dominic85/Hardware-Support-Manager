@@ -196,6 +196,9 @@ export function IncidentDetail({ incident }: IncidentDetailProps) {
               description: incident.description ?? "",
               status: incident.status,
               category: INCIDENT_CATEGORY_LABELS[incident.category as IncidentCategory] ?? incident.category,
+              hardwareOrigin: incident.hardwareOrigin
+                ? HARDWARE_ORIGIN_LABELS[incident.hardwareOrigin as HardwareOrigin] ?? incident.hardwareOrigin
+                : "",
               priority: INCIDENT_PRIORITY_LABELS[incident.priority as IncidentPriority] ?? incident.priority,
               clientName: incident.clientCompanyName ?? incident.clientName ?? "",
               assignedUserName: incident.assignedUserName ?? "",

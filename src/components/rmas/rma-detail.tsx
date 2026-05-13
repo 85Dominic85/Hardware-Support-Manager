@@ -14,7 +14,7 @@ import { AttachmentSection } from "@/components/shared/attachment-section";
 import { RmaTransitionButtons } from "@/components/rmas/state-transition-buttons";
 import { RmaForm } from "@/components/rmas/rma-form";
 import { updateRma, fetchProvidersForSelect } from "@/server/actions/rmas";
-import { fetchIncidentsForSelect } from "@/server/actions/incidents";
+import { fetchIncidentsForSelect, fetchIncidentById } from "@/server/actions/incidents";
 import { formatDateTime } from "@/lib/utils/date-format";
 import { DEVICE_TYPE_LABELS, type DeviceType } from "@/lib/constants/device-types";
 import type { RmaStatus } from "@/lib/constants/rmas";
@@ -44,6 +44,17 @@ export function RmaDetail({ rma }: RmaDetailProps) {
     queryKey: ["incidents", "select"],
     queryFn: () => fetchIncidentsForSelect(),
     enabled: isEditing,
+  });
+
+  // Fetch linked incident so templates can render incident-level variables
+  // (description, category, hardwareOrigin, pickup*, intercomUrl, etc.).
+  // Without this, templates referencing those vars render as {{var}}
+  // placeholders since the RMA row alone doesn't carry that data.
+  const { data: linkedIncident } = useQuery({
+    queryKey: ["incident-for-template", rma.incidentId],
+    queryFn: () => fetchIncidentById(rma.incidentId!),
+    enabled: !!rma.incidentId,
+    staleTime: 5 * 60 * 1000,
   });
 
   const updateMutation = useMutation({
@@ -152,25 +163,39 @@ export function RmaDetail({ rma }: RmaDetailProps) {
         <div className="flex items-center gap-2">
           <TemplatePicker
             context={{
+              // RMA-specific fields
               rmaNumber: rma.rmaNumber,
-              clientName: rma.clientCompanyName ?? rma.clientName ?? "",
               providerName: rma.providerName ?? "",
               providerRmaNumber: rma.providerRmaNumber ?? "",
-              incidentNumber: rma.incidentNumber ?? "",
-              status: rma.status,
-              deviceType: rma.deviceType
-                ? DEVICE_TYPE_LABELS[rma.deviceType as DeviceType] ?? rma.deviceType
-                : "",
-              deviceBrand: rma.deviceBrand ?? "",
-              deviceModel: rma.deviceModel ?? "",
-              deviceSerialNumber: rma.deviceSerialNumber ?? "",
               trackingNumberOutgoing: rma.trackingNumberOutgoing ?? "",
               trackingNumberReturn: rma.trackingNumberReturn ?? "",
-              contactName: rma.contactName ?? "",
-              address: rma.pickupAddress ?? "",
-              postalCode: rma.pickupPostalCode ?? "",
-              city: rma.pickupCity ?? "",
-              phone: rma.contactPhone ?? "",
+
+              // Linked incident — prefer incident data when available so templates
+              // referencing incident-level vars work (title, description, category, etc.)
+              incidentNumber: rma.incidentNumber ?? "",
+              title: linkedIncident?.title ?? "",
+              description: linkedIncident?.description ?? "",
+              category: linkedIncident?.category ?? "",
+              hardwareOrigin: linkedIncident?.hardwareOrigin ?? "",
+              priority: linkedIncident?.priority ?? "",
+              assignedUserName: linkedIncident?.assignedUserName ?? "",
+              intercomUrl: linkedIncident?.intercomUrl ?? "",
+              intercomEscalationId: linkedIncident?.intercomEscalationId ?? "",
+
+              // Shared between incident and RMA — RMA values override (more recent)
+              status: rma.status,
+              clientName: rma.clientCompanyName ?? rma.clientName ?? linkedIncident?.clientCompanyName ?? linkedIncident?.clientName ?? "",
+              deviceType: rma.deviceType
+                ? DEVICE_TYPE_LABELS[rma.deviceType as DeviceType] ?? rma.deviceType
+                : (linkedIncident?.deviceType ?? ""),
+              deviceBrand: rma.deviceBrand ?? linkedIncident?.deviceBrand ?? "",
+              deviceModel: rma.deviceModel ?? linkedIncident?.deviceModel ?? "",
+              deviceSerialNumber: rma.deviceSerialNumber ?? linkedIncident?.deviceSerialNumber ?? "",
+              contactName: rma.contactName ?? linkedIncident?.contactName ?? "",
+              contactPhone: rma.contactPhone ?? linkedIncident?.contactPhone ?? "",
+              pickupAddress: rma.pickupAddress ?? linkedIncident?.pickupAddress ?? "",
+              pickupCity: rma.pickupCity ?? linkedIncident?.pickupCity ?? "",
+              pickupPostalCode: rma.pickupPostalCode ?? linkedIncident?.pickupPostalCode ?? "",
             }}
           />
           <Button onClick={() => setIsEditing(true)}>Editar</Button>
