@@ -141,6 +141,16 @@ export function IncidentPageContent({
             />
           </section>
 
+          {/* Divider visible entre las dos secciones */}
+          <div className="relative py-2" aria-hidden="true">
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+            <div className="relative flex justify-center">
+              <span className="bg-background px-3 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">
+                Histórico
+              </span>
+            </div>
+          </div>
+
           {/* Cerradas — resueltas / cerradas / canceladas */}
           <section className="space-y-2">
             <header className="flex items-center gap-2">
