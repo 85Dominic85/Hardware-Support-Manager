@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAlertBadges } from "./sidebar-badges";
+import { GlobalSearchBar } from "./global-search-bar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,6 +121,9 @@ export function AppSidebar() {
             <Plus className="h-3.5 w-3.5" />
             RMA
           </Link>
+        </div>
+        <div className="px-3 pt-2 pb-1">
+          <GlobalSearchBar />
         </div>
         <SidebarGroup>
           <SidebarGroupLabel>Navegación</SidebarGroupLabel>
