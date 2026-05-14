@@ -9,8 +9,30 @@
 /** Incident statuses that represent a closed/finished lifecycle. */
 export const CLOSED_INCIDENT_STATUSES = ["resuelto", "cerrado", "cancelado"] as const;
 
-/** RMA statuses that represent a closed/finished lifecycle. */
+/** Incident statuses considered "active" — the inverse of CLOSED_INCIDENT_STATUSES.
+ *  Used by the listings page to split incidents into Activas / Cerradas tables. */
+export const OPEN_INCIDENT_STATUSES = [
+  "nuevo",
+  "en_triaje",
+  "en_gestion",
+  "esperando_cliente",
+  "esperando_proveedor",
+] as const;
+
+/** RMA statuses that represent a closed/finished lifecycle.
+ *  Note: `recibido_oficina` counts as closed because the device is already
+ *  back from the provider — the RMA workflow is effectively done. */
 export const CLOSED_RMA_STATUSES = ["recibido_oficina", "cerrado", "cancelado"] as const;
+
+/** RMA statuses considered "active" — the inverse of CLOSED_RMA_STATUSES. */
+export const OPEN_RMA_STATUSES = [
+  "borrador",
+  "solicitado",
+  "aprobado",
+  "enviado_proveedor",
+  "en_proveedor",
+  "devuelto",
+] as const;
 
 /** Incident statuses where the SLA clock is paused (waiting on external party). */
 export const PAUSED_INCIDENT_STATES = ["esperando_cliente", "esperando_proveedor"] as const;

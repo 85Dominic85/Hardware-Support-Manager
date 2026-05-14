@@ -6,11 +6,17 @@ import { getIncidents } from "@/server/queries/incidents";
 import { getDefaultPageSize } from "@/server/queries/settings";
 import { getUserFilterOptions } from "@/server/queries/filter-options";
 import { IncidentPageContent } from "@/components/incidents/incident-page-content";
+import {
+  OPEN_INCIDENT_STATUSES,
+  CLOSED_INCIDENT_STATUSES,
+} from "@/lib/constants/statuses";
 import type { SortOrder } from "@/types";
 
 export const metadata: Metadata = {
   title: "Incidencias",
 };
+
+const CLOSED_TABLE_PAGE_SIZE = 10;
 
 export default async function IncidentsPage({
   searchParams,
@@ -20,38 +26,87 @@ export default async function IncidentsPage({
   const params = await searchParams;
 
   const defaultPageSize = await getDefaultPageSize().catch(() => 20);
-  const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || defaultPageSize;
-  const search = typeof params.search === "string" && params.search ? params.search : undefined;
-  const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
-  const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
+  const search =
+    typeof params.search === "string" && params.search ? params.search : undefined;
 
-  // Extract filter params from URL for SSR — ensures initial render respects active filters.
-  // nuqs parseAsArrayOf serializes arrays as comma-separated single params (e.g. ?status=nuevo,en_triaje),
-  // so we must split on comma when the value is a plain string.
+  // The page hosts two stacked tables: "Activas" (open) and "Cerradas"
+  // (closed). Each one keeps its own paginación/sort in URL via the
+  // `open_` / `closed_` prefixes (see use-table-search-params.ts).
+  const openPage = Number(params.open_page) || 1;
+  const openPageSize = Number(params.open_pageSize) || defaultPageSize;
+  const openSortBy =
+    typeof params.open_sortBy === "string" ? params.open_sortBy : "createdAt";
+  const openSortOrder = (typeof params.open_sortOrder === "string"
+    ? params.open_sortOrder
+    : "desc") as SortOrder;
+
+  const closedPage = Number(params.closed_page) || 1;
+  const closedPageSize =
+    Number(params.closed_pageSize) || CLOSED_TABLE_PAGE_SIZE;
+  const closedSortBy =
+    typeof params.closed_sortBy === "string" ? params.closed_sortBy : "resolvedAt";
+  const closedSortOrder = (typeof params.closed_sortOrder === "string"
+    ? params.closed_sortOrder
+    : "desc") as SortOrder;
+
+  // Shared filters (apply to both tables).
+  // nuqs parseAsArrayOf serializes arrays as comma-separated single params
+  // (e.g. ?priority=alta,critica), so we split on comma for plain strings.
   const toArray = (v: string | string[] | undefined): string[] | undefined => {
     if (!v) return undefined;
     if (Array.isArray(v)) return v;
     return v.includes(",") ? v.split(",") : [v];
   };
-  const filters: Record<string, string | string[] | undefined> = {};
-  if (params.status) filters.status = toArray(params.status);
-  if (params.priority) filters.priority = toArray(params.priority);
-  if (params.category) filters.category = toArray(params.category);
-  if (params.assignedUserId) filters.assignedUserId = toArray(params.assignedUserId);
-  if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
-  if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
+  const sharedFilters: Record<string, string | string[] | undefined> = {};
+  if (params.priority) sharedFilters.priority = toArray(params.priority);
+  if (params.category) sharedFilters.category = toArray(params.category);
+  if (params.hardwareOrigin) sharedFilters.hardwareOrigin = toArray(params.hardwareOrigin);
+  if (params.assignedUserId)
+    sharedFilters.assignedUserId = toArray(params.assignedUserId);
+  if (typeof params.dateRangeFrom === "string")
+    sharedFilters.dateRangeFrom = params.dateRangeFrom;
+  if (typeof params.dateRangeTo === "string")
+    sharedFilters.dateRangeTo = params.dateRangeTo;
 
-  const [userOptions, initialData] = await Promise.all([
+  const openFilters = {
+    ...sharedFilters,
+    status: [...OPEN_INCIDENT_STATUSES] as string[],
+  };
+  const closedFilters = {
+    ...sharedFilters,
+    status: [...CLOSED_INCIDENT_STATUSES] as string[],
+  };
+
+  const [userOptions, openInitial, closedInitial] = await Promise.all([
     getUserFilterOptions().catch(() => []),
     getIncidents({
-      page,
-      pageSize,
+      page: openPage,
+      pageSize: openPageSize,
       search,
-      sortBy,
-      sortOrder,
-      ...(Object.keys(filters).length > 0 ? { filters } : {}),
-    }).catch(() => ({ data: [], totalCount: 0, page, pageSize, totalPages: 0 })),
+      sortBy: openSortBy,
+      sortOrder: openSortOrder,
+      filters: openFilters,
+    }).catch(() => ({
+      data: [],
+      totalCount: 0,
+      page: openPage,
+      pageSize: openPageSize,
+      totalPages: 0,
+    })),
+    getIncidents({
+      page: closedPage,
+      pageSize: closedPageSize,
+      search,
+      sortBy: closedSortBy,
+      sortOrder: closedSortOrder,
+      filters: closedFilters,
+    }).catch(() => ({
+      data: [],
+      totalCount: 0,
+      page: closedPage,
+      pageSize: closedPageSize,
+      totalPages: 0,
+    })),
   ]);
 
   return (
@@ -75,7 +130,12 @@ export default async function IncidentsPage({
           </Link>
         </Button>
       </div>
-      <IncidentPageContent initialData={initialData} defaultPageSize={defaultPageSize} userOptions={userOptions} />
+      <IncidentPageContent
+        openInitialData={openInitial}
+        closedInitialData={closedInitial}
+        defaultPageSize={defaultPageSize}
+        userOptions={userOptions}
+      />
     </div>
   );
 }

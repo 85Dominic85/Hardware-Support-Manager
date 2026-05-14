@@ -6,11 +6,17 @@ import { getRmas } from "@/server/queries/rmas";
 import { getDefaultPageSize } from "@/server/queries/settings";
 import { getProviderFilterOptions } from "@/server/queries/filter-options";
 import { RmaPageContent } from "@/components/rmas/rma-page-content";
+import {
+  OPEN_RMA_STATUSES,
+  CLOSED_RMA_STATUSES,
+} from "@/lib/constants/statuses";
 import type { SortOrder } from "@/types";
 
 export const metadata: Metadata = {
   title: "RMAs",
 };
+
+const CLOSED_TABLE_PAGE_SIZE = 10;
 
 export default async function RmasPage({
   searchParams,
@@ -20,36 +26,83 @@ export default async function RmasPage({
   const params = await searchParams;
 
   const defaultPageSize = await getDefaultPageSize().catch(() => 20);
-  const page = Number(params.page) || 1;
-  const pageSize = Number(params.pageSize) || defaultPageSize;
-  const search = typeof params.search === "string" && params.search ? params.search : undefined;
-  const sortBy = typeof params.sortBy === "string" ? params.sortBy : "stateChangedAt";
-  const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "desc") as SortOrder;
+  const search =
+    typeof params.search === "string" && params.search ? params.search : undefined;
 
-  // Extract filter params from URL for SSR — ensures initial render respects active filters.
-  // nuqs parseAsArrayOf serializes arrays as comma-separated single params (e.g. ?status=nuevo,en_triaje),
-  // so we must split on comma when the value is a plain string.
+  // Two stacked tables: "Activos" (open workflow) and "Cerrados" (final
+  // lifecycle: recibido_oficina / cerrado / cancelado). Each one keeps its
+  // own pagination/sort in URL via `open_` / `closed_` prefixes.
+  const openPage = Number(params.open_page) || 1;
+  const openPageSize = Number(params.open_pageSize) || defaultPageSize;
+  const openSortBy =
+    typeof params.open_sortBy === "string" ? params.open_sortBy : "createdAt";
+  const openSortOrder = (typeof params.open_sortOrder === "string"
+    ? params.open_sortOrder
+    : "desc") as SortOrder;
+
+  const closedPage = Number(params.closed_page) || 1;
+  const closedPageSize =
+    Number(params.closed_pageSize) || CLOSED_TABLE_PAGE_SIZE;
+  const closedSortBy =
+    typeof params.closed_sortBy === "string"
+      ? params.closed_sortBy
+      : "stateChangedAt";
+  const closedSortOrder = (typeof params.closed_sortOrder === "string"
+    ? params.closed_sortOrder
+    : "desc") as SortOrder;
+
+  // Shared filters
   const toArray = (v: string | string[] | undefined): string[] | undefined => {
     if (!v) return undefined;
     if (Array.isArray(v)) return v;
     return v.includes(",") ? v.split(",") : [v];
   };
-  const filters: Record<string, string | string[] | undefined> = {};
-  if (params.status) filters.status = toArray(params.status);
-  if (params.providerId) filters.providerId = toArray(params.providerId);
-  if (typeof params.dateRangeFrom === "string") filters.dateRangeFrom = params.dateRangeFrom;
-  if (typeof params.dateRangeTo === "string") filters.dateRangeTo = params.dateRangeTo;
+  const sharedFilters: Record<string, string | string[] | undefined> = {};
+  if (params.providerId) sharedFilters.providerId = toArray(params.providerId);
+  if (typeof params.dateRangeFrom === "string")
+    sharedFilters.dateRangeFrom = params.dateRangeFrom;
+  if (typeof params.dateRangeTo === "string")
+    sharedFilters.dateRangeTo = params.dateRangeTo;
 
-  const [providerOptions, initialData] = await Promise.all([
+  const openFilters = {
+    ...sharedFilters,
+    status: [...OPEN_RMA_STATUSES] as string[],
+  };
+  const closedFilters = {
+    ...sharedFilters,
+    status: [...CLOSED_RMA_STATUSES] as string[],
+  };
+
+  const [providerOptions, openInitial, closedInitial] = await Promise.all([
     getProviderFilterOptions().catch(() => []),
     getRmas({
-      page,
-      pageSize,
+      page: openPage,
+      pageSize: openPageSize,
       search,
-      sortBy,
-      sortOrder,
-      ...(Object.keys(filters).length > 0 ? { filters } : {}),
-    }).catch(() => ({ data: [], totalCount: 0, page, pageSize, totalPages: 0 })),
+      sortBy: openSortBy,
+      sortOrder: openSortOrder,
+      filters: openFilters,
+    }).catch(() => ({
+      data: [],
+      totalCount: 0,
+      page: openPage,
+      pageSize: openPageSize,
+      totalPages: 0,
+    })),
+    getRmas({
+      page: closedPage,
+      pageSize: closedPageSize,
+      search,
+      sortBy: closedSortBy,
+      sortOrder: closedSortOrder,
+      filters: closedFilters,
+    }).catch(() => ({
+      data: [],
+      totalCount: 0,
+      page: closedPage,
+      pageSize: closedPageSize,
+      totalPages: 0,
+    })),
   ]);
 
   return (
@@ -73,7 +126,12 @@ export default async function RmasPage({
           </Link>
         </Button>
       </div>
-      <RmaPageContent initialData={initialData} defaultPageSize={defaultPageSize} providerOptions={providerOptions} />
+      <RmaPageContent
+        openInitialData={openInitial}
+        closedInitialData={closedInitial}
+        defaultPageSize={defaultPageSize}
+        providerOptions={providerOptions}
+      />
     </div>
   );
 }

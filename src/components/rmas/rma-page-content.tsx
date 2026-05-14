@@ -15,19 +15,29 @@ import type { PaginatedResult, SortOrder } from "@/types";
 import type { RmaRow } from "@/server/queries/rmas";
 
 interface RmaPageContentProps {
-  initialData: PaginatedResult<RmaRow>;
+  openInitialData: PaginatedResult<RmaRow>;
+  closedInitialData: PaginatedResult<RmaRow>;
   defaultPageSize?: number;
   providerOptions?: FilterOption[];
 }
 
-export function RmaPageContent({ initialData, defaultPageSize, providerOptions }: RmaPageContentProps) {
+export function RmaPageContent({
+  openInitialData,
+  closedInitialData,
+  defaultPageSize,
+  providerOptions,
+}: RmaPageContentProps) {
   const [view, setView] = useState<"table" | "canvas">("table");
 
   // Search: pure in-memory debounce. Lives in this component, shared with table + kanban.
   const { inputValue, setInputValue, debouncedValue: search } = useDebouncedSearch();
 
-  // Filters: URL state via nuqs (shallow: true, no SSR navigation)
-  const filterConfigs = useMemo(() => buildRmaFilters(providerOptions), [providerOptions]);
+  // In table view we exclude the Estado filter because Activas/Cerradas
+  // already split the data by lifecycle.
+  const filterConfigs = useMemo(
+    () => buildRmaFilters(providerOptions, { excludeStatus: view === "table" }),
+    [providerOptions, view],
+  );
   const { params: filterParams, filterValues, filterKey, setFilter, clearFilters, activeFilterCount } =
     useFilterParams(filterConfigs);
 
@@ -69,14 +79,53 @@ export function RmaPageContent({ initialData, defaultPageSize, providerOptions }
         <ViewToggle view={view} onViewChange={setView} altLabel="Kanban" />
       </div>
       {view === "table" ? (
-        <RmaList
-          initialData={initialData}
-          defaultPageSize={defaultPageSize}
-          search={search}
-          filterValues={filterValues}
-          filterKey={filterKey}
-          searchAndFilters={searchAndFilters}
-        />
+        <div className="space-y-6">
+          {searchAndFilters}
+
+          {/* Activos — RMAs en curso */}
+          <section className="space-y-2">
+            <header className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                Activos
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                En curso — más recientes primero
+              </span>
+            </header>
+            <RmaList
+              initialData={openInitialData}
+              defaultPageSize={defaultPageSize}
+              search={search}
+              filterValues={filterValues}
+              filterKey={filterKey}
+              variant="open"
+              paramPrefix="open"
+            />
+          </section>
+
+          {/* Cerrados — recibido_oficina / cerrado / cancelado */}
+          <section className="space-y-2">
+            <header className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Cerrados
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                Recibido oficina / Cerrado / Cancelado
+              </span>
+            </header>
+            <RmaList
+              initialData={closedInitialData}
+              defaultPageSize={10}
+              search={search}
+              filterValues={filterValues}
+              filterKey={filterKey}
+              variant="closed"
+              paramPrefix="closed"
+            />
+          </section>
+        </div>
       ) : (
         <div className="space-y-4">
           {searchAndFilters}
@@ -86,7 +135,7 @@ export function RmaPageContent({ initialData, defaultPageSize, providerOptions }
               <p className="text-sm">Comprueba tu conexión e inténtalo de nuevo.</p>
             </div>
           ) : (
-            <RmaKanban data={kanbanData?.data ?? initialData.data} />
+            <RmaKanban data={kanbanData?.data ?? openInitialData.data} />
           )}
         </div>
       )}

@@ -187,6 +187,7 @@ function getSortColumn(sortBy: string): AnyColumn {
     priority: incidents.priority,
     createdAt: incidents.createdAt,
     stateChangedAt: incidents.stateChangedAt,
+    resolvedAt: incidents.resolvedAt,
   };
   return columns[sortBy] ?? incidents.createdAt;
 }

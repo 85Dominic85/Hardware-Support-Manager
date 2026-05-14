@@ -1,12 +1,16 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useTableSearchParams } from "@/hooks/use-table-search-params";
 import { DataTable } from "@/components/shared/data-table";
 import { rmaColumns, RMA_MOBILE_HIDDEN_COLUMNS } from "./rma-columns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchRmas } from "@/server/actions/rmas";
+import {
+  OPEN_RMA_STATUSES,
+  CLOSED_RMA_STATUSES,
+} from "@/lib/constants/statuses";
 import type { PaginatedResult } from "@/types";
 import type { RmaRow } from "@/server/queries/rmas";
 import type { SortOrder } from "@/types";
@@ -17,7 +21,14 @@ interface RmaListProps {
   search: string;
   filterValues: Record<string, string | string[] | undefined>;
   filterKey: string;
-  searchAndFilters: React.ReactNode;
+  searchAndFilters?: React.ReactNode;
+  /**
+   * Pre-applied status filter. `"open"` = active workflow, `"closed"` =
+   * recibido_oficina / cerrado / cancelado. Default sort changes accordingly.
+   */
+  variant?: "open" | "closed";
+  /** URL param prefix when two tables coexist (e.g. "open" → ?open_page=2). */
+  paramPrefix?: string;
 }
 
 export function RmaList({
@@ -27,13 +38,42 @@ export function RmaList({
   filterValues,
   filterKey,
   searchAndFilters,
+  variant,
+  paramPrefix,
 }: RmaListProps) {
   const isMobile = useIsMobile();
-  const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
-    useTableSearchParams("stateChangedAt", defaultPageSize);
 
-  // Auto-reset page to 1 when search or filters change.
-  // Done via ref comparison during render — no useEffect, no URL writes, no loops.
+  // For RMAs, "newest entries first" in Activas → createdAt DESC.
+  // Cerradas → stateChangedAt DESC (when each one moved into final state).
+  const defaultSortBy =
+    variant === "closed" ? "stateChangedAt" :
+    variant === "open" ? "createdAt" :
+    "stateChangedAt";
+
+  const { page, pageSize, sortBy, sortOrder, setPage, setPageSize, setSorting } =
+    useTableSearchParams(defaultSortBy, defaultPageSize, paramPrefix);
+
+  const effectiveFilters = useMemo(() => {
+    if (!variant) return filterValues;
+
+    const lifecycleStatuses =
+      variant === "open"
+        ? (OPEN_RMA_STATUSES as readonly string[])
+        : (CLOSED_RMA_STATUSES as readonly string[]);
+
+    const userStatus = filterValues.status;
+    let statusFilter: string[];
+
+    if (Array.isArray(userStatus) && userStatus.length > 0) {
+      statusFilter = userStatus.filter((s) => lifecycleStatuses.includes(s));
+      if (statusFilter.length === 0) statusFilter = [...lifecycleStatuses];
+    } else {
+      statusFilter = [...lifecycleStatuses];
+    }
+
+    return { ...filterValues, status: statusFilter };
+  }, [filterValues, variant]);
+
   const prevSearchRef = useRef(search);
   const prevFilterKeyRef = useRef(filterKey);
   let effectivePage = page;
@@ -43,8 +83,10 @@ export function RmaList({
     prevFilterKeyRef.current = filterKey;
   }
 
+  const queryKeyPrefix = variant ? `rmas-${variant}` : "rmas";
+
   const { data: queryData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["rmas", { page: effectivePage, pageSize, search, sortBy, sortOrder, filters: filterValues }],
+    queryKey: [queryKeyPrefix, { page: effectivePage, pageSize, search, sortBy, sortOrder, filters: effectiveFilters }],
     queryFn: () =>
       fetchRmas({
         page: effectivePage,
@@ -52,7 +94,7 @@ export function RmaList({
         search: search || undefined,
         sortBy,
         sortOrder: sortOrder as SortOrder,
-        filters: filterValues,
+        filters: effectiveFilters,
       }),
     placeholderData: keepPreviousData,
   });

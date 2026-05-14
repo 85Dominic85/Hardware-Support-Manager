@@ -47,6 +47,9 @@ interface DataTableProps<TData> {
   sortOrder?: string;
   onSort?: (sortBy: string, sortOrder: "asc" | "desc") => void;
   columnVisibility?: Record<string, boolean>;
+  /** Per-row className computed from the row data — used to highlight
+   *  stale rows, priority, etc. without touching the table itself. */
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 export function DataTable<TData>({
@@ -67,6 +70,7 @@ export function DataTable<TData>({
   sortOrder,
   onSort,
   columnVisibility,
+  rowClassName,
 }: DataTableProps<TData>) {
   const table = useReactTable({
     data,
@@ -160,21 +164,24 @@ export function DataTable<TData>({
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  className="hover:bg-muted/50 transition-colors duration-150"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const extraCls = rowClassName?.(row.original) ?? "";
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={`hover:bg-muted/50 transition-colors duration-150 ${extraCls}`.trim()}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
