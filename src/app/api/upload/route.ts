@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: "El archivo excede el tamaño máximo permitido (10MB)" }, { status: 400 });
+    const limitMb = Math.round(MAX_FILE_SIZE / (1024 * 1024));
+    return NextResponse.json({ error: `El archivo excede el tamaño máximo permitido (${limitMb}MB)` }, { status: 400 });
   }
 
   if (!(ALLOWED_FILE_TYPES as readonly string[]).includes(file.type)) {
